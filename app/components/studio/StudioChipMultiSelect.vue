@@ -1,13 +1,13 @@
 <template>
-  <div class="flex flex-wrap gap-3">
+  <div class="flex flex-wrap gap-2">
     <button
       v-for="option in options"
       :key="option"
       type="button"
-      class="rounded-full border px-4 py-2 text-sm transition"
+      class="rounded border px-3 py-1.5 font-mono text-xs transition"
       :class="selectedValues.includes(option)
-        ? 'border-accent bg-accent text-bg shadow-sm'
-        : 'border-border bg-bg text-text-muted hover:border-accent/60 hover:text-text'"
+        ? 'border-accent bg-accent/10 text-accent'
+        : 'border-border text-text-muted hover:border-border/80 hover:text-text'"
       @click="toggleOption(option)"
     >
       {{ option }}

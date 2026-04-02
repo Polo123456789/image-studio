@@ -2,7 +2,7 @@
   <button
     :type="type"
     v-bind="$attrs"
-    class="rounded-2xl bg-accent px-6 py-4 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+    class="rounded bg-accent px-5 py-2.5 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
   >
     <slot />
   </button>

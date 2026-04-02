@@ -1,21 +1,16 @@
 <template>
-  <section class="space-y-4">
-    <div class="flex items-center gap-3">
-      <span class="font-mono text-xs text-accent">{{ number }}.</span>
-      <h3 class="font-body text-xl font-medium text-text">
-        {{ title }}
-      </h3>
-      <span
-        v-if="badge"
-        class="rounded-full border border-border px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-text-muted"
-      >
-        {{ badge }}
-      </span>
+  <section class="space-y-3">
+    <div>
+      <div class="flex items-baseline gap-2">
+        <h3 class="text-sm font-medium text-text">{{ title }}</h3>
+        <span v-if="hint" class="font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">
+          {{ hint }}
+        </span>
+      </div>
+      <p v-if="description" class="mt-1 text-sm leading-5 text-text-muted">
+        {{ description }}
+      </p>
     </div>
-
-    <p v-if="description" class="max-w-3xl text-sm leading-7 text-text-muted">
-      {{ description }}
-    </p>
 
     <slot />
   </section>
@@ -23,9 +18,8 @@
 
 <script setup lang="ts">
 defineProps<{
-  number: number | string
   title: string
   description?: string
-  badge?: string
+  hint?: string
 }>()
 </script>

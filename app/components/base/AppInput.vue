@@ -3,7 +3,7 @@
     v-model="model"
     :type="type"
     v-bind="$attrs"
-    class="w-full rounded-xl border border-border bg-bg px-4 py-4 text-base text-text outline-none transition placeholder:text-text-muted focus:border-accent"
+    class="w-full rounded border border-border bg-surface-2 px-3 py-2.5 text-sm text-text outline-none transition placeholder:text-text-muted focus:border-accent"
   >
 </template>
 

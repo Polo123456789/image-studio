@@ -1,32 +1,18 @@
 <template>
-  <div class="space-y-4 rounded-2xl border border-dashed border-border bg-bg/65 p-5">
-    <div class="flex items-center justify-between gap-4">
-      <div class="flex items-center gap-3">
-        <span class="font-mono text-xs text-accent">{{ number }}.</span>
-        <h3 class="font-body text-xl font-medium text-text">
-          {{ title }}
-        </h3>
-      </div>
-      <span class="rounded-full border border-border px-2.5 py-1 text-[11px] uppercase tracking-[0.18em] text-text-muted">
-        Pendiente
-      </span>
+  <div class="space-y-2">
+    <div class="flex items-baseline gap-2">
+      <h3 class="text-sm font-medium text-text-muted/60">{{ title }}</h3>
+      <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted/40">pendiente</span>
     </div>
-
-    <p class="text-sm leading-7 text-text-muted">
+    <p class="text-sm leading-5 text-text-muted/40">
       {{ description }}
     </p>
-
-    <div class="rounded-xl border border-border bg-surface px-4 py-5 text-sm text-text-muted">
-      {{ placeholder }}
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 defineProps<{
-  number: number | string
   title: string
   description: string
-  placeholder: string
 }>()
 </script>
