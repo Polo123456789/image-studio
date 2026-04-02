@@ -76,6 +76,17 @@ function buildImagePrompt(prompt: string): string {
   return [settings.imageGeneratorPrompt, prompt].join('\n\n')
 }
 
+function buildFinalImagePrompt(prompt: string): string {
+  return [
+    prompt,
+    'Genera la imagen final directamente.',
+    'No describas el prompt.',
+    'No expliques lo que vas a hacer.',
+    'No devuelvas texto.',
+    'Devuelve solo la imagen generada.'
+  ].join('\n\n')
+}
+
 function extractInlineImage(response: unknown): { data: string, mimeType: string } | null {
   if (!response || typeof response !== 'object') {
     return null
@@ -114,6 +125,49 @@ function extractInlineImage(response: unknown): { data: string, mimeType: string
   }
 
   return null
+}
+
+function summarizeGenerateContentResponse(response: unknown) {
+  if (!response || typeof response !== 'object') {
+    return { kind: typeof response }
+  }
+
+  const responseRecord = response as {
+    text?: string
+    data?: string
+    candidates?: Array<{
+      finishReason?: string
+      content?: {
+        parts?: Array<{
+          text?: string
+          inlineData?: {
+            data?: string
+            mimeType?: string
+          }
+        }>
+      }
+    }>
+  }
+
+  return {
+    topLevelKeys: Object.keys(responseRecord),
+    hasText: false,
+    hasData: Boolean(responseRecord.data),
+    dataLength: responseRecord.data?.length || 0,
+    candidates: (responseRecord.candidates || []).map((candidate, candidateIndex) => ({
+      candidateIndex,
+      finishReason: candidate.finishReason || null,
+      parts: (candidate.content?.parts || []).map((part, partIndex) => ({
+        partIndex,
+        partKeys: Object.keys(part),
+        hasText: Boolean(part.text),
+        textPreview: part.text?.slice(0, 160) || null,
+        hasInlineData: Boolean(part.inlineData?.data),
+        inlineMimeType: part.inlineData?.mimeType || null,
+        inlineDataLength: part.inlineData?.data?.length || 0
+      }))
+    }))
+  }
 }
 
 export async function generateConceptSeeds(payload: StudioBriefPayload): Promise<StudioConceptSeed[]> {
@@ -188,27 +242,46 @@ export async function generatePreviewImage(prompt: string, aspectRatio: string):
 
 export async function generateFinalImage(prompt: string, aspectRatio: string, resolution: string): Promise<string> {
   const ai = getClient()
+  const mappedResolution = mapResolution(resolution)
 
-  const response = await ai.models.generateContent({
+  console.info('[gemini.final.request]', {
     model: imageModel,
-    contents: {
-      parts: [
-        {
-          text: buildImagePrompt(prompt)
-        }
-      ]
-    },
-    config: {
-      imageConfig: {
-        aspectRatio,
-        imageSize: mapResolution(resolution)
-      }
-    }
+    aspectRatio,
+    resolution,
+    mappedResolution,
+    promptLength: prompt.length,
+    promptPreview: prompt.slice(0, 200)
   })
+
+  async function requestImage(promptText: string) {
+    return ai.models.generateContent({
+      model: imageModel,
+      contents: {
+        parts: [
+          {
+            text: promptText
+          }
+        ]
+      },
+      config: {
+        responseModalities: ['IMAGE'],
+        imageConfig: {
+          aspectRatio,
+          imageSize: mappedResolution
+        }
+      }
+    })
+  }
+
+  const response = await requestImage(prompt)
+
+  console.info('[gemini.final.response]', JSON.stringify(summarizeGenerateContentResponse(response), null, 2))
 
   const image = extractInlineImage(response)
 
   if (!image) {
+    console.error('[gemini.final.no-image]', JSON.stringify(summarizeGenerateContentResponse(response), null, 2))
+
     throw createError({
       statusCode: 502,
       statusMessage: 'Gemini did not return final image bytes'
