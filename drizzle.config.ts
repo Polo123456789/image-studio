@@ -1,3 +1,5 @@
+import { resolve } from 'node:path'
+
 import { defineConfig } from 'drizzle-kit'
 
 export default defineConfig({
@@ -5,6 +7,6 @@ export default defineConfig({
   schema: './server/db/schema.ts',
   out: './server/db/migrations',
   dbCredentials: {
-    url: './server/db/local.db'
+    url: resolve(process.cwd(), 'server/db/local.db')
   }
 })

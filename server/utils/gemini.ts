@@ -76,17 +76,6 @@ function buildImagePrompt(prompt: string): string {
   return [settings.imageGeneratorPrompt, prompt].join('\n\n')
 }
 
-function buildFinalImagePrompt(prompt: string): string {
-  return [
-    prompt,
-    'Genera la imagen final directamente.',
-    'No describas el prompt.',
-    'No expliques lo que vas a hacer.',
-    'No devuelvas texto.',
-    'Devuelve solo la imagen generada.'
-  ].join('\n\n')
-}
-
 function extractInlineImage(response: unknown): { data: string, mimeType: string } | null {
   if (!response || typeof response !== 'object') {
     return null
