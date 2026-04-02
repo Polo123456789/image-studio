@@ -45,10 +45,18 @@ export interface StudioConceptResponse {
   concepts: StudioConcept[]
 }
 
-export interface StudioRegeneratePreviewPayload {
+export interface StudioRegenerateVariantPayload {
   concept: StudioConcept
   ratio: string
   prompt: string
+  resolution?: string
+}
+
+export interface StudioConceptSeed {
+  title: string
+  subtitle: string
+  rationale: string
+  variantPrompts: Record<string, string>
 }
 
 export interface StudioFinalizeConceptPayload {

@@ -145,7 +145,7 @@
                   </p>
                   <button
                     type="button"
-                    class="mt-3 w-full rounded-lg bg-accent px-4 py-3 text-sm font-medium text-bg transition hover:opacity-90 disabled:opacity-50"
+                    class="mt-3 w-full rounded-lg bg-[#ff8a00] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
                     :disabled="loadingFinalId === concept.id"
                     @click="finalizeConcept(concept.id)"
                   >
@@ -186,10 +186,10 @@
                   <div class="flex flex-col gap-2 sm:flex-row">
                     <AppButton
                       type="button"
-                      :disabled="loadingPreviewId === concept.id || !selectedFormat(concept)?.isPreviewSource"
-                      @click="regeneratePreview(concept.id)"
+                      :disabled="loadingPreviewId === concept.id || (!selectedFormat(concept)?.isPreviewSource && !concept.approvedAt)"
+                      @click="regenerateVariant(concept.id)"
                     >
-                      {{ loadingPreviewId === concept.id ? 'Regenerando...' : `Regenerar preview` }}
+                      {{ loadingPreviewId === concept.id ? 'Regenerando...' : concept.approvedAt ? 'Regenerar' : 'Regenerar preview' }}
                     </AppButton>
 
                     <button
@@ -479,11 +479,11 @@ function selectVariant(conceptId: string, ratio: string, variantId: string) {
   }))
 }
 
-async function regeneratePreview(conceptId: string) {
+async function regenerateVariant(conceptId: string) {
   const concept = concepts.value.find((item) => item.id === conceptId)
   const format = concept ? selectedFormat(concept) : null
 
-  if (!concept || !format || !format.isPreviewSource) {
+  if (!concept || !format || (!format.isPreviewSource && !concept.approvedAt)) {
     return
   }
 
@@ -491,12 +491,13 @@ async function regeneratePreview(conceptId: string) {
 
   try {
     const prompt = promptDrafts.value[conceptId]
-    const response = await $fetch<{ variant: StudioVariant }>('/api/studio/regenerate-preview', {
+    const response = await $fetch<{ variant: StudioVariant }>('/api/studio/regenerate-variant', {
       method: 'POST',
       body: {
         concept,
         ratio: concept.selectedRatio,
-        prompt
+        prompt,
+        resolution: brief.value.resolution
       }
     })
 
