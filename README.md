@@ -1,6 +1,6 @@
-# Nuxt Minimal Starter
+# Image Studio
 
-Look at the [Nuxt documentation](https://nuxt.com/docs/getting-started/introduction) to learn more.
+Base inicial con Nuxt, Drizzle y SQLite local.
 
 ## Setup
 
@@ -18,6 +18,15 @@ yarn install
 
 # bun
 bun install
+```
+
+## Database
+
+Configurar migraciones:
+
+```bash
+bun run db:generate
+bun run db:migrate
 ```
 
 ## Development Server
