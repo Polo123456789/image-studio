@@ -17,14 +17,22 @@ function createFinalVariant(conceptId: string, ratio: string, prompt: string, re
 export default defineEventHandler(async (event) => {
   const payload = await readBody<StudioFinalizeConceptPayload>(event)
   const project = getStudioProjectBySlug(payload.projectSlug)
+  const storedConcept = project.concepts.find((concept) => concept.id === payload.concept.id)
 
-  const formats = await Promise.all(payload.concept.formats.map(async (format) => {
+  if (!storedConcept) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Concept not found'
+    })
+  }
+
+  const formats = await Promise.all(storedConcept.formats.map(async (format) => {
     const imageUrl = await generateFinalImage(format.promptDraft, format.ratio, payload.resolution)
 
     return {
       ratio: format.ratio,
       variant: createFinalVariant(
-        payload.concept.id,
+        storedConcept.id,
         format.ratio,
         format.promptDraft,
         payload.resolution,
@@ -36,7 +44,7 @@ export default defineEventHandler(async (event) => {
 
   const approvedAt = new Date().toISOString()
   const concepts = project.concepts.map((concept) => {
-    if (concept.id !== payload.concept.id) {
+    if (concept.id !== storedConcept.id) {
       return concept
     }
 
