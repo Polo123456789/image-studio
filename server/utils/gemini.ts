@@ -1,4 +1,4 @@
-import { GoogleGenAI, Modality, Type } from '@google/genai'
+import { GoogleGenAI, Type } from '@google/genai'
 
 import type { StudioBriefPayload, StudioConceptSeed } from '../../shared/types/studio'
 import { getAppSettings } from './settings'
@@ -76,6 +76,46 @@ function buildImagePrompt(prompt: string): string {
   return [settings.imageGeneratorPrompt, prompt].join('\n\n')
 }
 
+function extractInlineImage(response: unknown): { data: string, mimeType: string } | null {
+  if (!response || typeof response !== 'object') {
+    return null
+  }
+
+  const responseRecord = response as {
+    data?: string
+    candidates?: Array<{
+      content?: {
+        parts?: Array<{
+          inlineData?: {
+            data?: string
+            mimeType?: string
+          }
+        }>
+      }
+    }>
+  }
+
+  if (responseRecord.data) {
+    return {
+      data: responseRecord.data,
+      mimeType: 'image/png'
+    }
+  }
+
+  for (const candidate of responseRecord.candidates || []) {
+    for (const part of candidate.content?.parts || []) {
+      if (part.inlineData?.data) {
+        return {
+          data: part.inlineData.data,
+          mimeType: part.inlineData.mimeType || 'image/png'
+        }
+      }
+    }
+  }
+
+  return null
+}
+
 export async function generateConceptSeeds(payload: StudioBriefPayload): Promise<StudioConceptSeed[]> {
   const ai = getClient()
 
@@ -151,9 +191,14 @@ export async function generateFinalImage(prompt: string, aspectRatio: string, re
 
   const response = await ai.models.generateContent({
     model: imageModel,
-    contents: buildImagePrompt(prompt),
+    contents: {
+      parts: [
+        {
+          text: buildImagePrompt(prompt)
+        }
+      ]
+    },
     config: {
-      responseModalities: [Modality.IMAGE],
       imageConfig: {
         aspectRatio,
         imageSize: mapResolution(resolution)
@@ -161,14 +206,14 @@ export async function generateFinalImage(prompt: string, aspectRatio: string, re
     }
   })
 
-  const imageBytes = response.data
+  const image = extractInlineImage(response)
 
-  if (!imageBytes) {
+  if (!image) {
     throw createError({
       statusCode: 502,
       statusMessage: 'Gemini did not return final image bytes'
     })
   }
 
-  return `data:image/png;base64,${imageBytes}`
+  return `data:${image.mimeType};base64,${image.data}`
 }
