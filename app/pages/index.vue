@@ -1,3 +1,3 @@
 <script setup lang="ts">
-await navigateTo('/studio')
+await navigateTo('/settings')
 </script>

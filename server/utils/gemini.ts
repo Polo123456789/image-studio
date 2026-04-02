@@ -1,6 +1,7 @@
 import { GoogleGenAI, Modality, Type } from '@google/genai'
 
 import type { StudioBriefPayload, StudioConceptSeed } from '../../shared/types/studio'
+import { getAppSettings } from './settings'
 
 const textModel = 'gemini-3-flash-preview'
 const imageModel = 'gemini-3.1-flash-image-preview'
@@ -8,12 +9,13 @@ const previewModel = 'imagen-4.0-generate-001'
 const supportedPreviewRatios = new Set(['1:1', '3:4', '4:3', '9:16', '16:9'])
 
 function getClient() {
-  const apiKey = process.env.GEMINI_API_KEY
+  const settings = getAppSettings()
+  const apiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY
 
   if (!apiKey) {
     throw createError({
-      statusCode: 500,
-      statusMessage: 'Missing GEMINI_API_KEY in server environment'
+      statusCode: 400,
+      statusMessage: 'Missing Gemini API key. Configure it in Settings.'
     })
   }
 
@@ -49,8 +51,10 @@ function mapPreviewAspectRatio(aspectRatio: string): string {
 }
 
 function buildCreativePrompt(payload: StudioBriefPayload): string {
+  const settings = getAppSettings()
+
   return [
-    `Eres un Director Creativo de Publicidad senior y experto en prompts para modelos multimodales.`,
+    settings.conceptGeneratorPrompt,
     `Genera ${payload.conceptCount} conceptos visuales distintos para una campana publicitaria.`,
     `Para cada concepto debes entregar prompts especificos para estos ratios: ${payload.aspectRatios.join(', ')}.`,
     `El concepto debe mantenerse consistente entre ratios; solo adapta composicion y distribucion para cada formato.`,
@@ -64,6 +68,12 @@ function buildCreativePrompt(payload: StudioBriefPayload): string {
     `Responde en espanol claro y profesional.`,
     `Los prompts deben ser directamente utilizables para generar imagen publicitaria.`
   ].join(' ')
+}
+
+function buildImagePrompt(prompt: string): string {
+  const settings = getAppSettings()
+
+  return [settings.imageGeneratorPrompt, prompt].join('\n\n')
 }
 
 export async function generateConceptSeeds(payload: StudioBriefPayload): Promise<StudioConceptSeed[]> {
@@ -116,7 +126,7 @@ export async function generatePreviewImage(prompt: string, aspectRatio: string):
 
   const response = await ai.models.generateImages({
     model: previewModel,
-    prompt,
+    prompt: buildImagePrompt(prompt),
     config: {
       numberOfImages: 1,
       outputMimeType: 'image/jpeg',
@@ -141,7 +151,7 @@ export async function generateFinalImage(prompt: string, aspectRatio: string, re
 
   const response = await ai.models.generateContent({
     model: imageModel,
-    contents: prompt,
+    contents: buildImagePrompt(prompt),
     config: {
       responseModalities: [Modality.IMAGE],
       imageConfig: {

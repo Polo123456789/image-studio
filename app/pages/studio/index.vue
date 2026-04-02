@@ -25,6 +25,12 @@
             <li>2. Conceptos con preview Imagen 4</li>
             <li>3. Aprobacion y generacion final HD</li>
           </ul>
+
+          <div class="mt-6">
+            <NuxtLink class="text-sm text-text-muted transition hover:text-text" to="/settings">
+              Configuracion de Gemini
+            </NuxtLink>
+          </div>
         </nav>
 
         <div class="mt-10 rounded border border-border bg-surface-2 p-4 text-sm text-text-muted">
@@ -174,14 +180,25 @@
               <p class="text-sm leading-6 text-text-muted">
                 {{ summaryText }}
               </p>
-              <div class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-                <p class="max-w-xl text-sm leading-6 text-text-muted">
-                  Siguiente paso: Gemini Flash redacta {{ form.conceptCount }} conceptos. Cada concepto se valida con preview barato antes de pasar a generacion final.
+             <div class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+               <p class="max-w-xl text-sm leading-6 text-text-muted">
+                  {{ isSubmitting
+                    ? 'Estamos generando conceptos iniciales. Te llevamos al workspace y ahi veras el progreso.'
+                    : `Siguiente paso: Gemini Flash redacta ${form.conceptCount} conceptos. Cada concepto se valida con preview barato antes de pasar a generacion final.` }}
                 </p>
 
-                <AppButton type="submit" :disabled="isSubmitting || !canContinue">
-                  {{ isSubmitting ? 'Preparando conceptos...' : 'Continuar a conceptos' }}
+                <AppButton type="submit" :disabled="isSubmitting || !canContinue" :aria-busy="isSubmitting">
+                  {{ isSubmitting ? 'Generando conceptos...' : 'Continuar a conceptos' }}
                 </AppButton>
+              </div>
+
+              <div v-if="isSubmitting" class="mt-4 rounded-lg border border-accent/25 bg-accent/8 px-4 py-3">
+                <div class="flex items-center gap-3">
+                  <svg class="h-4 w-4 animate-spin text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+                  <p class="text-sm text-text-muted">
+                    Estamos preparando el brief, enviandolo a Gemini y abriendo el workspace.
+                  </p>
+                </div>
               </div>
             </div>
           </form>
@@ -201,7 +218,7 @@ import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
 import StudioPendingPanel from '~/components/studio/StudioPendingPanel.vue'
 
 const router = useRouter()
-const { brief } = useStudioSession()
+const { brief, concepts, isGeneratingConcepts, generationMessage } = useStudioSession()
 
 const brands = ['Aster Labs', 'Casa Nativa', 'North Bloom']
 
@@ -277,6 +294,9 @@ async function submitBrief() {
 
   isSubmitting.value = true
   persistBrief()
+  concepts.value = []
+  isGeneratingConcepts.value = true
+  generationMessage.value = 'Preparando el brief para generar conceptos.'
 
   try {
     await router.push('/studio/concepts')

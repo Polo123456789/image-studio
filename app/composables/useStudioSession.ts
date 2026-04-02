@@ -16,9 +16,13 @@ const defaultBrief = (): StudioBriefPayload => ({
 export function useStudioSession() {
   const brief = useState<StudioBriefPayload>('studio-brief', defaultBrief)
   const concepts = useState<StudioConcept[]>('studio-concepts', () => [])
+  const isGeneratingConcepts = useState<boolean>('studio-is-generating-concepts', () => false)
+  const generationMessage = useState<string>('studio-generation-message', () => '')
 
   return {
     brief,
-    concepts
+    concepts,
+    isGeneratingConcepts,
+    generationMessage
   }
 }

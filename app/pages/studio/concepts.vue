@@ -3,6 +3,14 @@
     <div class="mx-auto max-w-[1600px] px-5 py-6 sm:px-8 lg:px-10 lg:py-8">
       <header class="mb-8 flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
+          <button
+            type="button"
+            class="mb-4 flex items-center gap-1.5 text-xs text-text-muted transition hover:text-text"
+            @click="$router.push('/studio')"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+            Volver al brief
+          </button>
           <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Conceptos</p>
           <h1 class="mt-3 font-display text-3xl text-text">
             {{ brief.projectName || 'Proyecto sin nombre' }}
@@ -18,9 +26,21 @@
         </div>
       </header>
 
-      <div v-if="pending" class="flex items-center gap-3 rounded-lg border border-border bg-surface px-6 py-8">
-        <svg class="h-5 w-5 animate-spin text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-        <span class="text-sm text-text-muted">Generando conceptos iniciales...</span>
+      <div v-if="pending" class="rounded-lg border border-border bg-surface px-6 py-8">
+        <div class="flex items-center gap-3">
+          <svg class="h-5 w-5 animate-spin text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+          <span class="text-sm font-medium text-text">Generando conceptos iniciales...</span>
+        </div>
+        <p class="mt-3 max-w-2xl text-sm leading-6 text-text-muted">
+          {{ generationMessage || 'Gemini esta redactando conceptos y generando el preview inicial del primer formato. Esto puede tardar un poco.' }}
+        </p>
+        <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-2">
+          <div class="h-full w-1/3 animate-pulse rounded-full bg-accent"></div>
+        </div>
+      </div>
+
+      <div v-else-if="initialLoadError" class="rounded-lg border border-danger/40 bg-danger/10 px-6 py-8 text-sm text-danger">
+        {{ initialLoadError }}
       </div>
 
       <div v-else-if="!concepts.length" class="rounded-lg border border-border bg-surface px-6 py-8 text-sm text-text-muted">
@@ -348,9 +368,10 @@ import AppTextarea from '~/components/base/AppTextarea.vue'
 import type { StudioConcept, StudioConceptFormat, StudioConceptResponse, StudioVariant } from '../../../shared/types/studio'
 
 const router = useRouter()
-const { brief, concepts } = useStudioSession()
+const { brief, concepts, isGeneratingConcepts, generationMessage } = useStudioSession()
 
-const pending = ref(false)
+const pending = ref(isGeneratingConcepts.value && !concepts.value.length)
+const initialLoadError = ref('')
 const loadingPreviewId = ref<string | null>(null)
 const loadingFinalId = ref<string | null>(null)
 const promptDrafts = ref<Record<string, string>>({})
@@ -364,16 +385,38 @@ if (!brief.value.projectName) {
   await router.replace('/studio')
 }
 
-if (!concepts.value.length && brief.value.projectName) {
+if (concepts.value.length) {
+  isGeneratingConcepts.value = false
+  generationMessage.value = ''
+}
+
+void ensureInitialConcepts()
+
+async function ensureInitialConcepts() {
+  if (concepts.value.length || !brief.value.projectName) {
+    return
+  }
+
   pending.value = true
+  initialLoadError.value = ''
+  isGeneratingConcepts.value = true
+  generationMessage.value = 'Gemini esta redactando conceptos base para este brief.'
 
   try {
+    generationMessage.value = 'Generando conceptos y preparando el primer preview con Imagen...'
     const response = await $fetch<StudioConceptResponse>('/api/studio/concepts', {
       method: 'POST',
       body: brief.value
     })
 
     concepts.value = response.concepts
+    generationMessage.value = ''
+    isGeneratingConcepts.value = false
+  }
+  catch (error) {
+    initialLoadError.value = 'No pudimos generar los conceptos iniciales. Revisa la configuracion de Gemini e intentalo de nuevo.'
+    generationMessage.value = ''
+    isGeneratingConcepts.value = false
   }
   finally {
     pending.value = false

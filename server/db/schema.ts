@@ -1,6 +1,15 @@
 import { relations } from 'drizzle-orm'
 import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
+export const appSettings = sqliteTable('app_settings', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  geminiApiKey: text('gemini_api_key'),
+  conceptGeneratorPrompt: text('concept_generator_prompt').notNull(),
+  imageGeneratorPrompt: text('image_generator_prompt').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
+})
+
 export const brands = sqliteTable('brands', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
