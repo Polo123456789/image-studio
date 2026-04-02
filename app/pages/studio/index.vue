@@ -209,6 +209,8 @@
 </template>
 
 <script setup lang="ts">
+import type { StudioProjectResponse } from '../../../shared/types/studio'
+
 import AppButton from '~/components/base/AppButton.vue'
 import AppInput from '~/components/base/AppInput.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
@@ -217,8 +219,9 @@ import StudioChipMultiSelect from '~/components/studio/StudioChipMultiSelect.vue
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
 import StudioPendingPanel from '~/components/studio/StudioPendingPanel.vue'
 
+const route = useRoute()
 const router = useRouter()
-const { brief, concepts, isGeneratingConcepts, generationMessage } = useStudioSession()
+const { projectSlug, brief, concepts, isGeneratingConcepts, generationMessage, setProject } = useStudioSession()
 
 const brands = ['Aster Labs', 'Casa Nativa', 'North Bloom']
 
@@ -259,6 +262,7 @@ const form = reactive({
 const selectedMedia = ref<string[]>([...brief.value.mediaChannels])
 const selectedRatios = ref<string[]>([...brief.value.aspectRatios])
 const isSubmitting = ref(false)
+const routeProjectSlug = computed(() => typeof route.params.slug === 'string' ? route.params.slug : '')
 
 const canContinue = computed(() => {
   return Boolean(form.projectName.trim() && form.goal && selectedRatios.value.length && selectedMedia.value.length)
@@ -271,6 +275,19 @@ const summaryText = computed(() => {
 
   return `${project} — ${form.goal.toLowerCase()} — ${channels} — ${ratios} — ${form.conceptCount} conceptos iniciales.`
 })
+
+watch(brief, (nextBrief) => {
+  form.brand = nextBrief.brand
+  form.projectName = nextBrief.projectName
+  form.goal = nextBrief.goal
+  form.audienceAction = nextBrief.audienceAction
+  form.keyMessage = nextBrief.keyMessage
+  form.additionalContext = nextBrief.additionalContext
+  form.resolution = nextBrief.resolution
+  form.conceptCount = nextBrief.conceptCount
+  selectedMedia.value = [...nextBrief.mediaChannels]
+  selectedRatios.value = [...nextBrief.aspectRatios]
+}, { immediate: true, deep: true })
 
 function persistBrief() {
   brief.value = {
@@ -294,12 +311,40 @@ async function submitBrief() {
 
   isSubmitting.value = true
   persistBrief()
-  concepts.value = []
-  isGeneratingConcepts.value = true
-  generationMessage.value = 'Preparando el brief para generar conceptos.'
 
   try {
-    await router.push('/studio/concepts')
+    let response: StudioProjectResponse
+
+    if (routeProjectSlug.value) {
+      response = await $fetch<StudioProjectResponse>(`/api/studio/projects/${routeProjectSlug.value}/brief`, {
+        method: 'PUT',
+        body: {
+          brief: brief.value
+        }
+      })
+    }
+    else {
+      response = await $fetch<StudioProjectResponse>('/api/studio/projects', {
+        method: 'POST',
+        body: {
+          brief: brief.value
+        }
+      })
+    }
+
+    setProject(response.project)
+
+    if (!response.project.concepts.length) {
+      concepts.value = []
+      isGeneratingConcepts.value = true
+      generationMessage.value = 'Preparando el brief para generar conceptos.'
+    }
+    else {
+      isGeneratingConcepts.value = false
+      generationMessage.value = ''
+    }
+
+    await router.push(`/studio/${response.project.slug}/concepts`)
   }
   finally {
     isSubmitting.value = false

@@ -12,6 +12,36 @@ export interface StudioBriefPayload {
   conceptOffset?: number
 }
 
+export interface StudioProject {
+  id: number
+  slug: string
+  brief: StudioBriefPayload
+  concepts: StudioConcept[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StudioProjectResponse {
+  project: StudioProject
+}
+
+export interface StudioCreateProjectPayload {
+  brief: StudioBriefPayload
+}
+
+export interface StudioUpdateProjectBriefPayload {
+  brief: StudioBriefPayload
+}
+
+export interface StudioSaveConceptsPayload {
+  concepts: StudioConcept[]
+}
+
+export interface StudioGenerateConceptsPayload {
+  projectSlug: string
+  brief: StudioBriefPayload
+}
+
 export type StudioVariantMode = 'preview' | 'final'
 
 export interface StudioVariant {
@@ -46,6 +76,7 @@ export interface StudioConceptResponse {
 }
 
 export interface StudioRegenerateVariantPayload {
+  projectSlug: string
   concept: StudioConcept
   ratio: string
   prompt: string
@@ -60,6 +91,7 @@ export interface StudioConceptSeed {
 }
 
 export interface StudioFinalizeConceptPayload {
+  projectSlug: string
   concept: StudioConcept
   resolution: string
 }

@@ -15,6 +15,13 @@
       "when": 1775156214070,
       "tag": "0001_sad_mikhail_rasputin",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1775161441508,
+      "tag": "0002_majestic_boomer",
+      "breakpoints": true
     }
   ]
 }

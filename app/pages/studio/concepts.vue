@@ -363,12 +363,14 @@
 </template>
 
 <script setup lang="ts">
+import type { StudioConcept, StudioConceptFormat, StudioConceptResponse, StudioProjectResponse, StudioVariant } from '../../../shared/types/studio'
+
 import AppButton from '~/components/base/AppButton.vue'
 import AppTextarea from '~/components/base/AppTextarea.vue'
-import type { StudioConcept, StudioConceptFormat, StudioConceptResponse, StudioVariant } from '../../../shared/types/studio'
 
+const route = useRoute()
 const router = useRouter()
-const { brief, concepts, isGeneratingConcepts, generationMessage } = useStudioSession()
+const { projectSlug, brief, concepts, isGeneratingConcepts, generationMessage, setProject } = useStudioSession()
 
 const pending = ref(isGeneratingConcepts.value && !concepts.value.length)
 const initialLoadError = ref('')
@@ -380,9 +382,16 @@ const modalPromptDraft = ref('')
 const moreConceptCount = ref(1)
 const loadingMoreConcepts = ref(false)
 const extraConceptCounts = [1, 2, 3, 4]
+const routeProjectSlug = computed(() => typeof route.params.slug === 'string' ? route.params.slug : projectSlug.value)
 
-if (!brief.value.projectName) {
+if (!routeProjectSlug.value) {
   await router.replace('/studio')
+}
+
+if (routeProjectSlug.value) {
+  const response = await $fetch<StudioProjectResponse>(`/api/studio/projects/${routeProjectSlug.value}`)
+
+  setProject(response.project)
 }
 
 if (concepts.value.length) {
@@ -393,7 +402,7 @@ if (concepts.value.length) {
 void ensureInitialConcepts()
 
 async function ensureInitialConcepts() {
-  if (concepts.value.length || !brief.value.projectName) {
+  if (concepts.value.length || !brief.value.projectName || !routeProjectSlug.value) {
     return
   }
 
@@ -406,7 +415,10 @@ async function ensureInitialConcepts() {
     generationMessage.value = 'Generando conceptos y preparando el primer preview con Imagen...'
     const response = await $fetch<StudioConceptResponse>('/api/studio/concepts', {
       method: 'POST',
-      body: brief.value
+      body: {
+        projectSlug: routeProjectSlug.value,
+        brief: brief.value
+      }
     })
 
     concepts.value = response.concepts
@@ -472,6 +484,8 @@ function selectRatio(conceptId: string, ratio: string) {
       selectedRatio: ratio
     }
   })
+
+  void persistConcepts()
 }
 
 function cycleRatio(conceptId: string) {
@@ -520,6 +534,8 @@ function selectVariant(conceptId: string, ratio: string, variantId: string) {
       }
     })
   }))
+
+  void persistConcepts()
 }
 
 async function regenerateVariant(conceptId: string) {
@@ -537,6 +553,7 @@ async function regenerateVariant(conceptId: string) {
     const response = await $fetch<{ variant: StudioVariant }>('/api/studio/regenerate-variant', {
       method: 'POST',
       body: {
+        projectSlug: routeProjectSlug.value,
         concept,
         ratio: concept.selectedRatio,
         prompt,
@@ -559,6 +576,8 @@ async function regenerateVariant(conceptId: string) {
         }
       })
     }))
+
+    await persistConcepts()
   }
   finally {
     loadingPreviewId.value = null
@@ -586,6 +605,7 @@ async function finalizeConcept(conceptId: string) {
     const response = await $fetch<{ approvedAt: string, formats: { ratio: string, variant: StudioVariant }[] }>('/api/studio/finalize-concept', {
       method: 'POST',
       body: {
+        projectSlug: routeProjectSlug.value,
         concept: conceptForRequest,
         resolution: brief.value.resolution
       }
@@ -608,6 +628,8 @@ async function finalizeConcept(conceptId: string) {
         }
       })
     }))
+
+    await persistConcepts()
   }
   finally {
     loadingFinalId.value = null
@@ -631,18 +653,27 @@ function discardConcept(conceptId: string) {
   }
 
   delete promptDrafts.value[conceptId]
+
+  void persistConcepts()
 }
 
 async function generateMoreConcepts() {
+  if (!routeProjectSlug.value) {
+    return
+  }
+
   loadingMoreConcepts.value = true
 
   try {
     const response = await $fetch<StudioConceptResponse>('/api/studio/concepts', {
       method: 'POST',
       body: {
-        ...brief.value,
-        conceptCount: moreConceptCount.value,
-        conceptOffset: concepts.value.length
+        projectSlug: routeProjectSlug.value,
+        brief: {
+          ...brief.value,
+          conceptCount: moreConceptCount.value,
+          conceptOffset: concepts.value.length
+        }
       }
     })
 
@@ -701,7 +732,24 @@ function savePromptModal() {
   }
 
   promptDrafts.value[promptModalConceptId.value] = modalPromptDraft.value
+
+  updateConcept(promptModalConceptId.value, (concept) => ({
+    ...concept,
+    formats: concept.formats.map((format) => {
+      if (format.ratio !== concept.selectedRatio) {
+        return format
+      }
+
+      return {
+        ...format,
+        promptDraft: modalPromptDraft.value
+      }
+    })
+  }))
+
   closePromptModal()
+
+  void persistConcepts()
 }
 
 function promptPreview(conceptId: string) {
@@ -712,6 +760,21 @@ function promptPreview(conceptId: string) {
   }
 
   return value.length > 240 ? `${value.slice(0, 240)}...` : value
+}
+
+async function persistConcepts() {
+  if (!routeProjectSlug.value) {
+    return
+  }
+
+  const response = await $fetch<StudioProjectResponse>(`/api/studio/projects/${routeProjectSlug.value}/concepts`, {
+    method: 'PUT',
+    body: {
+      concepts: concepts.value
+    }
+  })
+
+  setProject(response.project)
 }
 
 function formatStatusLabel(concept: StudioConcept, format: StudioConceptFormat) {

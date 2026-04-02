@@ -53,6 +53,60 @@ export const projects = sqliteTable('projects', {
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
 })
 
+export const studioProjects = sqliteTable('studio_projects', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  slug: text('slug').notNull(),
+  projectName: text('project_name').notNull(),
+  brief: text('brief').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
+}, (table) => ({
+  slugUnique: uniqueIndex('studio_projects_slug_unique').on(table.slug)
+}))
+
+export const studioConcepts = sqliteTable('studio_concepts', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  projectId: integer('project_id').notNull().references(() => studioProjects.id),
+  conceptKey: text('concept_key').notNull(),
+  title: text('title').notNull(),
+  subtitle: text('subtitle').notNull(),
+  rationale: text('rationale').notNull(),
+  selectedRatio: text('selected_ratio').notNull(),
+  approvedAt: integer('approved_at', { mode: 'timestamp' }),
+  position: integer('position').notNull(),
+  discardedAt: integer('discarded_at', { mode: 'timestamp' }),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
+}, (table) => ({
+  projectConceptUnique: uniqueIndex('studio_concepts_project_id_concept_key_unique').on(table.projectId, table.conceptKey)
+}))
+
+export const studioConceptFormats = sqliteTable('studio_concept_formats', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  conceptId: integer('concept_id').notNull().references(() => studioConcepts.id),
+  ratio: text('ratio').notNull(),
+  isPreviewSource: integer('is_preview_source', { mode: 'boolean' }).notNull().default(false),
+  promptDraft: text('prompt_draft').notNull(),
+  activeVariantKey: text('active_variant_key'),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
+}, (table) => ({
+  conceptFormatUnique: uniqueIndex('studio_concept_formats_concept_id_ratio_unique').on(table.conceptId, table.ratio)
+}))
+
+export const studioVariants = sqliteTable('studio_variants', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  formatId: integer('format_id').notNull().references(() => studioConceptFormats.id),
+  variantKey: text('variant_key').notNull(),
+  label: text('label').notNull(),
+  mode: text('mode').notNull(),
+  prompt: text('prompt').notNull(),
+  imageUrl: text('image_url').notNull(),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
+}, (table) => ({
+  formatVariantUnique: uniqueIndex('studio_variants_format_id_variant_key_unique').on(table.formatId, table.variantKey)
+}))
+
 export const projectAssets = sqliteTable('project_assets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   projectId: integer('project_id').notNull().references(() => projects.id),
@@ -113,6 +167,33 @@ export const projectsRelations = relations(projects, ({ one, many }) => ({
   }),
   selectedAssets: many(projectAssets),
   images: many(images)
+}))
+
+export const studioProjectsRelations = relations(studioProjects, ({ many }) => ({
+  concepts: many(studioConcepts)
+}))
+
+export const studioConceptsRelations = relations(studioConcepts, ({ one, many }) => ({
+  project: one(studioProjects, {
+    fields: [studioConcepts.projectId],
+    references: [studioProjects.id]
+  }),
+  formats: many(studioConceptFormats)
+}))
+
+export const studioConceptFormatsRelations = relations(studioConceptFormats, ({ one, many }) => ({
+  concept: one(studioConcepts, {
+    fields: [studioConceptFormats.conceptId],
+    references: [studioConcepts.id]
+  }),
+  variants: many(studioVariants)
+}))
+
+export const studioVariantsRelations = relations(studioVariants, ({ one }) => ({
+  format: one(studioConceptFormats, {
+    fields: [studioVariants.formatId],
+    references: [studioConceptFormats.id]
+  })
 }))
 
 export const projectAssetsRelations = relations(projectAssets, ({ one }) => ({
