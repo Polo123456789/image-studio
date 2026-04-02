@@ -110,3 +110,50 @@ export interface StudioFinalizeConceptPayload {
   concept: StudioConcept
   resolution: string
 }
+
+export interface LibraryImageVersion {
+  id: string
+  label: string
+  mode: StudioVariantMode
+  prompt: string
+  imageUrl: string
+  createdAt: string
+}
+
+export interface LibraryImageItem {
+  id: string
+  name: string
+  projectSlug: string
+  projectName: string
+  conceptId: string
+  conceptTitle: string
+  conceptSubtitle: string
+  ratio: string
+  approvedAt: string | null
+  createdAt: string
+  updatedAt: string
+  currentVersionId: string
+  versions: LibraryImageVersion[]
+  collectionKeys: string[]
+}
+
+export interface LibraryFolderItem {
+  id: string
+  name: string
+  projectSlug: string
+  imageCount: number
+  updatedAt: string
+  coverImageUrl: string | null
+}
+
+export interface LibraryCollectionItem {
+  id: string
+  name: string
+  imageCount: number
+}
+
+export interface LibraryResponse {
+  folders: LibraryFolderItem[]
+  collections: LibraryCollectionItem[]
+  images: LibraryImageItem[]
+}

@@ -65,7 +65,9 @@
         <article
           v-for="(concept, conceptIndex) in concepts"
           :key="concept.id"
+          :id="`concept-${concept.id}`"
           class="overflow-hidden rounded-xl border border-border bg-surface"
+          :class="focusedConceptId === concept.id ? 'ring-1 ring-accent/50' : ''"
         >
           <!-- Concept header bar -->
           <div class="flex items-center justify-between border-b border-border bg-surface-2/50 px-5 py-3">
@@ -396,6 +398,7 @@ const moreConceptCount = ref(1)
 const loadingMoreConcepts = ref(false)
 const extraConceptCounts = [1, 2, 3, 4]
 const routeProjectSlug = computed(() => typeof route.params.slug === 'string' ? route.params.slug : projectSlug.value)
+const focusedConceptId = ref<string | null>(null)
 
 if (!routeProjectSlug.value) {
   await router.replace('/studio')
@@ -454,6 +457,10 @@ watch(concepts, (nextConcepts) => {
   syncPromptDrafts(nextConcepts)
 }, { deep: true })
 
+watch(() => [route.query.concept, route.query.ratio, route.query.variant], async () => {
+  await applyLibraryFocusFromRoute()
+}, { immediate: true })
+
 function syncPromptDrafts(nextConcepts: StudioConcept[]) {
   const drafts = { ...promptDrafts.value }
 
@@ -466,6 +473,40 @@ function syncPromptDrafts(nextConcepts: StudioConcept[]) {
   })
 
   promptDrafts.value = drafts
+}
+
+async function applyLibraryFocusFromRoute() {
+  const conceptId = typeof route.query.concept === 'string' ? route.query.concept : ''
+  const ratio = typeof route.query.ratio === 'string' ? route.query.ratio : ''
+  const variantId = typeof route.query.variant === 'string' ? route.query.variant : ''
+
+  if (!conceptId) {
+    focusedConceptId.value = null
+    return
+  }
+
+  const concept = concepts.value.find((item) => item.id === conceptId)
+
+  if (!concept) {
+    return
+  }
+
+  focusedConceptId.value = conceptId
+
+  if (ratio && concept.formats.some((format) => format.ratio === ratio)) {
+    selectRatio(conceptId, ratio, { persist: false })
+  }
+
+  if (ratio && variantId) {
+    const format = concept.formats.find((item) => item.ratio === ratio)
+
+    if (format?.variants.some((variant) => variant.id === variantId)) {
+      selectVariant(conceptId, ratio, variantId, { persist: false })
+    }
+  }
+
+  await nextTick()
+  document.getElementById(`concept-${conceptId}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
 }
 
 function selectedFormat(concept: StudioConcept): StudioConceptFormat | undefined {
@@ -486,7 +527,7 @@ function updateConcept(conceptId: string, updater: (concept: StudioConcept) => S
   concepts.value = concepts.value.map((concept) => concept.id === conceptId ? updater(concept) : concept)
 }
 
-function selectRatio(conceptId: string, ratio: string) {
+function selectRatio(conceptId: string, ratio: string, options: { persist?: boolean } = {}) {
   updateConcept(conceptId, (concept) => {
     const format = concept.formats.find((item) => item.ratio === ratio)
 
@@ -498,7 +539,9 @@ function selectRatio(conceptId: string, ratio: string) {
     }
   })
 
-  void persistConcepts()
+  if (options.persist !== false) {
+    void persistConcepts()
+  }
 }
 
 function cycleRatio(conceptId: string) {
@@ -529,7 +572,7 @@ function resetPrompt(conceptId: string) {
   }
 }
 
-function selectVariant(conceptId: string, ratio: string, variantId: string) {
+function selectVariant(conceptId: string, ratio: string, variantId: string, options: { persist?: boolean } = {}) {
   updateConcept(conceptId, (concept) => ({
     ...concept,
     selectedRatio: ratio,
@@ -548,7 +591,9 @@ function selectVariant(conceptId: string, ratio: string, variantId: string) {
     })
   }))
 
-  void persistConcepts()
+  if (options.persist !== false) {
+    void persistConcepts()
+  }
 }
 
 async function regenerateVariant(conceptId: string) {

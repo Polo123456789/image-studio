@@ -1,84 +1,60 @@
 # Image Studio
 
-Base inicial con Nuxt, Drizzle y SQLite local.
+Aplicación interna para idear, generar, iterar y organizar imágenes publicitarias con IA.
 
 ## Setup
 
-Make sure to install dependencies:
+Este repo usa Bun como flujo principal:
 
 ```bash
-# npm
-npm install
-
-# pnpm
-pnpm install
-
-# yarn
-yarn install
-
-# bun
 bun install
 ```
 
-## Database
+## Comandos
 
-Configurar migraciones:
+```bash
+bun run dev
+bun run build
+bun run preview
+bun run db:generate
+bun run db:migrate
+```
+
+## Base de datos
+
+La app usa SQLite local en `server/db/local.db` con Drizzle ORM.
+
+Modelo vigente:
+- `app_settings`: configuración general y prompts base.
+- `brands`: marcas.
+- `style_guides`: guías de estilo globales o por marca.
+- `assets`: assets reutilizables globales o por marca.
+- `studio_projects`: proyectos/sesiones creativas.
+- `studio_concepts`: conceptos generados dentro de un proyecto.
+- `studio_concept_formats`: formatos y ratio por concepto.
+- `studio_variants`: historial de previews, finales e iteraciones por formato.
+
+Las tablas antiguas `projects`, `project_assets`, `images` e `image_versions` quedaron obsoletas y fueron retiradas del esquema en favor del modelo `studio_*`.
+
+Para sincronizar el esquema local:
 
 ```bash
 bun run db:generate
 bun run db:migrate
 ```
 
-## Development Server
+## Desarrollo
 
-Start the development server on `http://localhost:3000`:
+Servidor local:
 
 ```bash
-# npm
-npm run dev
-
-# pnpm
-pnpm dev
-
-# yarn
-yarn dev
-
-# bun
 bun run dev
 ```
 
-## Production
+App disponible en `http://localhost:3000`.
 
-Build the application for production:
+## Build
 
 ```bash
-# npm
-npm run build
-
-# pnpm
-pnpm build
-
-# yarn
-yarn build
-
-# bun
 bun run build
 ```
-
-Locally preview production build:
-
-```bash
-# npm
-npm run preview
-
-# pnpm
-pnpm preview
-
-# yarn
-yarn preview
-
-# bun
-bun run preview
-```
-
-Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
