@@ -122,6 +122,115 @@ bun run db:studio
 - Extract reusable UI only when there is a clear second use.
 - Avoid overengineering state before the product shape is stable.
 
+## UI And Styling
+
+- Build the UI with a custom design rather than a component library.
+- Prefer Tailwind CSS for component and layout styling.
+- Keep the initial design system minimal: core colors, spacing, radii, and shadows only.
+- Support both light and dark mode from the first version. Dark is the default.
+- Use small, reusable base components for common controls when they have a clear second use.
+
+### Visual Direction
+
+The aesthetic is `dark studio`: a dense, focused workspace that feels like a professional editing room.
+Refined, tool-like, with enough character to feel intentional and creative.
+
+**Theme**: Dark by default. Light mode is a secondary, lighter inversion of the same palette.
+
+**Accent color**: Sage green. Muted, sophisticated, unusual. Not electric, not pastel — somewhere between
+natural and architectural.
+
+**Typography**:
+- Display / headings: `Fraunces` (Google Fonts) — a variable optical-size serif with personality.
+  Use for titles, section headers, and any large text that anchors the layout.
+- Body / UI: `DM Sans` (Google Fonts) — clean, neutral, highly readable at small sizes.
+  Use for labels, inputs, descriptions, and all interface copy.
+- Monospace / prompts: `JetBrains Mono` (Google Fonts) — for prompt text, code, and generated content.
+
+### Design Tokens
+
+All tokens are CSS custom properties defined in the global stylesheet.
+Tailwind should extend its theme to reference these variables where possible.
+
+```css
+/* Colors — dark mode (default) */
+--color-bg:          #0f0f0e;   /* near-black warm */
+--color-surface:     #181817;   /* card and panel backgrounds */
+--color-surface-2:   #222220;   /* elevated surfaces, hover states */
+--color-border:      #2e2e2b;   /* subtle separators */
+--color-text:        #e8e6df;   /* primary text */
+--color-text-muted:  #7a7870;   /* secondary text, placeholders */
+--color-accent:      #7d9e7e;   /* sage green — primary accent */
+--color-accent-dim:  #4a6b4b;   /* accent at lower intensity */
+--color-accent-glow: #7d9e7e26; /* accent as translucent wash */
+--color-danger:      #b96a5e;   /* errors and destructive actions */
+
+/* Colors — light mode */
+--color-bg:          #f5f4f0;
+--color-surface:     #ffffff;
+--color-surface-2:   #eeede9;
+--color-border:      #dddbd5;
+--color-text:        #1a1a18;
+--color-text-muted:  #8a8880;
+--color-accent:      #4f7350;
+--color-accent-dim:  #c6d9c6;
+--color-accent-glow: #4f735018;
+--color-danger:      #a0453a;
+
+/* Radii */
+--radius-sm:   4px;
+--radius-md:   8px;
+--radius-lg:   14px;
+--radius-xl:   20px;
+--radius-full: 9999px;
+
+/* Shadows */
+--shadow-sm:  0 1px 3px rgba(0,0,0,0.4);
+--shadow-md:  0 4px 12px rgba(0,0,0,0.5);
+--shadow-lg:  0 12px 32px rgba(0,0,0,0.6);
+
+/* Typography scale */
+--text-xs:   0.75rem;   /* 12px */
+--text-sm:   0.875rem;  /* 14px */
+--text-base: 1rem;      /* 16px */
+--text-lg:   1.125rem;  /* 18px */
+--text-xl:   1.375rem;  /* 22px */
+--text-2xl:  1.75rem;   /* 28px */
+--text-3xl:  2.25rem;   /* 36px */
+
+/* Spacing (used as base for layout rhythm) */
+--space-1:  4px;
+--space-2:  8px;
+--space-3:  12px;
+--space-4:  16px;
+--space-6:  24px;
+--space-8:  32px;
+--space-12: 48px;
+--space-16: 64px;
+```
+
+### Dark / Light Mode
+
+- Dark mode is the default. Apply tokens inside `:root`.
+- Light mode is activated by adding the class `light` to `<html>`.
+- Never use `prefers-color-scheme` as the sole mechanism; always allow manual override.
+
+### Component Conventions
+
+- Base components live in `app/components/base/`.
+- Prefix base components with `App`: `AppButton`, `AppInput`, `AppCard`, `AppModal`, etc.
+- Use Tailwind classes for layout and spacing.
+- Use CSS variables (via `var(--token)`) for any color, shadow, or radius that must
+  respond to theme changes.
+- Avoid hardcoded hex values inside component styles.
+
+### What to Avoid
+
+- Generic font families: Inter, Roboto, Arial, system-ui as display fonts.
+- Purple gradients, blue glows, or any "AI product" clichés.
+- Flat, colorless UIs with no atmospheric depth.
+- Overuse of the accent: sage green is for emphasis, not decoration.
+
 ## Drizzle and SQLite
 
 - Keep the initial schema small and product-driven.
