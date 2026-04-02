@@ -12,24 +12,29 @@
             Brief publicitario
           </h1>
           <p class="mt-4 text-sm leading-6 text-text-muted">
-            Define el contexto antes de generar. Cuanto mas preciso, mejor el resultado.
+            Define el marco creativo antes de pedir conceptos. Luego evaluas previews baratos y apruebas solo lo que merezca pasar a HD.
           </p>
         </div>
 
         <nav class="mt-10 space-y-1">
           <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-text-muted">
-            Secciones
+            Flujo
           </p>
-          <ul class="mt-3 space-y-0.5 text-sm text-text-muted">
-            <li class="py-1">Marca</li>
-            <li class="py-1">Proyecto</li>
-            <li class="py-1">Objetivo</li>
-            <li class="py-1">Mensaje</li>
-            <li class="py-1">Medios y formatos</li>
-            <li class="py-1 text-text-muted/40">Guia de estilo <span class="font-mono text-[10px]">—</span></li>
-            <li class="py-1 text-text-muted/40">Assets <span class="font-mono text-[10px]">—</span></li>
+          <ul class="mt-3 space-y-2 text-sm text-text-muted">
+            <li>1. Brief y reglas</li>
+            <li>2. Conceptos con preview Imagen 4</li>
+            <li>3. Aprobacion y generacion final HD</li>
           </ul>
         </nav>
+
+        <div class="mt-10 rounded border border-border bg-surface-2 p-4 text-sm text-text-muted">
+          <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">
+            Nota
+          </p>
+          <p class="mt-2 leading-6">
+            El preview es rapido y barato. La generacion final usa el modelo de mayor calidad solo cuando el concepto ya esta validado.
+          </p>
+        </div>
 
         <div class="mt-auto pt-10">
           <button
@@ -49,11 +54,11 @@
               Brief para imagenes publicitarias
             </h2>
             <p class="mt-3 text-sm leading-6 text-text-muted">
-              Definimos el contexto, el mensaje y los medios. La IA generara varias imagenes dentro de esas reglas.
+              Este paso define la informacion base que Gemini Flash usara para proponer conceptos distintos antes de generar imagenes finales.
             </p>
           </header>
 
-          <form class="space-y-12">
+          <form class="space-y-12" @submit.prevent="submitBrief">
             <StudioFieldSection
               title="Marca"
               hint="Opcional"
@@ -74,7 +79,7 @@
               <AppInput
                 v-model="form.projectName"
                 type="text"
-                placeholder="Ej. Lanzamiento verano — bebida energetica"
+                placeholder="Ej. Lanzamiento verano - bebida energetica"
               />
             </StudioFieldSection>
 
@@ -96,7 +101,7 @@
             >
               <AppTextarea
                 v-model="form.audienceAction"
-                :rows="3"
+                :rows="4"
                 placeholder="Ej. Que perciban el producto como la opcion premium mas limpia para su rutina diaria."
               />
             </StudioFieldSection>
@@ -107,7 +112,7 @@
             >
               <AppTextarea
                 v-model="form.keyMessage"
-                :rows="3"
+                :rows="4"
                 placeholder="Ej. Energia limpia que se nota, sin sacrificar sabor ni sofisticacion."
               />
             </StudioFieldSection>
@@ -126,7 +131,7 @@
             >
               <AppTextarea
                 v-model="form.additionalContext"
-                :rows="4"
+                :rows="5"
                 placeholder="Ej. Producto pensado para oficina, promocion 2x1 durante el primer mes, evitar lenguaje agresivo."
               />
             </StudioFieldSection>
@@ -148,7 +153,7 @@
                 <StudioChipMultiSelect v-model="selectedRatios" :options="aspectRatios" />
               </StudioFieldSection>
 
-              <StudioFieldSection title="Resolucion">
+              <StudioFieldSection title="Resolucion final">
                 <AppSelect v-model="form.resolution">
                   <option v-for="resolution in resolutions" :key="resolution" :value="resolution">
                     {{ resolution }}
@@ -156,10 +161,10 @@
                 </AppSelect>
               </StudioFieldSection>
 
-              <StudioFieldSection title="Cantidad">
-                <AppSelect v-model="form.imageCount">
-                  <option v-for="count in imageCounts" :key="count" :value="count">
-                    {{ count }} imagenes
+              <StudioFieldSection title="Conceptos a proponer">
+                <AppSelect v-model="form.conceptCount">
+                  <option v-for="count in conceptCounts" :key="count" :value="count">
+                    {{ count }} conceptos
                   </option>
                 </AppSelect>
               </StudioFieldSection>
@@ -169,9 +174,13 @@
               <p class="text-sm leading-6 text-text-muted">
                 {{ summaryText }}
               </p>
-              <div class="mt-6">
-                <AppButton type="button">
-                  Continuar al marco creativo
+              <div class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p class="max-w-xl text-sm leading-6 text-text-muted">
+                  Siguiente paso: Gemini Flash redacta {{ form.conceptCount }} conceptos. Cada concepto se valida con preview barato antes de pasar a generacion final.
+                </p>
+
+                <AppButton type="submit" :disabled="isSubmitting || !canContinue">
+                  {{ isSubmitting ? 'Preparando conceptos...' : 'Continuar a conceptos' }}
                 </AppButton>
               </div>
             </div>
@@ -190,6 +199,9 @@ import AppTextarea from '~/components/base/AppTextarea.vue'
 import StudioChipMultiSelect from '~/components/studio/StudioChipMultiSelect.vue'
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
 import StudioPendingPanel from '~/components/studio/StudioPendingPanel.vue'
+
+const router = useRouter()
+const { brief } = useStudioSession()
 
 const brands = ['Aster Labs', 'Casa Nativa', 'North Bloom']
 
@@ -214,29 +226,65 @@ const mediaChannels = [
 
 const aspectRatios = ['1:1', '4:5', '3:4', '16:9', '9:16', '21:9']
 const resolutions = ['1K rapido', '2K estandar', '4K alta calidad']
-const imageCounts = [2, 4, 6, 8, 12]
+const conceptCounts = [2, 3, 4, 6]
 
 const form = reactive({
-  brand: '',
-  projectName: '',
-  goal: 'Aumentar ventas',
-  audienceAction: '',
-  keyMessage: '',
-  additionalContext: '',
-  resolution: '1K rapido',
-  imageCount: 4,
+  brand: brief.value.brand,
+  projectName: brief.value.projectName,
+  goal: brief.value.goal,
+  audienceAction: brief.value.audienceAction,
+  keyMessage: brief.value.keyMessage,
+  additionalContext: brief.value.additionalContext,
+  resolution: brief.value.resolution,
+  conceptCount: brief.value.conceptCount,
 })
 
-const selectedMedia = ref<string[]>(['Google Ads', 'Instagram Stories'])
-const selectedRatios = ref<string[]>(['1:1', '9:16'])
+const selectedMedia = ref<string[]>([...brief.value.mediaChannels])
+const selectedRatios = ref<string[]>([...brief.value.aspectRatios])
+const isSubmitting = ref(false)
+
+const canContinue = computed(() => {
+  return Boolean(form.projectName.trim() && form.goal && selectedRatios.value.length && selectedMedia.value.length)
+})
 
 const summaryText = computed(() => {
   const project = form.projectName || 'Proyecto sin nombre'
   const channels = selectedMedia.value.length ? selectedMedia.value.join(', ') : 'sin medios'
   const ratios = selectedRatios.value.length ? selectedRatios.value.join(', ') : 'sin formatos'
 
-  return `${project} — ${form.goal.toLowerCase()} — ${channels} — ${ratios} — ${form.imageCount} imagenes.`
+  return `${project} — ${form.goal.toLowerCase()} — ${channels} — ${ratios} — ${form.conceptCount} conceptos iniciales.`
 })
+
+function persistBrief() {
+  brief.value = {
+    brand: form.brand,
+    projectName: form.projectName,
+    goal: form.goal,
+    audienceAction: form.audienceAction,
+    keyMessage: form.keyMessage,
+    additionalContext: form.additionalContext,
+    resolution: form.resolution,
+    conceptCount: Number(form.conceptCount),
+    mediaChannels: [...selectedMedia.value],
+    aspectRatios: [...selectedRatios.value]
+  }
+}
+
+async function submitBrief() {
+  if (!canContinue.value) {
+    return
+  }
+
+  isSubmitting.value = true
+  persistBrief()
+
+  try {
+    await router.push('/studio/concepts')
+  }
+  finally {
+    isSubmitting.value = false
+  }
+}
 
 function toggleTheme() {
   document.documentElement.classList.toggle('light')

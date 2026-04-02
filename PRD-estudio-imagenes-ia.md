@@ -75,12 +75,16 @@ Flujo esperado:
 6. Si hay marca asociada, los assets de esa marca se muestran primero al momento de elegir.
 7. El usuario puede ajustar o complementar la guia de estilo aplicada.
 8. El sistema estructura las reglas iniciales del trabajo y prepara el material para generar.
-9. El usuario define cuantas imagenes quiere generar en esa ronda.
-10. El sistema genera multiples imagenes distintas, siempre dentro de esas reglas.
-11. Las imagenes generadas se guardan dentro de una carpeta con el nombre del proyecto.
-12. El usuario selecciona las imagenes mas prometedoras.
-13. El usuario itera o edita sobre esos resultados.
-14. Cada iteracion se guarda como una nueva version dentro del historial de la imagen.
+9. El usuario define cuántos conceptos quiere que el sistema proponga en esa ronda.
+10. El sistema usa Gemini Flash para redactar varios conceptos visuales distintos dentro de las mismas reglas.
+11. Para cada concepto, el sistema genera primero un preview rápido y barato con Imagen 4 en la primera relación de aspecto seleccionada.
+12. El usuario revisa los conceptos en un workspace donde la imagen, el prompt y el historial por formato permanecen conectados.
+13. El usuario puede regenerar el preview del formato actual antes de aprobar.
+14. Si aprueba un concepto, el sistema usa Gemini Flash Image 3.1 para generar todas las relaciones de aspecto seleccionadas en calidad final.
+15. Las imagenes generadas se guardan dentro de una carpeta con el nombre del proyecto.
+16. El usuario selecciona las imagenes mas prometedoras.
+17. El usuario itera o edita sobre esos resultados.
+18. Cada iteracion se guarda como una nueva version dentro del historial de la imagen.
 
 Capacidades necesarias:
 
@@ -89,16 +93,18 @@ Capacidades necesarias:
 - seleccion opcional de marca al inicio del flujo;
 - aplicacion automatica de la guia de estilo de la marca seleccionada;
 - definicion de reglas iniciales que actuan como marco comun de generacion;
-- definicion por parte del usuario de cuantas imagenes generar por ronda;
-- generacion de multiples imagenes o variantes distintas dentro de ese marco;
+- definicion por parte del usuario de cuántos conceptos generar por ronda;
+- generacion de multiples conceptos visuales o variantes distintas dentro de ese marco;
+- generación de preview inicial barato por concepto antes de pasar al modelo final;
+- aprobación explícita del concepto antes de lanzar todas las versiones HD;
 - seleccion de assets de apoyo;
 - priorizacion de assets de la marca seleccionada al momento de elegir;
 - seleccion y ajuste de guias de estilo;
-- generacion inicial;
+- generacion inicial de conceptos y previews;
 - seleccion de propuestas prometedoras antes de iterar;
 - edicion/iteracion sobre resultados previos;
 - guardado de versiones;
-- acceso al historial de prompts y resultados.
+- acceso al historial de prompts y resultados por formato.
 
 ### 6.2. Biblioteca de imagenes
 
@@ -207,10 +213,13 @@ No se definiran mas opciones de configuracion por ahora.
 7. Si hay marca asociada, el sistema muestra primero los assets de esa marca.
 8. Ajusta o complementa la guia de estilo si lo necesita.
 9. Revisa las reglas e informacion consolidadas.
-10. Define cuantas imagenes quiere generar en esa ronda.
-11. Genera varias imagenes distintas bajo esas mismas reglas.
-12. El resultado queda guardado en la biblioteca dentro de una carpeta con el nombre del proyecto.
-13. Selecciona una o varias imagenes para continuar.
+10. Define cuántos conceptos quiere generar en esa ronda.
+11. El sistema propone varios conceptos con Gemini Flash.
+12. El sistema genera un preview inicial barato por concepto con Imagen 4.
+13. El usuario revisa y regenera previews si hace falta.
+14. Aprueba uno o varios conceptos para lanzar la generación final HD en todos los formatos elegidos.
+15. El resultado queda guardado en la biblioteca dentro de una carpeta con el nombre del proyecto.
+16. Selecciona una o varias imagenes para continuar.
 
 ### 7.2. Iterar o editar una imagen existente
 
@@ -255,7 +264,9 @@ Campos orientativos:
 - brief o descripcion;
 - respuestas a preguntas guiadas;
 - reglas iniciales consolidadas;
-- cantidad de imagenes por ronda;
+- cantidad de conceptos por ronda;
+- formatos elegidos para generación final;
+- estado de aprobación del concepto;
 - marca asociada opcional;
 - assets vinculados;
 - guias de estilo vinculadas;
@@ -327,8 +338,11 @@ Campos orientativos:
 - Si se selecciona una marca, el sistema debe priorizar los assets de esa marca al momento de elegir.
 - El sistema debe permitir agregar guias de estilo.
 - El sistema debe permitir ajustar o complementar la guia de estilo aplicada por la marca.
-- El sistema debe permitir que el usuario defina cuantas imagenes quiere generar por ronda.
-- El sistema debe permitir generar multiples imagenes distintas a partir de las mismas reglas iniciales.
+- El sistema debe permitir que el usuario defina cuántos conceptos quiere generar por ronda.
+- El sistema debe permitir generar multiples conceptos distintos a partir de las mismas reglas iniciales.
+- El sistema debe generar primero un preview barato por concepto antes de usar el modelo de mayor calidad.
+- El sistema debe permitir aprobar explícitamente un concepto antes de lanzar todas sus versiones finales.
+- El sistema debe mantener conectados el preview, el prompt y el historial por formato dentro del workspace de conceptos.
 - El sistema debe mantener consistencia con el brief, la guia y los assets definidos al inicio.
 - El sistema debe permitir seleccionar una o varias imagenes para continuar iterando.
 - El sistema debe permitir editar o iterar imagenes ya generadas.
