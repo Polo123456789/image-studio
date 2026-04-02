@@ -22,15 +22,18 @@ const defaultImageGeneratorPrompt = [
   'Cuando el contexto lo requiera, indica de forma clara el montaje, la ubicacion de assets y la jerarquia visual de cada elemento.'
 ].join(' ')
 
-function normalizeSettingsRecord(record?: typeof appSettings.$inferSelect | null): AppSettingsResponse {
-  const geminiApiKey = record?.geminiApiKey || ''
-
+function normalizeSettingsResponse(record?: typeof appSettings.$inferSelect | null): AppSettingsResponse {
   return {
-    geminiApiKey,
-    hasGeminiApiKey: Boolean(geminiApiKey),
+    hasGeminiApiKey: Boolean(record?.geminiApiKey),
     conceptGeneratorPrompt: record?.conceptGeneratorPrompt || defaultConceptGeneratorPrompt,
     imageGeneratorPrompt: record?.imageGeneratorPrompt || defaultImageGeneratorPrompt
   }
+}
+
+function getSettingsRecord() {
+  return db.query.appSettings.findFirst({
+    where: eq(appSettings.id, SETTINGS_ROW_ID)
+  }).sync()
 }
 
 export function getDefaultSettings(): AppSettingsPayload {
@@ -42,17 +45,24 @@ export function getDefaultSettings(): AppSettingsPayload {
 }
 
 export function getAppSettings(): AppSettingsResponse {
-  const record = db.query.appSettings.findFirst({
-    where: eq(appSettings.id, SETTINGS_ROW_ID)
-  }).sync()
+  return normalizeSettingsResponse(getSettingsRecord())
+}
 
-  return normalizeSettingsRecord(record)
+export function getServerAppSettings(): AppSettingsPayload {
+  const record = getSettingsRecord()
+
+  return {
+    geminiApiKey: record?.geminiApiKey || '',
+    conceptGeneratorPrompt: record?.conceptGeneratorPrompt || defaultConceptGeneratorPrompt,
+    imageGeneratorPrompt: record?.imageGeneratorPrompt || defaultImageGeneratorPrompt
+  }
 }
 
 export function saveAppSettings(payload: AppSettingsPayload): AppSettingsResponse {
   const now = new Date()
+  const existingRecord = getSettingsRecord()
   const normalizedPayload = {
-    geminiApiKey: payload.geminiApiKey.trim(),
+    geminiApiKey: payload.geminiApiKey.trim() || existingRecord?.geminiApiKey || '',
     conceptGeneratorPrompt: payload.conceptGeneratorPrompt.trim(),
     imageGeneratorPrompt: payload.imageGeneratorPrompt.trim()
   }

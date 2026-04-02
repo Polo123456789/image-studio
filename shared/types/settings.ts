@@ -4,6 +4,8 @@ export interface AppSettingsPayload {
   imageGeneratorPrompt: string
 }
 
-export interface AppSettingsResponse extends AppSettingsPayload {
+export interface AppSettingsResponse {
   hasGeminiApiKey: boolean
+  conceptGeneratorPrompt: string
+  imageGeneratorPrompt: string
 }

@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai'
 
 import type { StudioBriefPayload, StudioConceptSeed } from '../../shared/types/studio'
-import { getAppSettings } from './settings'
+import { getAppSettings, getServerAppSettings } from './settings'
 
 const textModel = 'gemini-3-flash-preview'
 const imageModel = 'gemini-3.1-flash-image-preview'
@@ -9,7 +9,7 @@ const previewModel = 'imagen-4.0-generate-001'
 const supportedPreviewRatios = new Set(['1:1', '3:4', '4:3', '9:16', '16:9'])
 
 function getClient() {
-  const settings = getAppSettings()
+  const settings = getServerAppSettings()
   const apiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY
 
   if (!apiKey) {

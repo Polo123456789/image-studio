@@ -151,7 +151,7 @@ watchEffect(() => {
   }
 
   const nextSnapshot = {
-    geminiApiKey: data.value.geminiApiKey,
+    geminiApiKey: '',
     conceptGeneratorPrompt: data.value.conceptGeneratorPrompt,
     imageGeneratorPrompt: data.value.imageGeneratorPrompt
   }
@@ -204,12 +204,12 @@ async function saveSettings() {
 
     data.value = response
     Object.assign(form, {
-      geminiApiKey: response.geminiApiKey,
+      geminiApiKey: '',
       conceptGeneratorPrompt: response.conceptGeneratorPrompt,
       imageGeneratorPrompt: response.imageGeneratorPrompt
     })
     loadedSnapshot.value = {
-      geminiApiKey: response.geminiApiKey,
+      geminiApiKey: '',
       conceptGeneratorPrompt: response.conceptGeneratorPrompt,
       imageGeneratorPrompt: response.imageGeneratorPrompt
     }
