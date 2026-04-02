@@ -342,6 +342,29 @@ export function saveStudioConcepts(slug: string, concepts: StudioConcept[]): Stu
       .from(studioConceptFormats)
       .where(inArray(studioConceptFormats.conceptId, persistedConceptRows.map((concept) => concept.id)))
       .all()
+
+    concepts.forEach((concept) => {
+      const conceptRow = conceptRowByKey.get(concept.id)
+
+      if (!conceptRow) {
+        return
+      }
+
+      const incomingRatios = new Set(concept.formats.map((format) => format.ratio))
+
+      persistedFormatRows
+        .filter((format) => format.conceptId === conceptRow.id && !incomingRatios.has(format.ratio))
+        .forEach((format) => {
+          tx.delete(studioVariants)
+            .where(eq(studioVariants.formatId, format.id))
+            .run()
+
+          tx.delete(studioConceptFormats)
+            .where(eq(studioConceptFormats.id, format.id))
+            .run()
+        })
+    })
+
     const formatRowByConceptAndRatio = new Map(
       persistedFormatRows.map((format) => [`${format.conceptId}:${format.ratio}`, format])
     )
