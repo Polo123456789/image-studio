@@ -1,16 +1,30 @@
 <template>
-  <StudioShell section="concepts">
+  <div class="px-6 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
     <div class="mx-auto max-w-[1240px]">
+      <!-- Breadcrumb -->
+      <nav class="mb-6 flex items-center gap-1.5 text-xs text-text-muted">
+        <NuxtLink to="/studio" class="transition hover:text-text">Proyectos</NuxtLink>
+        <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
+        <span class="text-text">{{ brief.projectName || 'Proyecto' }}</span>
+      </nav>
+
+      <!-- Tabs -->
+      <div class="mb-10 flex gap-1 rounded-lg border border-border bg-surface-2/50 p-1">
+        <NuxtLink
+          :to="routeProjectSlug ? `/studio/${routeProjectSlug}/brief` : '/studio'"
+          class="flex-1 rounded-md px-4 py-2 text-center text-sm text-text-muted transition hover:bg-surface-2 hover:text-text"
+        >
+          Brief
+        </NuxtLink>
+        <div
+          class="flex-1 rounded-md bg-accent/10 px-4 py-2 text-center text-sm font-medium text-text"
+        >
+          Conceptos
+        </div>
+      </div>
+
       <header class="mb-8 flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <button
-            type="button"
-            class="mb-4 flex items-center gap-1.5 text-xs text-text-muted transition hover:text-text"
-            @click="router.push(routeProjectSlug ? `/studio/${routeProjectSlug}/brief` : '/studio')"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
-            Volver al brief
-          </button>
           <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Conceptos</p>
           <h1 class="mt-3 font-display text-3xl text-text">
             {{ brief.projectName || 'Proyecto sin nombre' }}
@@ -359,7 +373,7 @@
         </div>
       </div>
     </div>
-  </StudioShell>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -367,10 +381,8 @@ import type { StudioConcept, StudioConceptFormat, StudioConceptResponse, StudioP
 
 import AppButton from '~/components/base/AppButton.vue'
 import AppTextarea from '~/components/base/AppTextarea.vue'
-import StudioShell from '~/components/studio/StudioShell.vue'
 
 const route = useRoute()
-const router = useRouter()
 const { projectSlug, brief, concepts, isGeneratingConcepts, generationMessage, setProject } = useStudioSession()
 
 const pending = ref(isGeneratingConcepts.value && !concepts.value.length)
