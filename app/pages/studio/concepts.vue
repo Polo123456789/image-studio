@@ -18,74 +18,105 @@
         </div>
       </header>
 
-      <div v-if="pending" class="rounded border border-border bg-surface p-6 text-sm text-text-muted">
-        Generando conceptos iniciales...
+      <div v-if="pending" class="flex items-center gap-3 rounded-lg border border-border bg-surface px-6 py-8">
+        <svg class="h-5 w-5 animate-spin text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+        <span class="text-sm text-text-muted">Generando conceptos iniciales...</span>
       </div>
 
-      <div v-else-if="!concepts.length" class="rounded border border-border bg-surface p-6 text-sm text-text-muted">
+      <div v-else-if="!concepts.length" class="rounded-lg border border-border bg-surface px-6 py-8 text-sm text-text-muted">
         No hay conceptos disponibles. Vuelve al brief y genera una nueva tanda.
       </div>
 
-      <div v-else class="space-y-8">
+      <div v-else class="space-y-10">
         <article
-          v-for="concept in concepts"
+          v-for="(concept, conceptIndex) in concepts"
           :key="concept.id"
           class="overflow-hidden rounded-xl border border-border bg-surface"
         >
-          <div class="grid lg:grid-cols-[minmax(0,1fr)_420px]">
+          <!-- Concept header bar -->
+          <div class="flex items-center justify-between border-b border-border bg-surface-2/50 px-5 py-3">
+            <div class="flex items-center gap-3">
+              <span class="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 font-mono text-xs font-medium text-accent">
+                {{ conceptIndex + 1 }}
+              </span>
+              <h2 class="text-base font-medium text-text">{{ concept.title }}</h2>
+            </div>
+
+            <button
+              type="button"
+              class="rounded border border-danger/40 bg-danger/10 px-3 py-1.5 text-xs font-medium text-danger transition hover:border-danger hover:bg-danger/20"
+              @click="discardConcept(concept.id)"
+            >
+              Descartar concepto
+            </button>
+          </div>
+
+          <div class="grid lg:grid-cols-[minmax(0,1fr)_400px]">
             <div class="border-b border-border lg:border-b-0 lg:border-r">
-              <div class="flex items-center justify-between border-b border-border px-4 py-3 sm:px-5">
+              <div class="flex items-center justify-between border-b border-border px-5 py-2.5">
                 <div class="flex items-center gap-3">
                   <span
                     class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em]"
-                    :class="concept.approvedAt ? 'bg-accent/15 text-accent' : 'bg-[#6d5321] text-[#ffcc73]'"
+                    :class="concept.approvedAt ? 'bg-accent/15 text-accent' : selectedFormat(concept)?.isPreviewSource ? 'bg-[#6d5321]/60 text-[#ffcc73]' : 'bg-surface-2 text-text-muted'"
                   >
-                    {{ selectedFormat(concept)?.isPreviewSource && !concept.approvedAt ? 'Preview de baja calidad' : concept.approvedAt ? 'Final aprobado' : 'Formato pendiente' }}
+                    {{ selectedFormat(concept)?.isPreviewSource && !concept.approvedAt ? 'Preview' : concept.approvedAt ? 'Final' : 'Pendiente' }}
                   </span>
                   <span class="font-mono text-sm text-text-muted">{{ concept.selectedRatio }}</span>
                 </div>
 
                 <button
                   type="button"
-                  class="text-sm text-text-muted transition hover:text-text"
+                  class="font-mono text-xs text-text-muted transition hover:text-accent"
                   @click="cycleRatio(concept.id)"
                 >
-                  Siguiente formato
+                  Siguiente &rarr;
                 </button>
               </div>
 
-              <div class="bg-[#121516] px-4 py-5 sm:px-5 sm:py-6">
-                <div class="overflow-hidden rounded-lg border border-border bg-black/20">
+              <div class="bg-[#0a0a0a] px-5 py-6">
+                <div class="mx-auto flex max-h-[520px] items-center justify-center overflow-hidden rounded-lg border border-white/[0.06]">
                   <img
+                    v-if="activeVariant(concept)?.imageUrl"
                     :src="activeVariant(concept)?.imageUrl"
                     :alt="`${concept.title} ${concept.selectedRatio}`"
-                    class="aspect-[4/3] w-full object-cover"
+                    class="max-h-[520px] w-full object-contain"
                   >
+                  <div v-else class="flex h-64 w-full items-center justify-center text-sm text-text-muted">
+                    Sin preview disponible
+                  </div>
                 </div>
+              </div>
 
-                <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+              <!-- Format thumbnails -->
+              <div class="border-t border-border bg-surface px-5 py-4">
+                <div class="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
                   <button
                     v-for="format in concept.formats"
                     :key="format.ratio"
                     type="button"
-                    class="rounded border p-2 text-left transition"
-                    :class="format.ratio === concept.selectedRatio ? 'border-accent bg-accent/10' : 'border-border bg-surface hover:border-accent/40'"
+                    class="group rounded-lg border p-2 text-left transition"
+                    :class="format.ratio === concept.selectedRatio ? 'border-accent bg-accent/8' : 'border-border hover:border-accent/30'"
                     @click="selectRatio(concept.id, format.ratio)"
                   >
-                    <div class="overflow-hidden rounded border border-border bg-bg">
+                    <div class="overflow-hidden rounded border border-white/[0.04] bg-[#0a0a0a]">
                       <img
                         v-if="activeVariantForFormat(format)?.imageUrl"
                         :src="activeVariantForFormat(format)?.imageUrl"
                         :alt="`${concept.title} ${format.ratio}`"
-                        class="aspect-square w-full object-cover"
+                        class="aspect-[4/3] w-full object-cover"
                       >
-                      <div v-else class="flex aspect-square items-center justify-center bg-bg px-3 text-center text-xs leading-5 text-text-muted">
-                        Se generara al aprobar el concepto
+                      <div v-else class="flex aspect-[4/3] items-center justify-center px-3 text-center text-[11px] leading-4 text-text-muted/60">
+                        Pendiente
                       </div>
                     </div>
-                    <div class="mt-2 flex items-center justify-between text-xs">
-                      <span class="font-mono text-text">{{ format.ratio }}</span>
-                      <span class="text-text-muted">{{ formatStatusLabel(concept, format) }}</span>
+                    <div class="mt-1.5 flex items-center justify-between px-0.5">
+                      <span class="font-mono text-[11px]" :class="format.ratio === concept.selectedRatio ? 'text-accent' : 'text-text'">{{ format.ratio }}</span>
+                      <span
+                        class="text-[10px]"
+                        :class="activeVariantForFormat(format)?.mode === 'final' ? 'text-accent' : 'text-text-muted/60'"
+                      >
+                        {{ formatStatusLabel(concept, format) }}
+                      </span>
                     </div>
                   </button>
                 </div>
@@ -93,135 +124,120 @@
             </div>
 
             <div class="flex h-full flex-col">
+              <!-- Concept info -->
               <div class="border-b border-border px-5 py-5">
-                <div class="flex items-start justify-between gap-4">
-                  <div>
-                    <h2 class="text-2xl font-medium text-text">{{ concept.title }}</h2>
-                    <p class="mt-2 text-sm leading-6 text-text-muted">{{ concept.subtitle }}</p>
-                    <p class="mt-3 text-sm leading-6 text-text-muted/80">{{ concept.rationale }}</p>
-                  </div>
-
-                  <button
-                    type="button"
-                    class="shrink-0 text-sm text-text-muted transition hover:text-danger"
-                    @click="discardConcept(concept.id)"
-                  >
-                    Descartar
-                  </button>
-                </div>
+                <p class="text-sm leading-6 text-text-muted">{{ concept.subtitle }}</p>
+                <p class="mt-2 text-sm leading-6 text-text-muted/70">{{ concept.rationale }}</p>
               </div>
 
-              <div class="space-y-6 px-5 py-5">
-                <section class="rounded border border-[#7a5b22] bg-[#2a2118] p-4 text-sm text-[#f2d8aa]" v-if="!concept.approvedAt">
+              <div class="flex-1 space-y-5 overflow-y-auto px-5 py-5">
+                <section v-if="!concept.approvedAt" class="rounded-lg border border-[#7a5b22]/60 bg-[#2a2118]/80 p-4 text-sm text-[#f2d8aa]">
                   <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#ffcc73]">
                     {{ selectedFormat(concept)?.isPreviewSource ? 'Preview economico' : 'Formato final pendiente' }}
                   </p>
-                  <p class="mt-2 leading-6">
+                  <p class="mt-2 leading-6 text-[#f2d8aa]/80">
                     <template v-if="selectedFormat(concept)?.isPreviewSource">
-                      Esta imagen es solo una referencia rapida y barata para validar la idea. Si la apruebas, generamos todas las relaciones de aspecto en alta calidad con Gemini Flash Image 3.1.
+                      Referencia rapida para validar la idea. Si apruebas, generamos todos los formatos en HD.
                     </template>
                     <template v-else>
-                      Este formato no tiene preview independiente. Se generara directamente en alta calidad cuando apruebes el preview principal del concepto.
+                      Se generara en alta calidad al aprobar el preview principal.
                     </template>
                   </p>
                   <button
                     type="button"
-                    class="mt-4 w-full rounded bg-[#ff8a00] px-4 py-3 text-base font-medium text-white transition hover:opacity-90"
+                    class="mt-3 w-full rounded-lg bg-accent px-4 py-3 text-sm font-medium text-bg transition hover:opacity-90 disabled:opacity-50"
                     :disabled="loadingFinalId === concept.id"
                     @click="finalizeConcept(concept.id)"
                   >
-                    {{ loadingFinalId === concept.id ? 'Generando versiones finales...' : 'Aprobar y generar todos los formatos HD' }}
+                    {{ loadingFinalId === concept.id ? 'Generando versiones finales...' : 'Aprobar y generar HD' }}
                   </button>
                 </section>
 
-                <section v-else class="rounded border border-accent/40 bg-accent/10 p-4 text-sm text-text">
-                  <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">
-                    Concepto aprobado
-                  </p>
+                <section v-else class="rounded-lg border border-accent/30 bg-accent/8 p-4 text-sm">
+                  <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Concepto aprobado</p>
                   <p class="mt-2 leading-6 text-text-muted">
-                    Este concepto ya paso a generacion final. Puedes seguir revisando formatos o regenerar previews por separado si quieres explorar otra direccion.
+                    Generacion final completada. Puedes revisar formatos o regenerar variantes.
                   </p>
                 </section>
 
                 <section class="space-y-3">
                   <div class="flex items-center justify-between gap-3">
-                    <div>
-                      <p class="text-sm font-medium text-text">Prompt del formato {{ concept.selectedRatio }}</p>
-                      <p class="mt-1 text-sm text-text-muted">
-                        {{ selectedFormat(concept)?.isPreviewSource || concept.approvedAt
-                          ? 'El historial de variantes siempre queda vinculado al prompt usado en ese formato.'
-                          : 'Este formato heredara su composicion al aprobar el preview principal.' }}
-                      </p>
-                    </div>
+                    <p class="text-sm font-medium text-text">Prompt &middot; {{ concept.selectedRatio }}</p>
 
                     <button
                       type="button"
-                      class="text-sm text-text-muted transition hover:text-text"
+                      class="rounded border border-accent/30 bg-accent/8 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-accent hover:bg-accent/15"
                       @click="openPromptModal(concept.id)"
                     >
-                      Editar en modal
+                      Editar prompt
                     </button>
                   </div>
 
-                  <div class="rounded border border-border bg-bg px-4 py-3 text-sm leading-6 text-text-muted">
+                  <p class="text-xs text-text-muted">
+                    {{ selectedFormat(concept)?.isPreviewSource || concept.approvedAt
+                      ? 'Vinculado al historial de variantes del formato.'
+                      : 'Se aplicara al aprobar el preview principal.' }}
+                  </p>
+
+                  <div class="rounded-lg border border-border bg-bg/80 px-4 py-3 font-mono text-xs leading-5 text-text-muted">
                     {{ promptPreview(concept.id) }}
                   </div>
 
-                  <div class="flex flex-col gap-3 sm:flex-row">
+                  <div class="flex flex-col gap-2 sm:flex-row">
                     <AppButton
                       type="button"
                       :disabled="loadingPreviewId === concept.id || !selectedFormat(concept)?.isPreviewSource"
                       @click="regeneratePreview(concept.id)"
                     >
-                      {{ loadingPreviewId === concept.id ? 'Regenerando preview...' : `Regenerar preview ${concept.selectedRatio}` }}
+                      {{ loadingPreviewId === concept.id ? 'Regenerando...' : `Regenerar preview` }}
                     </AppButton>
 
                     <button
                       type="button"
-                      class="rounded border border-border px-4 py-2.5 text-sm text-text-muted transition hover:border-accent hover:text-text"
+                      class="rounded border border-border px-4 py-2.5 text-xs text-text-muted transition hover:border-text-muted hover:text-text disabled:opacity-40"
                       @click="resetPrompt(concept.id)"
                       :disabled="!selectedFormat(concept)?.isPreviewSource && !concept.approvedAt"
                     >
-                      Restaurar prompt base
+                      Restaurar original
                     </button>
                   </div>
                 </section>
 
-                <section class="space-y-3 border-t border-border pt-5">
-                  <div>
-                    <p class="text-sm font-medium text-text">Historial del formato {{ concept.selectedRatio }}</p>
-                    <p class="mt-1 text-sm text-text-muted">
-                      Cada regeneracion queda asociada al prompt exacto de la variante.
-                    </p>
-                  </div>
+                <section class="space-y-3 border-t border-border pt-4">
+                  <p class="text-xs font-medium uppercase tracking-wider text-text-muted">
+                    Historial &middot; {{ concept.selectedRatio }}
+                  </p>
 
-                  <div class="space-y-2">
+                  <div class="space-y-1.5">
                     <button
                       v-for="variant in selectedFormat(concept)?.variants"
                       :key="variant.id"
                       type="button"
-                      class="w-full rounded border px-3 py-3 text-left transition"
-                      :class="variant.id === selectedFormat(concept)?.activeVariantId ? 'border-accent bg-accent/10' : 'border-border hover:border-accent/40'"
+                      class="w-full rounded-lg border px-3 py-2.5 text-left transition"
+                      :class="variant.id === selectedFormat(concept)?.activeVariantId ? 'border-accent/50 bg-accent/8' : 'border-border hover:border-accent/25'"
                       @click="selectVariant(concept.id, concept.selectedRatio, variant.id)"
                     >
                       <div class="flex items-center justify-between gap-3">
                         <div>
                           <p class="text-sm text-text">{{ variant.label }}</p>
-                          <p class="mt-1 text-xs text-text-muted">
+                          <p class="mt-0.5 text-[11px] text-text-muted">
                             {{ formatTimestamp(variant.createdAt) }}
                           </p>
                         </div>
-                        <span class="font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">
+                        <span
+                          class="rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em]"
+                          :class="variant.mode === 'final' ? 'bg-accent/15 text-accent' : 'text-text-muted'"
+                        >
                           {{ variant.mode === 'final' ? 'Final' : 'Preview' }}
                         </span>
                       </div>
                     </button>
-                    <div
+                    <p
                       v-if="!selectedFormat(concept)?.variants.length"
-                      class="rounded border border-dashed border-border px-3 py-4 text-sm text-text-muted"
+                      class="py-3 text-center text-xs text-text-muted/60"
                     >
-                      Aun no hay variantes para este formato. Se generara cuando apruebes el preview principal.
-                    </div>
+                      Sin variantes. Se generaran al aprobar.
+                    </p>
                   </div>
                 </section>
               </div>
@@ -229,25 +245,22 @@
           </div>
         </article>
 
-        <section class="rounded-xl border border-dashed border-border bg-surface px-6 py-10">
-          <div class="mx-auto max-w-2xl text-center">
-            <h2 class="text-3xl font-medium text-text">¿Necesitas más opciones?</h2>
-            <p class="mt-4 text-base leading-7 text-text-muted">
-              Genera conceptos adicionales usando la misma informacion del brief original. Esto no modifica lo que ya aprobaste o descartaste.
+        <section class="rounded-xl border border-border bg-surface px-6 py-8">
+          <div class="mx-auto flex max-w-2xl flex-col items-center text-center">
+            <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-text-muted">Mas opciones</p>
+            <p class="mt-3 text-sm leading-6 text-text-muted">
+              Genera conceptos adicionales con el mismo brief. No modifica lo que ya aprobaste.
             </p>
 
-            <div class="mt-8 flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <div class="flex items-center gap-3 rounded border border-border bg-bg px-4 py-3">
-                <span class="text-sm text-text-muted">Cantidad:</span>
-                <select
-                  v-model="moreConceptCount"
-                  class="rounded border border-border bg-surface-2 px-3 py-2 text-sm text-text outline-none"
-                >
-                  <option v-for="count in extraConceptCounts" :key="count" :value="count">
-                    {{ count }}
-                  </option>
-                </select>
-              </div>
+            <div class="mt-5 flex items-center gap-3">
+              <select
+                v-model="moreConceptCount"
+                class="rounded-lg border border-border bg-bg px-3 py-2.5 font-mono text-sm text-text outline-none transition focus:border-accent"
+              >
+                <option v-for="count in extraConceptCounts" :key="count" :value="count">
+                  {{ count }}
+                </option>
+              </select>
 
               <AppButton
                 type="button"
@@ -263,14 +276,14 @@
 
       <div
         v-if="promptModalConceptId"
-        class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6"
+        class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
       >
         <div class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
           <div class="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
             <div>
               <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Editor de prompt</p>
-              <h2 class="mt-2 text-2xl font-medium text-text">
-                {{ promptModalConcept?.title }} · {{ promptModalConcept?.selectedRatio }}
+              <h2 class="mt-2 text-lg font-medium text-text">
+                {{ promptModalConcept?.title }} &middot; {{ promptModalConcept?.selectedRatio }}
               </h2>
               <p class="mt-2 text-sm leading-6 text-text-muted">
                 {{ promptModalDescription }}
@@ -279,10 +292,10 @@
 
             <button
               type="button"
-              class="text-sm text-text-muted transition hover:text-text"
+              class="rounded border border-border p-1.5 text-text-muted transition hover:border-text-muted hover:text-text"
               @click="closePromptModal"
             >
-              Cerrar
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
             </button>
           </div>
 
@@ -295,20 +308,20 @@
             />
           </div>
 
-          <div class="flex flex-col gap-3 border-t border-border px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+          <div class="flex items-center justify-between gap-3 border-t border-border px-6 py-4">
             <button
               type="button"
-              class="text-sm text-text-muted transition hover:text-text"
+              class="text-xs text-text-muted transition hover:text-text disabled:opacity-40"
               :disabled="!promptModalConcept"
               @click="resetPrompt(promptModalConceptId || '')"
             >
-              Restaurar prompt base
+              Restaurar original
             </button>
 
             <div class="flex gap-3">
               <button
                 type="button"
-                class="rounded border border-border px-4 py-2.5 text-sm text-text-muted transition hover:border-accent hover:text-text"
+                class="rounded-lg border border-border px-4 py-2 text-sm text-text-muted transition hover:border-text-muted hover:text-text"
                 @click="closePromptModal"
               >
                 Cancelar
