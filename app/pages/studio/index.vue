@@ -1,66 +1,13 @@
 <template>
-  <div class="min-h-screen bg-bg text-text">
-    <NuxtRouteAnnouncer />
-
-    <div class="mx-auto flex min-h-screen max-w-[1600px] flex-col lg:flex-row">
-      <aside class="hidden w-64 shrink-0 border-r border-border bg-surface px-6 py-10 lg:flex lg:flex-col">
-        <div>
-          <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">
-            Image Studio
-          </p>
-          <h1 class="mt-5 font-display text-2xl leading-snug text-text">
-            Brief publicitario
-          </h1>
-          <p class="mt-4 text-sm leading-6 text-text-muted">
-            Define el marco creativo antes de pedir conceptos. Luego evaluas previews baratos y apruebas solo lo que merezca pasar a HD.
-          </p>
-        </div>
-
-        <nav class="mt-10 space-y-1">
-          <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-text-muted">
-            Flujo
-          </p>
-          <ul class="mt-3 space-y-2 text-sm text-text-muted">
-            <li>1. Brief y reglas</li>
-            <li>2. Conceptos con preview Imagen 4</li>
-            <li>3. Aprobacion y generacion final HD</li>
-          </ul>
-
-          <div class="mt-6">
-            <NuxtLink class="text-sm text-text-muted transition hover:text-text" to="/settings">
-              Configuracion de Gemini
-            </NuxtLink>
-          </div>
-        </nav>
-
-        <div class="mt-10 rounded border border-border bg-surface-2 p-4 text-sm text-text-muted">
-          <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">
-            Nota
-          </p>
-          <p class="mt-2 leading-6">
-            El preview es rapido y barato. La generacion final usa el modelo de mayor calidad solo cuando el concepto ya esta validado.
-          </p>
-        </div>
-
-        <div class="mt-auto pt-10">
-          <button
-            class="text-sm text-text-muted transition hover:text-text"
-            @click="toggleTheme"
-          >
-            Cambiar tema
-          </button>
-        </div>
-      </aside>
-
-      <main class="flex-1 px-5 py-8 sm:px-8 sm:py-10 lg:px-14 lg:py-14">
-        <div class="mx-auto max-w-2xl">
+  <StudioShell section="brief">
+    <div class="mx-auto max-w-2xl">
           <header class="mb-12">
             <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Estudio</p>
             <h2 class="mt-3 font-display text-3xl text-text">
-              Brief para imagenes publicitarias
+              Crear un proyecto o continuar uno existente
             </h2>
             <p class="mt-3 text-sm leading-6 text-text-muted">
-              Este paso define la informacion base que Gemini Flash usara para proponer conceptos distintos antes de generar imagenes finales.
+              Usa este brief para abrir un proyecto nuevo. Si quieres retomar trabajo previo, elige uno desde la barra lateral y seguiras en su brief o en sus conceptos guardados.
             </p>
           </header>
 
@@ -202,10 +149,8 @@
               </div>
             </div>
           </form>
-        </div>
-      </main>
     </div>
-  </div>
+  </StudioShell>
 </template>
 
 <script setup lang="ts">
@@ -218,6 +163,7 @@ import AppTextarea from '~/components/base/AppTextarea.vue'
 import StudioChipMultiSelect from '~/components/studio/StudioChipMultiSelect.vue'
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
 import StudioPendingPanel from '~/components/studio/StudioPendingPanel.vue'
+import StudioShell from '~/components/studio/StudioShell.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -351,7 +297,4 @@ async function submitBrief() {
   }
 }
 
-function toggleTheme() {
-  document.documentElement.classList.toggle('light')
-}
 </script>

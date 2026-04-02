@@ -1,12 +1,12 @@
 <template>
-  <div class="min-h-screen bg-bg text-text">
-    <div class="mx-auto max-w-[1600px] px-5 py-6 sm:px-8 lg:px-10 lg:py-8">
+  <StudioShell section="concepts">
+    <div class="mx-auto max-w-[1240px]">
       <header class="mb-8 flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
         <div>
           <button
             type="button"
             class="mb-4 flex items-center gap-1.5 text-xs text-text-muted transition hover:text-text"
-            @click="$router.push('/studio')"
+            @click="router.push(routeProjectSlug ? `/studio/${routeProjectSlug}/brief` : '/studio')"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
             Volver al brief
@@ -359,7 +359,7 @@
         </div>
       </div>
     </div>
-  </div>
+  </StudioShell>
 </template>
 
 <script setup lang="ts">
@@ -367,6 +367,7 @@ import type { StudioConcept, StudioConceptFormat, StudioConceptResponse, StudioP
 
 import AppButton from '~/components/base/AppButton.vue'
 import AppTextarea from '~/components/base/AppTextarea.vue'
+import StudioShell from '~/components/studio/StudioShell.vue'
 
 const route = useRoute()
 const router = useRouter()

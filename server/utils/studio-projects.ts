@@ -5,6 +5,7 @@ import type {
   StudioConcept,
   StudioConceptFormat,
   StudioProject,
+  StudioProjectListItem,
   StudioVariant
 } from '../../shared/types/studio'
 import { db } from '../db/client'
@@ -38,6 +39,25 @@ function serializeBrief(brief: StudioBriefPayload) {
 
 function deserializeBrief(value: string): StudioBriefPayload {
   return JSON.parse(value) as StudioBriefPayload
+}
+
+function mapProjectListItem(project: typeof studioProjects.$inferSelect): StudioProjectListItem {
+  const brief = deserializeBrief(project.brief)
+  const projectConceptRows = db.select({ approvedAt: studioConcepts.approvedAt })
+    .from(studioConcepts)
+    .where(and(eq(studioConcepts.projectId, project.id), isNull(studioConcepts.discardedAt)))
+    .all()
+
+  return {
+    id: project.id,
+    slug: project.slug,
+    projectName: project.projectName,
+    goal: brief.goal,
+    conceptCount: projectConceptRows.length,
+    hasApprovedConcepts: projectConceptRows.some((concept) => Boolean(concept.approvedAt)),
+    createdAt: project.createdAt.toISOString(),
+    updatedAt: project.updatedAt.toISOString()
+  }
 }
 
 function formatTimestamp(value: Date | null) {
@@ -169,6 +189,15 @@ export function getStudioProjectBySlug(slug: string): StudioProject {
     .all()
 
   return mapProject(project, mapConcepts(conceptRows, formatRows, variantRows))
+}
+
+export function listStudioProjects(): StudioProjectListItem[] {
+  const projects = db.select()
+    .from(studioProjects)
+    .orderBy(desc(studioProjects.updatedAt), desc(studioProjects.id))
+    .all()
+
+  return projects.map(mapProjectListItem)
 }
 
 export async function createStudioProject(brief: StudioBriefPayload): Promise<StudioProject> {

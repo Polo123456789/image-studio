@@ -21,6 +21,21 @@ export interface StudioProject {
   updatedAt: string
 }
 
+export interface StudioProjectListItem {
+  id: number
+  slug: string
+  projectName: string
+  goal: string
+  conceptCount: number
+  hasApprovedConcepts: boolean
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StudioProjectListResponse {
+  projects: StudioProjectListItem[]
+}
+
 export interface StudioProjectResponse {
   project: StudioProject
 }
