@@ -183,6 +183,20 @@ import AppTextarea from '~/components/base/AppTextarea.vue'
 import StudioChipMultiSelect from '~/components/studio/StudioChipMultiSelect.vue'
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
 import StudioPendingPanel from '~/components/studio/StudioPendingPanel.vue'
+import {
+  applyStudioBriefToForm,
+  buildStudioBriefPayload,
+  createStudioBriefFormState,
+  defaultStudioAspectRatios,
+  defaultStudioMediaChannels,
+  studioAspectRatios,
+  studioBrands,
+  studioConceptCounts,
+  studioGoals,
+  studioMediaChannels,
+  studioResolutions,
+  summarizeStudioBrief
+} from '~/utils/studio-brief'
 
 const route = useRoute()
 const { brief, setProject } = useStudioSession()
@@ -202,61 +216,26 @@ const isSaving = ref(false)
 const feedback = ref('')
 const feedbackTone = ref<'success' | 'error'>('success')
 
-const brands = ['Aster Labs', 'Casa Nativa', 'North Bloom']
+const brands = studioBrands
+const goals = studioGoals
+const mediaChannels = studioMediaChannels
+const aspectRatios = studioAspectRatios
+const resolutions = studioResolutions
+const conceptCounts = studioConceptCounts
 
-const goals = [
-  'Aumentar ventas',
-  'Generar leads',
-  'Lanzar un producto',
-  'Mejorar reconocimiento de marca',
-  'Promocionar una oferta',
-]
+const form = reactive(createStudioBriefFormState())
 
-const mediaChannels = [
-  'Google Ads',
-  'Instagram Feed',
-  'Instagram Stories',
-  'Facebook Ads',
-  'TikTok',
-  'LinkedIn Ads',
-  'Display Banners',
-  'Email',
-]
-
-const aspectRatios = ['1:1', '4:5', '3:4', '16:9', '9:16', '21:9']
-const resolutions = ['1K rapido', '2K estandar', '4K alta calidad']
-const conceptCounts = [2, 3, 4, 6]
-
-const form = reactive({
-  brand: '',
-  projectName: '',
-  goal: 'Aumentar ventas',
-  audienceAction: '',
-  keyMessage: '',
-  additionalContext: '',
-  resolution: '1K rapido',
-  conceptCount: 3,
-})
-
-const selectedMedia = ref<string[]>(['Google Ads', 'Instagram Stories'])
-const selectedRatios = ref<string[]>(['1:1', '9:16'])
+const selectedMedia = ref<string[]>([...defaultStudioMediaChannels])
+const selectedRatios = ref<string[]>([...defaultStudioAspectRatios])
 
 // Load project data
 try {
   const response = await $fetch<StudioProjectResponse>(`/api/studio/projects/${slug}`)
   setProject(response.project)
 
-  // Populate form from loaded brief
-  form.brand = response.project.brief.brand
-  form.projectName = response.project.brief.projectName
-  form.goal = response.project.brief.goal
-  form.audienceAction = response.project.brief.audienceAction
-  form.keyMessage = response.project.brief.keyMessage
-  form.additionalContext = response.project.brief.additionalContext
-  form.resolution = response.project.brief.resolution
-  form.conceptCount = response.project.brief.conceptCount
-  selectedMedia.value = [...response.project.brief.mediaChannels]
-  selectedRatios.value = [...response.project.brief.aspectRatios]
+  const nextSelection = applyStudioBriefToForm(form, response.project.brief)
+  selectedMedia.value = nextSelection.selectedMedia
+  selectedRatios.value = nextSelection.selectedRatios
 }
 catch {
   loadError.value = 'No se pudo cargar el proyecto. Verifica que el slug sea correcto.'
@@ -270,28 +249,13 @@ const canSave = computed(() => {
 })
 
 const summaryText = computed(() => {
-  const project = form.projectName || 'Proyecto sin nombre'
-  const channels = selectedMedia.value.length ? selectedMedia.value.join(', ') : 'sin medios'
-  const ratios = selectedRatios.value.length ? selectedRatios.value.join(', ') : 'sin formatos'
-
-  return `${project} — ${form.goal.toLowerCase()} — ${channels} — ${ratios} — ${form.conceptCount} conceptos.`
+  return summarizeStudioBrief(form, selectedMedia.value, selectedRatios.value)
 })
 
 const feedbackClass = computed(() => feedbackTone.value === 'success' ? 'text-accent' : 'text-danger')
 
 function buildBriefPayload(): StudioBriefPayload {
-  return {
-    brand: form.brand,
-    projectName: form.projectName,
-    goal: form.goal,
-    audienceAction: form.audienceAction,
-    keyMessage: form.keyMessage,
-    additionalContext: form.additionalContext,
-    resolution: form.resolution,
-    conceptCount: Number(form.conceptCount),
-    mediaChannels: [...selectedMedia.value],
-    aspectRatios: [...selectedRatios.value],
-  }
+  return buildStudioBriefPayload(form, selectedMedia.value, selectedRatios.value)
 }
 
 async function saveBrief() {
