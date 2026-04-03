@@ -1,16 +1,10 @@
 import type { StudioProjectResponse } from '../../../../shared/types/studio'
 
+import { requireSlugParam } from '../../../utils/http'
 import { getStudioProjectBySlug } from '../../../utils/studio-projects'
 
 export default defineEventHandler((event): StudioProjectResponse => {
-  const slug = getRouterParam(event, 'slug')
-
-  if (!slug) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Project slug is required'
-    })
-  }
+  const slug = requireSlugParam(event)
 
   return {
     project: getStudioProjectBySlug(slug)

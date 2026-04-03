@@ -183,6 +183,7 @@ import AppTextarea from '~/components/base/AppTextarea.vue'
 import StudioChipMultiSelect from '~/components/studio/StudioChipMultiSelect.vue'
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
 import StudioPendingPanel from '~/components/studio/StudioPendingPanel.vue'
+import { requireStudioSlug } from '~/utils/studio-routing'
 import {
   applyStudioBriefToForm,
   buildStudioBriefPayload,
@@ -201,14 +202,7 @@ import {
 const route = useRoute()
 const { brief, setProject } = useStudioSession()
 
-const slug = typeof route.params.slug === 'string' ? route.params.slug : ''
-
-if (!slug) {
-  throw createError({
-    statusCode: 400,
-    statusMessage: 'Project slug is required'
-  })
-}
+const slug = requireStudioSlug(route)
 
 const loading = ref(true)
 const loadError = ref('')

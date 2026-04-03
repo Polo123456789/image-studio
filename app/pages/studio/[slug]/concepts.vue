@@ -6,17 +6,11 @@
 import type { StudioProjectResponse } from '../../../../shared/types/studio'
 
 import StudioConceptsPage from '../concepts.vue'
+import { requireStudioSlug } from '~/utils/studio-routing'
 
 const route = useRoute()
 const { setProject } = useStudioSession()
-const slug = typeof route.params.slug === 'string' ? route.params.slug : ''
-
-if (!slug) {
-  throw createError({
-    statusCode: 400,
-    statusMessage: 'Project slug is required'
-  })
-}
+const slug = requireStudioSlug(route)
 
 const response = await $fetch<StudioProjectResponse>(`/api/studio/projects/${slug}`)
 

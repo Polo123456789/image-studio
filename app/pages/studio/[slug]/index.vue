@@ -1,11 +1,8 @@
 <script setup lang="ts">
-const route = useRoute()
-const slug = typeof route.params.slug === 'string' ? route.params.slug : ''
+import { requireStudioSlug } from '~/utils/studio-routing'
 
-if (!slug) {
-  await navigateTo('/studio')
-}
-else {
-  await navigateTo(`/studio/${slug}/brief`)
-}
+const route = useRoute()
+const slug = requireStudioSlug(route)
+
+await navigateTo(`/studio/${slug}/brief`)
 </script>
