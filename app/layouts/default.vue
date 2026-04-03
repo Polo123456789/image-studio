@@ -66,7 +66,11 @@
               class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md transition"
               :class="isActive(item.to) ? 'bg-accent/20 text-accent' : 'bg-surface-2 text-text-muted group-hover:text-text'"
             >
-              <component :is="item.icon" class="h-3.5 w-3.5" />
+              <svg v-if="item.icon === 'studio'" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
+              <svg v-else-if="item.icon === 'library'" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z" /><path d="M2 8v11a2 2 0 0 0 2 2h14" /></svg>
+              <svg v-else-if="item.icon === 'assets'" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" /><polyline points="3.29 7 12 12 20.71 7" /><line x1="12" y1="22" x2="12" y2="12" /></svg>
+              <svg v-else-if="item.icon === 'styles'" class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z" /><path d="M2 12C2 6.5 6.5 2 12 2" /><circle cx="12" cy="12" r="3" /></svg>
+              <svg v-else class="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></svg>
             </div>
             <span>{{ item.label }}</span>
             <span
@@ -119,8 +123,6 @@
 </template>
 
 <script setup lang="ts">
-import { h } from 'vue'
-
 const route = useRoute()
 const mobileOpen = ref(false)
 
@@ -139,85 +141,11 @@ function toggleTheme() {
   document.documentElement.classList.toggle('light')
 }
 
-// Icon components as render functions to keep the template clean
-const IconStudio = () => h('svg', {
-  class: 'h-3.5 w-3.5',
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  'stroke-width': '2',
-  'stroke-linecap': 'round',
-  'stroke-linejoin': 'round',
-}, [
-  h('rect', { x: '3', y: '3', width: '18', height: '18', rx: '2' }),
-  h('circle', { cx: '8.5', cy: '8.5', r: '1.5' }),
-  h('path', { d: 'm21 15-5-5L5 21' }),
-])
-
-const IconLibrary = () => h('svg', {
-  class: 'h-3.5 w-3.5',
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  'stroke-width': '2',
-  'stroke-linecap': 'round',
-  'stroke-linejoin': 'round',
-}, [
-  h('path', { d: 'M20 17a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3.9a2 2 0 0 1-1.69-.9l-.81-1.2a2 2 0 0 0-1.67-.9H8a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2Z' }),
-  h('path', { d: 'M2 8v11a2 2 0 0 0 2 2h14' }),
-])
-
-const IconAssets = () => h('svg', {
-  class: 'h-3.5 w-3.5',
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  'stroke-width': '2',
-  'stroke-linecap': 'round',
-  'stroke-linejoin': 'round',
-}, [
-  h('path', { d: 'M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z' }),
-  h('polyline', { points: '3.29 7 12 12 20.71 7' }),
-  h('line', { x1: '12', y1: '22', x2: '12', y2: '12' }),
-])
-
-const IconStyles = () => h('svg', {
-  class: 'h-3.5 w-3.5',
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  'stroke-width': '2',
-  'stroke-linecap': 'round',
-  'stroke-linejoin': 'round',
-}, [
-  h('path', { d: 'M12 20a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z' }),
-  h('path', { d: 'M12 20a7 7 0 1 0 0-14 7 7 0 0 0 0 14Z', opacity: '0' }),
-  h('path', { d: 'M2 12C2 6.5 6.5 2 12 2' }),
-  h('circle', { cx: '12', cy: '12', r: '3' }),
-])
-
-const IconBrands = () => h('svg', {
-  class: 'h-3.5 w-3.5',
-  viewBox: '0 0 24 24',
-  fill: 'none',
-  stroke: 'currentColor',
-  'stroke-width': '2',
-  'stroke-linecap': 'round',
-  'stroke-linejoin': 'round',
-}, [
-  h('path', { d: 'M6 9H4.5a2.5 2.5 0 0 1 0-5H6' }),
-  h('path', { d: 'M18 9h1.5a2.5 2.5 0 0 0 0-5H18' }),
-  h('path', { d: 'M4 22h16' }),
-  h('path', { d: 'M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22' }),
-  h('path', { d: 'M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22' }),
-  h('path', { d: 'M18 2H6v7a6 6 0 0 0 12 0V2Z' }),
-])
-
 const mainNav = [
-  { to: '/studio', label: 'Estudio', icon: IconStudio },
-  { to: '/library', label: 'Biblioteca', icon: IconLibrary },
-  { to: '/assets', label: 'Assets', icon: IconAssets },
-  { to: '/styles', label: 'Guias de estilo', icon: IconStyles },
-  { to: '/brands', label: 'Marcas', icon: IconBrands },
+  { to: '/studio', label: 'Estudio', icon: 'studio' },
+  { to: '/library', label: 'Biblioteca', icon: 'library' },
+  { to: '/assets', label: 'Assets', icon: 'assets' },
+  { to: '/styles', label: 'Guias de estilo', icon: 'styles' },
+  { to: '/brands', label: 'Marcas', icon: 'brands' },
 ]
 </script>
