@@ -1,0 +1,19 @@
+[Unit]
+Description=Image Studio Nuxt App
+After=network.target
+
+[Service]
+Type=simple
+User=image-studio
+Group=image-studio
+WorkingDirectory=/opt/image-studio
+Environment=NODE_ENV=production
+Environment=HOST=0.0.0.0
+Environment=PORT=3000
+# Environment=GEMINI_API_KEY=tu_api_key
+ExecStart=/usr/bin/node /opt/image-studio/.output/server/index.mjs
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
