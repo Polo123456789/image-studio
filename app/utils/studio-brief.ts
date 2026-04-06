@@ -26,7 +26,7 @@ export const defaultStudioMediaChannels = ['Google Ads', 'Instagram Stories']
 export const defaultStudioAspectRatios = ['1:1', '9:16']
 
 export interface StudioBriefFormState {
-  brand: string
+  brandId: number | null
   projectName: string
   goal: string
   audienceAction: string
@@ -39,7 +39,7 @@ export interface StudioBriefFormState {
 
 export function createStudioBriefFormState(): StudioBriefFormState {
   return {
-    brand: '',
+    brandId: null,
     projectName: '',
     goal: 'Aumentar ventas',
     audienceAction: '',
@@ -56,10 +56,12 @@ export function buildStudioBriefPayload(
   selectedMedia: string[],
   selectedRatios: string[],
   selectedStyleGuideId: number | null,
-  selectedAssetIds: number[] = []
+  selectedAssetIds: number[] = [],
+  brandName = ''
 ): StudioBriefPayload {
   return {
-    brand: form.brand,
+    brandId: form.brandId,
+    brand: brandName,
     projectName: form.projectName,
     goal: form.goal,
     audienceAction: form.audienceAction,
@@ -82,7 +84,7 @@ export function applyStudioBriefToForm(
   const legacyStyleGuideIds = Array.isArray(brief.styleGuideIds) ? brief.styleGuideIds : []
 
   Object.assign(form, {
-    brand: brief.brand,
+    brandId: brief.brandId ?? null,
     projectName: brief.projectName,
     goal: brief.goal,
     audienceAction: brief.audienceAction,

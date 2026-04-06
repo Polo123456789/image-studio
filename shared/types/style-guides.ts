@@ -1,7 +1,4 @@
-export interface BrandOption {
-  id: number
-  name: string
-}
+import type { BrandOption } from './brands'
 
 export interface StyleGuideRecord {
   id: number

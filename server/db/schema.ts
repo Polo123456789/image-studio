@@ -14,6 +14,7 @@ export const brands = sqliteTable('brands', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
   description: text('description'),
+  defaultStyleGuideId: integer('default_style_guide_id'),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
 })
@@ -100,9 +101,13 @@ export const studioVariants = sqliteTable('studio_variants', {
   formatVariantUnique: uniqueIndex('studio_variants_format_id_variant_key_unique').on(table.formatId, table.variantKey)
 }))
 
-export const brandsRelations = relations(brands, ({ many }) => ({
+export const brandsRelations = relations(brands, ({ many, one }) => ({
   assets: many(assets),
-  styleGuides: many(styleGuides)
+  styleGuides: many(styleGuides),
+  defaultStyleGuide: one(styleGuides, {
+    fields: [brands.defaultStyleGuideId],
+    references: [styleGuides.id]
+  })
 }))
 
 export const styleGuidesRelations = relations(styleGuides, ({ one }) => ({

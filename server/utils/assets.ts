@@ -8,6 +8,7 @@ import { asc, eq, inArray } from 'drizzle-orm'
 import type { AssetRecord, AssetsResponse } from '../../shared/types/assets'
 import { db } from '../db/client'
 import { assets, brands } from '../db/schema'
+import { getBrandOptions } from './brands'
 import { getServerAppSettings } from './settings'
 
 const assetsDirectory = resolve(process.cwd(), 'public/uploads/assets')
@@ -212,17 +213,9 @@ export function getAssets(): AssetsResponse {
     .orderBy(asc(assets.brandId), asc(assets.name), asc(assets.id))
     .all()
 
-  const brandRows = db.select({
-    id: brands.id,
-    name: brands.name
-  })
-    .from(brands)
-    .orderBy(asc(brands.name))
-    .all()
-
   return {
     assets: assetRows.map(normalizeAssetRecord),
-    brands: brandRows
+    brands: getBrandOptions()
   }
 }
 

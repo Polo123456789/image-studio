@@ -24,10 +24,10 @@
           hint="Opcional"
           description="Si eliges una marca, su contexto guiara el estudio."
         >
-          <AppSelect v-model="form.brand">
+          <AppSelect v-model="selectedBrandId">
             <option value="">Sin marca asociada</option>
-            <option v-for="brand in brands" :key="brand" :value="brand">
-              {{ brand }}
+            <option v-for="brand in brandOptions" :key="brand.id" :value="String(brand.id)">
+              {{ brand.name }}
             </option>
           </AppSelect>
         </StudioFieldSection>
@@ -101,14 +101,14 @@
             v-model:selected-guide-id="selectedStyleGuideId"
             v-model:notes="form.styleGuideNotes"
             :guides="availableStyleGuides"
-            :brand-name="form.brand"
+            :brand-name="selectedBrandName"
           />
 
           <StudioAssetSection
             v-model:selected-asset-ids="selectedAssetIds"
             :assets="assets"
             :brands="styleGuideData?.brands ?? []"
-            :brand-name="form.brand"
+            :brand-name="selectedBrandName"
             @assets-uploaded="refreshAssets"
           />
         </div>
@@ -167,6 +167,7 @@
 
 <script setup lang="ts">
 import type { AssetRecord, AssetsResponse } from '../../../shared/types/assets'
+import type { BrandOption } from '../../../shared/types/brands'
 import type { StudioBriefPayload, StudioProjectResponse } from '../../../shared/types/studio'
 import type { StyleGuidesResponse } from '../../../shared/types/style-guides'
 
@@ -214,13 +215,25 @@ const selectedAssetIds = ref<number[]>([])
 const isSubmitting = ref(false)
 
 const assets = computed<AssetRecord[]>(() => assetData.value?.assets ?? [])
+const brandOptions = computed<BrandOption[]>(() => styleGuideData.value?.brands ?? [])
+const selectedBrandId = computed<string>({
+  get() {
+    return form.brandId === null ? '' : String(form.brandId)
+  },
+  set(value: string) {
+    form.brandId = value ? Number(value) : null
+  }
+})
+
+const selectedBrand = computed(() => brandOptions.value.find((brand) => brand.id === form.brandId) ?? null)
+const selectedBrandName = computed(() => selectedBrand.value?.name ?? '')
 
 const availableStyleGuides = computed(() => {
   const guides = styleGuideData.value?.guides ?? []
 
   return [...guides].sort((left, right) => {
-    const leftPriority = left.brandName === form.brand ? 0 : left.brandId === null ? 1 : 2
-    const rightPriority = right.brandName === form.brand ? 0 : right.brandId === null ? 1 : 2
+    const leftPriority = left.brandId === form.brandId ? 0 : left.brandId === null ? 1 : 2
+    const rightPriority = right.brandId === form.brandId ? 0 : right.brandId === null ? 1 : 2
 
     if (leftPriority !== rightPriority) {
       return leftPriority - rightPriority
@@ -238,8 +251,38 @@ const summaryText = computed(() => {
   return summarizeStudioBrief(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value.length, 'conceptos iniciales')
 })
 
+watch(() => form.brandId, (brandId) => {
+  if (brandId === null) {
+    if (selectedStyleGuideId.value !== null) {
+      const selectedGuide = availableStyleGuides.value.find((guide) => guide.id === selectedStyleGuideId.value)
+
+      if (selectedGuide?.brandId !== null) {
+        selectedStyleGuideId.value = null
+      }
+    }
+
+    return
+  }
+
+  const brand = brandOptions.value.find((entry) => entry.id === brandId)
+
+  if (!brand) {
+    return
+  }
+
+  if (brand.defaultStyleGuideId !== null) {
+    selectedStyleGuideId.value = brand.defaultStyleGuideId
+  } else if (selectedStyleGuideId.value !== null) {
+    const selectedGuide = availableStyleGuides.value.find((guide) => guide.id === selectedStyleGuideId.value)
+
+    if (selectedGuide?.brandId !== null && selectedGuide.brandId !== brandId) {
+      selectedStyleGuideId.value = null
+    }
+  }
+})
+
 function buildBriefPayload(): StudioBriefPayload {
-  return buildStudioBriefPayload(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value)
+  return buildStudioBriefPayload(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value, selectedBrandName.value)
 }
 
 async function submitBrief() {

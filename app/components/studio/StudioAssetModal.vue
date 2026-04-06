@@ -209,7 +209,7 @@
 
 <script setup lang="ts">
 import type { AssetRecord } from '../../../shared/types/assets'
-import type { BrandOption } from '../../../shared/types/style-guides'
+import type { BrandOption } from '../../../shared/types/brands'
 
 import AppModal from '~/components/base/AppModal.vue'
 

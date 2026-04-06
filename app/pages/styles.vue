@@ -195,6 +195,7 @@
 </template>
 
 <script setup lang="ts">
+import type { BrandOption } from '../../shared/types/brands'
 import type { StyleGuidePayload, StyleGuidesResponse } from '../../shared/types/style-guides'
 
 import AppButton from '~/components/base/AppButton.vue'
@@ -217,7 +218,7 @@ const feedbackTone = ref<'success' | 'error'>('success')
 const listSearch = ref('')
 
 const guides = computed(() => data.value?.guides ?? [])
-const brandOptions = computed(() => data.value?.brands ?? [])
+const brandOptions = computed<BrandOption[]>(() => data.value?.brands ?? [])
 const selectedGuide = computed(() => guides.value.find((guide) => guide.id === selectedGuideId.value) ?? null)
 const isEditing = computed(() => selectedGuide.value !== null)
 const globalGuidesCount = computed(() => guides.value.filter((guide) => guide.brandId === null).length)

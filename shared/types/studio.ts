@@ -1,4 +1,5 @@
 export interface StudioBriefPayload {
+  brandId: number | null
   brand: string
   projectName: string
   goal: string

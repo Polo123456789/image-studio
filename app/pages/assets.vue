@@ -210,14 +210,15 @@
 
 <script setup lang="ts">
 import type { AssetRecord, AssetsResponse } from '../../shared/types/assets'
+import type { BrandOption } from '../../shared/types/brands'
 
 import AppInput from '~/components/base/AppInput.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
 
 const { data, pending, refresh } = await useFetch<AssetsResponse>('/api/assets')
 
-const assets = computed(() => data.value?.assets ?? [])
-const brandOptions = computed(() => data.value?.brands ?? [])
+const assets = computed<AssetRecord[]>(() => data.value?.assets ?? [])
+const brandOptions = computed<BrandOption[]>(() => data.value?.brands ?? [])
 const globalAssetsCount = computed(() => assets.value.filter(a => a.brandId === null).length)
 const brandAssetsCount = computed(() => assets.value.filter(a => a.brandId !== null).length)
 const totalSize = computed(() => assets.value.reduce((sum, a) => sum + (a.fileSize || 0), 0))

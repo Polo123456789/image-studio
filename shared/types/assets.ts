@@ -1,4 +1,4 @@
-import type { BrandOption } from './style-guides'
+import type { BrandOption } from './brands'
 
 export interface AssetRecord {
   id: number

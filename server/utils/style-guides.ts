@@ -3,6 +3,7 @@ import { and, asc, eq, inArray, isNull, ne } from 'drizzle-orm'
 import type { StyleGuidePayload, StyleGuideRecord, StyleGuidesResponse } from '../../shared/types/style-guides'
 import { db } from '../db/client'
 import { brands, styleGuides } from '../db/schema'
+import { getBrandOptions } from './brands'
 
 function toIsoString(value: Date) {
   return value.toISOString()
@@ -112,17 +113,9 @@ export function getStyleGuides(): StyleGuidesResponse {
     .orderBy(asc(styleGuides.brandId), asc(styleGuides.name))
     .all()
 
-  const brandRows = db.select({
-    id: brands.id,
-    name: brands.name
-  })
-    .from(brands)
-    .orderBy(asc(brands.name))
-    .all()
-
   return {
     guides: guideRows.map(normalizeStyleGuideRecord),
-    brands: brandRows
+    brands: getBrandOptions()
   }
 }
 

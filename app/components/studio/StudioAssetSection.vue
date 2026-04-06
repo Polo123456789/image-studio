@@ -84,7 +84,7 @@
 
 <script setup lang="ts">
 import type { AssetRecord } from '../../../shared/types/assets'
-import type { BrandOption } from '../../../shared/types/style-guides'
+import type { BrandOption } from '../../../shared/types/brands'
 
 import StudioAssetModal from '~/components/studio/StudioAssetModal.vue'
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
