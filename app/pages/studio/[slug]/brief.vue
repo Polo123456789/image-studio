@@ -207,7 +207,7 @@ import {
 } from '~/utils/studio-brief'
 
 const route = useRoute()
-const { setProject } = useStudioSession()
+const { brief, setProject } = useStudioSession()
 const { data: styleGuideData } = await useFetch<StyleGuidesResponse>('/api/style-guides')
 const { data: assetData, refresh: refreshAssets } = await useFetch<AssetsResponse>('/api/assets')
 
