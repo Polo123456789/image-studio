@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto'
+
 import type { StudioConcept, StudioConceptFormat, StudioConceptResponse, StudioGenerateConceptsPayload, StudioVariant } from '../../../shared/types/studio'
 
 import { generateConceptSeeds, generatePreviewImage } from '../../utils/gemini'
@@ -17,7 +19,7 @@ function createVariant(ratio: string, prompt: string, seed: string, imageUrl: st
 }
 
 async function createConcept(payload: StudioBriefPayload, index: number, seedData: { title: string, subtitle: string, rationale: string, variantPrompts: Record<string, string> }): Promise<StudioConcept> {
-  const sequence = (payload.conceptOffset || 0) + index
+  const conceptId = `concept-${randomUUID()}`
   const previewSourceRatio = payload.aspectRatios[0] || '1:1'
   const formats = await Promise.all(payload.aspectRatios.map(async (ratio): Promise<StudioConceptFormat> => {
     const promptDraft = seedData.variantPrompts[ratio] || seedData.variantPrompts[previewSourceRatio] || ''
@@ -26,7 +28,7 @@ async function createConcept(payload: StudioBriefPayload, index: number, seedDat
       ? await generatePreviewImage(promptDraft, ratio, payload.assetIds ?? [])
       : null
     const variant = imageUrl
-      ? createVariant(ratio, promptDraft, `${seedData.title}-${ratio}-${sequence}`, imageUrl)
+      ? createVariant(ratio, promptDraft, `${conceptId}-${ratio}`, imageUrl)
       : null
 
     return {
@@ -39,7 +41,7 @@ async function createConcept(payload: StudioBriefPayload, index: number, seedDat
   }))
 
   return {
-    id: `concept-${sequence + 1}`,
+    id: conceptId,
     title: seedData.title,
     subtitle: seedData.subtitle,
     rationale: seedData.rationale,
