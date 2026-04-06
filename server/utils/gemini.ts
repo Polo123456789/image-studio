@@ -90,7 +90,7 @@ function buildCreativePrompt(payload: StudioBriefPayload): string {
   ].join(' ')
 }
 
-function buildImagePrompt(prompt: string, assetIds: number[] = []): string {
+function buildImagePrompt(prompt: string, assetIds: number[] = [], includeAssetReferences = true): string {
   const settings = getAppSettings()
   const selectedAssets = getAssetsByIds(assetIds)
   const assetSection = selectedAssets.length
@@ -100,7 +100,9 @@ function buildImagePrompt(prompt: string, assetIds: number[] = []): string {
     ].join('\n')
     : 'Assets de referencia seleccionados: ninguno.'
 
-  return [settings.imageGeneratorPrompt, assetSection, prompt].join('\n\n')
+  return includeAssetReferences
+    ? [settings.imageGeneratorPrompt, assetSection, prompt].join('\n\n')
+    : [settings.imageGeneratorPrompt, prompt].join('\n\n')
 }
 
 function extractInlineImage(response: unknown): { data: string, mimeType: string } | null {
@@ -236,7 +238,7 @@ export async function generatePreviewImage(prompt: string, aspectRatio: string, 
 
   const response = await ai.models.generateImages({
     model: previewModel,
-    prompt: buildImagePrompt(prompt, assetIds),
+    prompt: buildImagePrompt(prompt, assetIds, false),
     config: {
       numberOfImages: 1,
       outputMimeType: 'image/jpeg',
