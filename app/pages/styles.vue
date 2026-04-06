@@ -211,6 +211,7 @@ const form = reactive({
 })
 
 const selectedGuideId = ref<number | null>(null)
+const creatingGuide = ref(false)
 const brandSelection = ref('')
 const saving = ref(false)
 const feedback = ref('')
@@ -220,7 +221,7 @@ const listSearch = ref('')
 const guides = computed(() => data.value?.guides ?? [])
 const brandOptions = computed<BrandOption[]>(() => data.value?.brands ?? [])
 const selectedGuide = computed(() => guides.value.find((guide) => guide.id === selectedGuideId.value) ?? null)
-const isEditing = computed(() => selectedGuide.value !== null)
+const isEditing = computed(() => selectedGuide.value !== null && !creatingGuide.value)
 const globalGuidesCount = computed(() => guides.value.filter((guide) => guide.brandId === null).length)
 const brandGuidesCount = computed(() => guides.value.filter((guide) => guide.brandId !== null).length)
 
@@ -239,7 +240,7 @@ const filteredGuides = computed(() => {
 watchEffect(() => {
   if (!data.value) return
 
-  if (selectedGuideId.value === null && data.value.guides.length > 0) {
+  if (selectedGuideId.value === null && !creatingGuide.value && data.value.guides.length > 0) {
     hydrateForm(data.value.guides[0].id)
   }
 
@@ -256,6 +257,7 @@ function hydrateForm(guideId: number) {
   const guide = guides.value.find((entry) => entry.id === guideId)
   if (!guide) return
 
+  creatingGuide.value = false
   selectedGuideId.value = guide.id
   form.name = guide.name
   form.content = guide.content
@@ -268,6 +270,7 @@ function selectGuide(guideId: number) {
 }
 
 function startCreate() {
+  creatingGuide.value = true
   selectedGuideId.value = null
   form.name = ''
   form.content = ''
@@ -331,6 +334,7 @@ async function saveGuide() {
         guides: [created, ...guides.value],
         brands: brandOptions.value
       }
+      creatingGuide.value = false
       hydrateForm(created.id)
       feedback.value = 'Guia creada.'
     } else {

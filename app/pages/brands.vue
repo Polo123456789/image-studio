@@ -265,6 +265,7 @@ const form = reactive({
 })
 
 const selectedBrandId = ref<number | null>(null)
+const creatingBrand = ref(false)
 const defaultStyleGuideSelection = ref('')
 const saving = ref(false)
 const feedback = ref('')
@@ -275,7 +276,7 @@ const brands = computed(() => data.value?.brands ?? [])
 const guides = computed<StyleGuideRecord[]>(() => styleGuideData.value?.guides ?? [])
 const assets = computed<AssetRecord[]>(() => assetData.value?.assets ?? [])
 const selectedBrand = computed(() => brands.value.find((brand) => brand.id === selectedBrandId.value) ?? null)
-const isEditing = computed(() => selectedBrand.value !== null)
+const isEditing = computed(() => selectedBrand.value !== null && !creatingBrand.value)
 const canSave = computed(() => Boolean(form.name.trim()))
 const feedbackClass = computed(() => feedbackTone.value === 'success' ? 'text-accent' : 'text-danger')
 const brandsWithDefaultGuide = computed(() => brands.value.filter((brand) => brand.defaultStyleGuideId !== null).length)
@@ -346,7 +347,7 @@ watchEffect(() => {
     return
   }
 
-  if (selectedBrandId.value === null && data.value.brands.length > 0) {
+  if (selectedBrandId.value === null && !creatingBrand.value && data.value.brands.length > 0) {
     hydrateForm(data.value.brands[0].id)
     return
   }
@@ -368,6 +369,7 @@ function hydrateForm(brandId: number) {
     return
   }
 
+  creatingBrand.value = false
   selectedBrandId.value = brand.id
   form.name = brand.name
   form.description = brand.description || ''
@@ -380,6 +382,7 @@ function selectBrand(brandId: number) {
 }
 
 function startCreate() {
+  creatingBrand.value = true
   selectedBrandId.value = null
   form.name = ''
   form.description = ''
@@ -444,6 +447,7 @@ async function saveBrand() {
       data.value = {
         brands: [created, ...brands.value]
       }
+      creatingBrand.value = false
       hydrateForm(created.id)
       feedback.value = 'Marca creada.'
     } else {
