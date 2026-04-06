@@ -11,9 +11,17 @@ import { assets, brands } from '../db/schema'
 import { getBrandOptions } from './brands'
 import { getServerAppSettings } from './settings'
 
-const assetsDirectory = resolve(process.cwd(), 'public/uploads/assets')
+export const assetsDirectory = resolve(process.cwd(), 'public/uploads/assets')
 const supportedImageMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 const assetDescriptionModel = 'gemini-3-flash-preview'
+
+export function getAssetRelativeFilePath(storedFileName: string) {
+  return `/uploads/assets/${storedFileName}`
+}
+
+export function resolveAssetFilePath(fileUrl: string) {
+  return resolve(process.cwd(), 'public', fileUrl.replace(/^\//, ''))
+}
 
 function toIsoString(value: Date) {
   return value.toISOString()
@@ -267,7 +275,7 @@ export async function getAssetInlineDataByIds(ids: number[]) {
   const selectedAssets = getAssetsByIds(ids)
 
   return Promise.all(selectedAssets.map(async (asset) => {
-    const absoluteFilePath = resolve(process.cwd(), 'public', asset.fileUrl.replace(/^\//, ''))
+    const absoluteFilePath = resolveAssetFilePath(asset.fileUrl)
     const buffer = await readFile(absoluteFilePath)
 
     return {
@@ -331,7 +339,7 @@ export async function createAssetFromUpload(formData: FormData) {
   const originalFileName = uploadedFile.name || 'asset'
   const displayName = name || slugifyFilePart(originalFileName.replace(extname(originalFileName), '')) || 'asset'
   const storedFileName = buildStoredFileName(hash, originalFileName, mimeType)
-  const relativeFilePath = `/uploads/assets/${storedFileName}`
+  const relativeFilePath = getAssetRelativeFilePath(storedFileName)
   const absoluteFilePath = resolve(assetsDirectory, storedFileName)
   const generatedMetadata = await describeAssetWithAi(buffer, mimeType, originalFileName)
   const now = new Date()
@@ -413,7 +421,7 @@ export async function deleteAsset(id: number) {
     .where(eq(assets.id, id))
     .run()
 
-  const absoluteFilePath = resolve(process.cwd(), 'public', existing.filePath.replace(/^\//, ''))
+  const absoluteFilePath = resolveAssetFilePath(existing.filePath)
 
   try {
     await unlink(absoluteFilePath)
