@@ -735,7 +735,7 @@ async function generateMoreConcepts() {
       }
     })
 
-    concepts.value = [...concepts.value, ...response.concepts]
+    concepts.value = response.concepts
   }
   finally {
     loadingMoreConcepts.value = false
