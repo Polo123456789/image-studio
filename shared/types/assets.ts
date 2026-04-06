@@ -25,3 +25,7 @@ export interface AssetUploadResponse {
   asset: AssetRecord
   duplicate: boolean
 }
+
+export interface AssetUpdatePayload {
+  brandId: number | null
+}

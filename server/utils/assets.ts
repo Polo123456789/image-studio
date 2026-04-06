@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
 import { extname, resolve } from 'node:path'
 
 import { GoogleGenAI, Type } from '@google/genai'
 import { asc, eq, inArray } from 'drizzle-orm'
 
-import type { AssetRecord, AssetsResponse } from '../../shared/types/assets'
+import type { AssetRecord, AssetsResponse, AssetUpdatePayload } from '../../shared/types/assets'
 import { db } from '../db/client'
 import { assets, brands } from '../db/schema'
 import { getBrandOptions } from './brands'
@@ -103,6 +103,29 @@ function ensureBrandExists(brandId: number | null) {
   }
 
   return brand
+}
+
+function parseBrandId(value: string) {
+  if (!value.trim()) {
+    return null
+  }
+
+  const parsed = Number(value)
+
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Selected brand is invalid'
+    })
+  }
+
+  return parsed
+}
+
+function normalizeAssetUpdatePayload(payload: AssetUpdatePayload): AssetUpdatePayload {
+  return {
+    brandId: payload?.brandId ?? null
+  }
 }
 
 function getAssetAiClient() {
@@ -260,7 +283,7 @@ export async function getAssetInlineDataByIds(ids: number[]) {
 export async function createAssetFromUpload(formData: FormData) {
   const name = String(formData.get('name') || '').trim()
   const brandValue = String(formData.get('brandId') || '').trim()
-  const brandId = brandValue ? Number(brandValue) : null
+  const brandId = parseBrandId(brandValue)
   const uploadedFile = formData.get('file')
 
   if (!(uploadedFile instanceof File)) {
@@ -277,7 +300,7 @@ export async function createAssetFromUpload(formData: FormData) {
     })
   }
 
-  ensureBrandExists(Number.isFinite(brandId) ? brandId : null)
+  ensureBrandExists(brandId)
 
   const buffer = Buffer.from(await uploadedFile.arrayBuffer())
   const hash = createHash('sha256').update(buffer).digest('hex')
@@ -286,6 +309,18 @@ export async function createAssetFromUpload(formData: FormData) {
   }).sync()
 
   if (existing) {
+    const nextBrandId = brandId
+
+    if (existing.brandId !== nextBrandId) {
+      db.update(assets)
+        .set({
+          brandId: nextBrandId,
+          updatedAt: new Date()
+        })
+        .where(eq(assets.id, existing.id))
+        .run()
+    }
+
     return {
       asset: getAssetRecordById(existing.id),
       duplicate: true
@@ -314,7 +349,7 @@ export async function createAssetFromUpload(formData: FormData) {
       hash,
       description: generatedMetadata.description,
       tags: JSON.stringify(generatedMetadata.tags),
-      brandId: Number.isFinite(brandId) ? brandId : null,
+      brandId,
       createdAt: now,
       updatedAt: now
     })
@@ -324,5 +359,68 @@ export async function createAssetFromUpload(formData: FormData) {
   return {
     asset: getAssetRecordById(result.id),
     duplicate: false
+  }
+}
+
+export function updateAsset(id: number, payload: AssetUpdatePayload) {
+  const existing = db.query.assets.findFirst({
+    where: eq(assets.id, id)
+  }).sync()
+
+  if (!existing) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Asset not found'
+    })
+  }
+
+  const normalizedPayload = normalizeAssetUpdatePayload(payload)
+  const brandId = normalizedPayload.brandId === null ? null : Number(normalizedPayload.brandId)
+
+  if (!Number.isFinite(brandId) && brandId !== null) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Selected brand is invalid'
+    })
+  }
+
+  ensureBrandExists(brandId)
+
+  db.update(assets)
+    .set({
+      brandId,
+      updatedAt: new Date()
+    })
+    .where(eq(assets.id, id))
+    .run()
+
+  return getAssetRecordById(id)
+}
+
+export async function deleteAsset(id: number) {
+  const existing = db.query.assets.findFirst({
+    where: eq(assets.id, id)
+  }).sync()
+
+  if (!existing) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Asset not found'
+    })
+  }
+
+  db.delete(assets)
+    .where(eq(assets.id, id))
+    .run()
+
+  const absoluteFilePath = resolve(process.cwd(), 'public', existing.filePath.replace(/^\//, ''))
+
+  try {
+    await unlink(absoluteFilePath)
+  }
+  catch (error) {
+    if (!(error instanceof Error) || !('code' in error) || error.code !== 'ENOENT') {
+      throw error
+    }
   }
 }
