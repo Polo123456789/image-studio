@@ -97,14 +97,19 @@
         </StudioFieldSection>
 
         <div class="grid gap-8 sm:grid-cols-2">
-          <StudioPendingPanel
-            title="Guia de estilo"
-            description="Se conectara cuando implementemos la gestion de guias de estilo."
+          <StudioStyleGuideSection
+            v-model:selected-guide-id="selectedStyleGuideId"
+            v-model:notes="form.styleGuideNotes"
+            :guides="availableStyleGuides"
+            :brand-name="form.brand"
           />
 
-          <StudioPendingPanel
-            title="Assets"
-            description="Se conectara cuando implementemos la gestion de assets."
+          <StudioAssetSection
+            v-model:selected-asset-ids="selectedAssetIds"
+            :assets="assets"
+            :brands="styleGuideData?.brands ?? []"
+            :brand-name="form.brand"
+            @assets-uploaded="refreshAssets"
           />
         </div>
 
@@ -161,22 +166,24 @@
 </template>
 
 <script setup lang="ts">
+import type { AssetRecord, AssetsResponse } from '../../../shared/types/assets'
 import type { StudioBriefPayload, StudioProjectResponse } from '../../../shared/types/studio'
+import type { StyleGuidesResponse } from '../../../shared/types/style-guides'
 
 import AppButton from '~/components/base/AppButton.vue'
 import AppInput from '~/components/base/AppInput.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
 import AppTextarea from '~/components/base/AppTextarea.vue'
+import StudioAssetSection from '~/components/studio/StudioAssetSection.vue'
 import StudioChipMultiSelect from '~/components/studio/StudioChipMultiSelect.vue'
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
-import StudioPendingPanel from '~/components/studio/StudioPendingPanel.vue'
+import StudioStyleGuideSection from '~/components/studio/StudioStyleGuideSection.vue'
 import {
   buildStudioBriefPayload,
   createStudioBriefFormState,
   defaultStudioAspectRatios,
   defaultStudioMediaChannels,
   studioAspectRatios,
-  studioBrands,
   studioConceptCounts,
   studioGoals,
   studioMediaChannels,
@@ -186,11 +193,12 @@ import {
 
 const router = useRouter()
 const { brief, concepts, isGeneratingConcepts, generationMessage, setProject, clearProject } = useStudioSession()
+const { data: styleGuideData } = await useFetch<StyleGuidesResponse>('/api/style-guides')
+const { data: assetData, refresh: refreshAssets } = await useFetch<AssetsResponse>('/api/assets')
 
 // Clear any previous project on entering "new"
 clearProject()
 
-const brands = studioBrands
 const goals = studioGoals
 const mediaChannels = studioMediaChannels
 const aspectRatios = studioAspectRatios
@@ -201,18 +209,37 @@ const form = reactive(createStudioBriefFormState())
 
 const selectedMedia = ref<string[]>([...defaultStudioMediaChannels])
 const selectedRatios = ref<string[]>([...defaultStudioAspectRatios])
+const selectedStyleGuideId = ref<number | null>(null)
+const selectedAssetIds = ref<number[]>([])
 const isSubmitting = ref(false)
+
+const assets = computed<AssetRecord[]>(() => assetData.value?.assets ?? [])
+
+const availableStyleGuides = computed(() => {
+  const guides = styleGuideData.value?.guides ?? []
+
+  return [...guides].sort((left, right) => {
+    const leftPriority = left.brandName === form.brand ? 0 : left.brandId === null ? 1 : 2
+    const rightPriority = right.brandName === form.brand ? 0 : right.brandId === null ? 1 : 2
+
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority
+    }
+
+    return left.name.localeCompare(right.name, 'es')
+  })
+})
 
 const canContinue = computed(() => {
   return Boolean(form.projectName.trim() && form.goal && selectedRatios.value.length && selectedMedia.value.length)
 })
 
 const summaryText = computed(() => {
-  return summarizeStudioBrief(form, selectedMedia.value, selectedRatios.value, 'conceptos iniciales')
+  return summarizeStudioBrief(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value.length, 'conceptos iniciales')
 })
 
 function buildBriefPayload(): StudioBriefPayload {
-  return buildStudioBriefPayload(form, selectedMedia.value, selectedRatios.value)
+  return buildStudioBriefPayload(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value)
 }
 
 async function submitBrief() {

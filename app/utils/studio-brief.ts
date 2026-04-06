@@ -1,7 +1,5 @@
 import type { StudioBriefPayload } from '../../shared/types/studio'
 
-export const studioBrands = ['Aster Labs', 'Casa Nativa', 'North Bloom']
-
 export const studioGoals = [
   'Aumentar ventas',
   'Generar leads',
@@ -34,6 +32,7 @@ export interface StudioBriefFormState {
   audienceAction: string
   keyMessage: string
   additionalContext: string
+  styleGuideNotes: string
   resolution: string
   conceptCount: number
 }
@@ -46,6 +45,7 @@ export function createStudioBriefFormState(): StudioBriefFormState {
     audienceAction: '',
     keyMessage: '',
     additionalContext: '',
+    styleGuideNotes: '',
     resolution: '1K rapido',
     conceptCount: 3
   }
@@ -54,7 +54,9 @@ export function createStudioBriefFormState(): StudioBriefFormState {
 export function buildStudioBriefPayload(
   form: StudioBriefFormState,
   selectedMedia: string[],
-  selectedRatios: string[]
+  selectedRatios: string[],
+  selectedStyleGuideId: number | null,
+  selectedAssetIds: number[] = []
 ): StudioBriefPayload {
   return {
     brand: form.brand,
@@ -63,6 +65,9 @@ export function buildStudioBriefPayload(
     audienceAction: form.audienceAction,
     keyMessage: form.keyMessage,
     additionalContext: form.additionalContext,
+    assetIds: [...selectedAssetIds],
+    styleGuideId: selectedStyleGuideId,
+    styleGuideNotes: form.styleGuideNotes,
     resolution: form.resolution,
     conceptCount: Number(form.conceptCount),
     mediaChannels: [...selectedMedia],
@@ -74,6 +79,8 @@ export function applyStudioBriefToForm(
   form: StudioBriefFormState,
   brief: StudioBriefPayload
 ) {
+  const legacyStyleGuideIds = Array.isArray(brief.styleGuideIds) ? brief.styleGuideIds : []
+
   Object.assign(form, {
     brand: brief.brand,
     projectName: brief.projectName,
@@ -81,11 +88,13 @@ export function applyStudioBriefToForm(
     audienceAction: brief.audienceAction,
     keyMessage: brief.keyMessage,
     additionalContext: brief.additionalContext,
+    styleGuideNotes: brief.styleGuideNotes || '',
     resolution: brief.resolution,
     conceptCount: brief.conceptCount
   })
 
   return {
+    selectedStyleGuideId: brief.styleGuideId ?? legacyStyleGuideIds[0] ?? null,
     selectedMedia: [...brief.mediaChannels],
     selectedRatios: [...brief.aspectRatios]
   }
@@ -95,11 +104,15 @@ export function summarizeStudioBrief(
   form: StudioBriefFormState,
   selectedMedia: string[],
   selectedRatios: string[],
+  selectedStyleGuideId: number | null,
+  selectedAssetCount = 0,
   conceptLabel = 'conceptos'
 ) {
   const project = form.projectName || 'Proyecto sin nombre'
   const channels = selectedMedia.length ? selectedMedia.join(', ') : 'sin medios'
   const ratios = selectedRatios.length ? selectedRatios.join(', ') : 'sin formatos'
+  const styleGuides = selectedStyleGuideId ? 'con guia' : 'sin guia'
+  const assets = selectedAssetCount ? `${selectedAssetCount} assets` : 'sin assets'
 
-  return `${project} — ${form.goal.toLowerCase()} — ${channels} — ${ratios} — ${form.conceptCount} ${conceptLabel}.`
+  return `${project} — ${form.goal.toLowerCase()} — ${channels} — ${ratios} — ${styleGuides} — ${assets} — ${form.conceptCount} ${conceptLabel}.`
 }

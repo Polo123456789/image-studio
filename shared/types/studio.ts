@@ -5,6 +5,10 @@ export interface StudioBriefPayload {
   audienceAction: string
   keyMessage: string
   additionalContext: string
+  assetIds?: number[]
+  styleGuideId?: number | null
+  styleGuideIds?: number[]
+  styleGuideNotes?: string
   resolution: string
   conceptCount: number
   mediaChannels: string[]

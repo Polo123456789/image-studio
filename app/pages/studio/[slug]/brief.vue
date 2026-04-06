@@ -118,14 +118,19 @@
         </StudioFieldSection>
 
         <div class="grid gap-8 sm:grid-cols-2">
-          <StudioPendingPanel
-            title="Guia de estilo"
-            description="Se conectara cuando implementemos la gestion de guias de estilo."
+          <StudioStyleGuideSection
+            v-model:selected-guide-id="selectedStyleGuideId"
+            v-model:notes="form.styleGuideNotes"
+            :guides="availableStyleGuides"
+            :brand-name="form.brand"
           />
 
-          <StudioPendingPanel
-            title="Assets"
-            description="Se conectara cuando implementemos la gestion de assets."
+          <StudioAssetSection
+            v-model:selected-asset-ids="selectedAssetIds"
+            :assets="assets"
+            :brands="styleGuideData?.brands ?? []"
+            :brand-name="form.brand"
+            @assets-uploaded="refreshAssets"
           />
         </div>
 
@@ -174,15 +179,18 @@
 </template>
 
 <script setup lang="ts">
+import type { AssetRecord, AssetsResponse } from '../../../../shared/types/assets'
 import type { StudioBriefPayload, StudioProjectResponse } from '../../../../shared/types/studio'
+import type { StyleGuidesResponse } from '../../../../shared/types/style-guides'
 
 import AppButton from '~/components/base/AppButton.vue'
 import AppInput from '~/components/base/AppInput.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
 import AppTextarea from '~/components/base/AppTextarea.vue'
+import StudioAssetSection from '~/components/studio/StudioAssetSection.vue'
 import StudioChipMultiSelect from '~/components/studio/StudioChipMultiSelect.vue'
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
-import StudioPendingPanel from '~/components/studio/StudioPendingPanel.vue'
+import StudioStyleGuideSection from '~/components/studio/StudioStyleGuideSection.vue'
 import { requireStudioSlug } from '~/utils/studio-routing'
 import {
   applyStudioBriefToForm,
@@ -191,7 +199,6 @@ import {
   defaultStudioAspectRatios,
   defaultStudioMediaChannels,
   studioAspectRatios,
-  studioBrands,
   studioConceptCounts,
   studioGoals,
   studioMediaChannels,
@@ -200,7 +207,9 @@ import {
 } from '~/utils/studio-brief'
 
 const route = useRoute()
-const { brief, setProject } = useStudioSession()
+const { setProject } = useStudioSession()
+const { data: styleGuideData } = await useFetch<StyleGuidesResponse>('/api/style-guides')
+const { data: assetData, refresh: refreshAssets } = await useFetch<AssetsResponse>('/api/assets')
 
 const slug = requireStudioSlug(route)
 
@@ -210,7 +219,6 @@ const isSaving = ref(false)
 const feedback = ref('')
 const feedbackTone = ref<'success' | 'error'>('success')
 
-const brands = studioBrands
 const goals = studioGoals
 const mediaChannels = studioMediaChannels
 const aspectRatios = studioAspectRatios
@@ -221,6 +229,25 @@ const form = reactive(createStudioBriefFormState())
 
 const selectedMedia = ref<string[]>([...defaultStudioMediaChannels])
 const selectedRatios = ref<string[]>([...defaultStudioAspectRatios])
+const selectedStyleGuideId = ref<number | null>(null)
+const selectedAssetIds = ref<number[]>([])
+
+const assets = computed<AssetRecord[]>(() => assetData.value?.assets ?? [])
+
+const availableStyleGuides = computed(() => {
+  const guides = styleGuideData.value?.guides ?? []
+
+  return [...guides].sort((left, right) => {
+    const leftPriority = left.brandName === form.brand ? 0 : left.brandId === null ? 1 : 2
+    const rightPriority = right.brandName === form.brand ? 0 : right.brandId === null ? 1 : 2
+
+    if (leftPriority !== rightPriority) {
+      return leftPriority - rightPriority
+    }
+
+    return left.name.localeCompare(right.name, 'es')
+  })
+})
 
 // Load project data
 try {
@@ -228,8 +255,10 @@ try {
   setProject(response.project)
 
   const nextSelection = applyStudioBriefToForm(form, response.project.brief)
+  selectedStyleGuideId.value = nextSelection.selectedStyleGuideId
   selectedMedia.value = nextSelection.selectedMedia
   selectedRatios.value = nextSelection.selectedRatios
+  selectedAssetIds.value = [...(response.project.brief.assetIds ?? [])]
 }
 catch {
   loadError.value = 'No se pudo cargar el proyecto. Verifica que el slug sea correcto.'
@@ -243,13 +272,13 @@ const canSave = computed(() => {
 })
 
 const summaryText = computed(() => {
-  return summarizeStudioBrief(form, selectedMedia.value, selectedRatios.value)
+  return summarizeStudioBrief(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value.length)
 })
 
 const feedbackClass = computed(() => feedbackTone.value === 'success' ? 'text-accent' : 'text-danger')
 
 function buildBriefPayload(): StudioBriefPayload {
-  return buildStudioBriefPayload(form, selectedMedia.value, selectedRatios.value)
+  return buildStudioBriefPayload(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value)
 }
 
 async function saveBrief() {

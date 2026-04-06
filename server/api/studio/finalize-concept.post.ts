@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const formats = await Promise.all(storedConcept.formats.map(async (format) => {
-    const imageUrl = await generateFinalImage(format.promptDraft, format.ratio, payload.resolution)
+    const imageUrl = await generateFinalImage(format.promptDraft, format.ratio, payload.resolution, project.brief.assetIds ?? [])
 
     return {
       ratio: format.ratio,

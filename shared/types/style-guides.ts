@@ -1,0 +1,25 @@
+export interface BrandOption {
+  id: number
+  name: string
+}
+
+export interface StyleGuideRecord {
+  id: number
+  name: string
+  content: string
+  brandId: number | null
+  brandName: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface StyleGuidePayload {
+  name: string
+  content: string
+  brandId: number | null
+}
+
+export interface StyleGuidesResponse {
+  guides: StyleGuideRecord[]
+  brands: BrandOption[]
+}

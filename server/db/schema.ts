@@ -26,19 +26,25 @@ export const styleGuides = sqliteTable('style_guides', {
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
 }, (table) => ({
-  brandIdUnique: uniqueIndex('style_guides_brand_id_unique').on(table.brandId)
+  nameBrandUnique: uniqueIndex('style_guides_name_brand_unique').on(table.name, table.brandId)
 }))
 
 export const assets = sqliteTable('assets', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
+  originalFileName: text('original_file_name').notNull(),
   filePath: text('file_path').notNull(),
-  description: text('description'),
-  tags: text('tags'),
+  mimeType: text('mime_type').notNull(),
+  fileSize: integer('file_size').notNull(),
+  hash: text('hash').notNull(),
+  description: text('description').notNull().default(''),
+  tags: text('tags').notNull().default('[]'),
   brandId: integer('brand_id').references(() => brands.id),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
-})
+}, (table) => ({
+  hashUnique: uniqueIndex('assets_hash_unique').on(table.hash)
+}))
 
 export const studioProjects = sqliteTable('studio_projects', {
   id: integer('id').primaryKey({ autoIncrement: true }),

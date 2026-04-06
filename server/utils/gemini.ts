@@ -1,7 +1,9 @@
 import { GoogleGenAI, Type } from '@google/genai'
 
 import type { StudioBriefPayload, StudioConceptSeed } from '../../shared/types/studio'
+import { getAssetInlineDataByIds, getAssetsByIds } from './assets'
 import { getAppSettings, getServerAppSettings } from './settings'
+import { getStyleGuidesByIds } from './style-guides'
 
 const textModel = 'gemini-3-flash-preview'
 const imageModel = 'gemini-3.1-flash-image-preview'
@@ -52,6 +54,21 @@ function mapPreviewAspectRatio(aspectRatio: string): string {
 
 function buildCreativePrompt(payload: StudioBriefPayload): string {
   const settings = getAppSettings()
+  const selectedAssets = getAssetsByIds(Array.isArray(payload.assetIds) ? payload.assetIds : [])
+  const legacyStyleGuideIds = Array.isArray(payload.styleGuideIds) ? payload.styleGuideIds : []
+  const selectedGuide = getStyleGuidesByIds(payload.styleGuideId ? [payload.styleGuideId] : legacyStyleGuideIds.slice(0, 1))[0]
+  const styleGuideSection = selectedGuide
+    ? `Guia de estilo aplicada: ${selectedGuide.name}${selectedGuide.brandName ? ` (${selectedGuide.brandName})` : ' (Global)'}: ${selectedGuide.content}`
+    : 'Guia de estilo aplicada: ninguna.'
+  const assetSection = selectedAssets.length
+    ? `Assets seleccionados: ${selectedAssets.map((asset) => {
+      const scope = asset.brandName ? `marca ${asset.brandName}` : 'global'
+      const tags = asset.tags.length ? ` Tags: ${asset.tags.join(', ')}.` : ''
+
+      return `${asset.name} (${scope}). Descripcion: ${asset.description || 'Sin descripcion.'}${tags} Archivo: ${asset.fileUrl}.`
+    }).join(' ')}`
+    : 'Assets seleccionados: ninguno.'
+  const styleGuideNotes = payload.styleGuideNotes?.trim()
 
   return [
     settings.conceptGeneratorPrompt,
@@ -65,15 +82,25 @@ function buildCreativePrompt(payload: StudioBriefPayload): string {
     `Mensaje clave: ${payload.keyMessage || 'No definido'}.`,
     `Canales: ${payload.mediaChannels.join(', ') || 'No definidos'}.`,
     `Contexto adicional: ${payload.additionalContext || 'Sin contexto adicional'}.`,
+    assetSection,
+    styleGuideSection,
+    `Ajustes adicionales de guia: ${styleGuideNotes || 'Ninguno'}.`,
     `Responde en espanol claro y profesional.`,
     `Los prompts deben ser directamente utilizables para generar imagen publicitaria.`
   ].join(' ')
 }
 
-function buildImagePrompt(prompt: string): string {
+function buildImagePrompt(prompt: string, assetIds: number[] = []): string {
   const settings = getAppSettings()
+  const selectedAssets = getAssetsByIds(assetIds)
+  const assetSection = selectedAssets.length
+    ? [
+      'Assets de referencia seleccionados:',
+      ...selectedAssets.map((asset, index) => `${index + 1}. ${asset.name}. Descripcion: ${asset.description || 'Sin descripcion.'} Tags: ${asset.tags.join(', ') || 'sin tags'}. Archivo: ${asset.fileUrl}.`)
+    ].join('\n')
+    : 'Assets de referencia seleccionados: ninguno.'
 
-  return [settings.imageGeneratorPrompt, prompt].join('\n\n')
+  return [settings.imageGeneratorPrompt, assetSection, prompt].join('\n\n')
 }
 
 function extractInlineImage(response: unknown): { data: string, mimeType: string } | null {
@@ -204,12 +231,12 @@ export async function generateConceptSeeds(payload: StudioBriefPayload): Promise
   return JSON.parse(text) as StudioConceptSeed[]
 }
 
-export async function generatePreviewImage(prompt: string, aspectRatio: string): Promise<string> {
+export async function generatePreviewImage(prompt: string, aspectRatio: string, assetIds: number[] = []): Promise<string> {
   const ai = getClient()
 
   const response = await ai.models.generateImages({
     model: previewModel,
-    prompt: buildImagePrompt(prompt),
+    prompt: buildImagePrompt(prompt, assetIds),
     config: {
       numberOfImages: 1,
       outputMimeType: 'image/jpeg',
@@ -229,9 +256,10 @@ export async function generatePreviewImage(prompt: string, aspectRatio: string):
   return `data:image/jpeg;base64,${imageBytes}`
 }
 
-export async function generateFinalImage(prompt: string, aspectRatio: string, resolution: string): Promise<string> {
+export async function generateFinalImage(prompt: string, aspectRatio: string, resolution: string, assetIds: number[] = []): Promise<string> {
   const ai = getClient()
   const mappedResolution = mapResolution(resolution)
+  const assetInlineData = await getAssetInlineDataByIds(assetIds)
 
   console.info('[gemini.final.request]', {
     model: imageModel,
@@ -247,6 +275,10 @@ export async function generateFinalImage(prompt: string, aspectRatio: string, re
       model: imageModel,
       contents: {
         parts: [
+          ...assetInlineData.map(({ asset, inlineData }) => ({
+            text: `Asset de referencia: ${asset.name}.`
+          })),
+          ...assetInlineData.map(({ inlineData }) => ({ inlineData })),
           {
             text: promptText
           }
@@ -262,7 +294,7 @@ export async function generateFinalImage(prompt: string, aspectRatio: string, re
     })
   }
 
-  const response = await requestImage(prompt)
+  const response = await requestImage(buildImagePrompt(prompt, assetIds))
 
   console.info('[gemini.final.response]', JSON.stringify(summarizeGenerateContentResponse(response), null, 2))
 

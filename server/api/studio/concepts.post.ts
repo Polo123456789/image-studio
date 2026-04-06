@@ -23,7 +23,7 @@ async function createConcept(payload: StudioBriefPayload, index: number, seedDat
     const promptDraft = seedData.variantPrompts[ratio] || seedData.variantPrompts[previewSourceRatio] || ''
     const isPreviewSource = ratio === previewSourceRatio
     const imageUrl = isPreviewSource
-      ? await generatePreviewImage(promptDraft, ratio)
+      ? await generatePreviewImage(promptDraft, ratio, payload.assetIds ?? [])
       : null
     const variant = imageUrl
       ? createVariant(ratio, promptDraft, `${seedData.title}-${ratio}-${sequence}`, imageUrl)

@@ -53,7 +53,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (storedConcept.approvedAt) {
-    const imageUrl = await generateFinalImage(payload.prompt, payload.ratio, payload.resolution || '1K rapido')
+    const imageUrl = await generateFinalImage(payload.prompt, payload.ratio, payload.resolution || '1K rapido', project.brief.assetIds ?? [])
     const variant = nextFinalVariant(storedConcept, payload.ratio, payload.prompt, payload.resolution || '1K rapido', imageUrl)
 
     saveStudioConcepts(payload.projectSlug, project.concepts.map((concept) => {
@@ -83,7 +83,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  const imageUrl = await generatePreviewImage(payload.prompt, payload.ratio)
+  const imageUrl = await generatePreviewImage(payload.prompt, payload.ratio, project.brief.assetIds ?? [])
   const variant = nextPreviewVariant(storedConcept, payload.ratio, payload.prompt, imageUrl)
 
   saveStudioConcepts(payload.projectSlug, project.concepts.map((concept) => {
