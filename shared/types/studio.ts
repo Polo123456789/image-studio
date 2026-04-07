@@ -116,6 +116,17 @@ export interface StudioFinalizeConceptPayload {
   resolution: string
 }
 
+export interface StudioExportSummaryItem {
+  conceptId: string
+  conceptTitle: string
+  ratio: string
+  fileName: string
+}
+
+export interface StudioExportResponse {
+  files: StudioExportSummaryItem[]
+}
+
 export interface LibraryImageVersion {
   id: string
   label: string

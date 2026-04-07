@@ -35,6 +35,13 @@
         </div>
 
         <div class="flex flex-wrap gap-2 text-sm text-text-muted">
+          <AppButton
+            type="button"
+            :disabled="!routeProjectSlug || loadingExport || !hasExportableConcepts"
+            @click="exportConcepts"
+          >
+            {{ loadingExport ? 'Preparando ZIP...' : 'Exportar ZIP' }}
+          </AppButton>
           <span class="rounded border border-border px-3 py-1.5">{{ brief.goal }}</span>
           <span class="rounded border border-border px-3 py-1.5">{{ brief.mediaChannels.join(', ') }}</span>
         </div>
@@ -396,6 +403,7 @@ const promptModalConceptId = ref<string | null>(null)
 const modalPromptDraft = ref('')
 const moreConceptCount = ref(1)
 const loadingMoreConcepts = ref(false)
+const loadingExport = ref(false)
 const extraConceptCounts = [1, 2, 3, 4]
 const routeProjectSlug = computed(() => typeof route.params.slug === 'string' ? route.params.slug : projectSlug.value)
 const focusedConceptId = ref<string | null>(null)
@@ -739,6 +747,58 @@ async function generateMoreConcepts() {
   }
   finally {
     loadingMoreConcepts.value = false
+  }
+}
+
+const hasExportableConcepts = computed(() => concepts.value.some((concept) => {
+  if (!concept.approvedAt) {
+    return false
+  }
+
+  return concept.formats.length > 0 && concept.formats.every((format) => {
+    const variant = activeVariantForFormat(format)
+
+    return variant?.mode === 'final' && Boolean(variant.imageUrl)
+  })
+}))
+
+async function exportConcepts() {
+  if (!routeProjectSlug.value || loadingExport.value || !hasExportableConcepts.value) {
+    return
+  }
+
+  loadingExport.value = true
+
+  try {
+    const response = await $fetch.raw(`/api/studio/projects/${routeProjectSlug.value}/export`, {
+      method: 'GET',
+      responseType: 'blob'
+    })
+    const blob = response._data
+
+    if (!(blob instanceof Blob)) {
+      throw new Error('No se pudo preparar el ZIP de exportacion.')
+    }
+
+    const objectUrl = URL.createObjectURL(blob)
+    const contentDisposition = response.headers.get('content-disposition') || ''
+    const fileNameMatch = contentDisposition.match(/filename="([^"]+)"/i)
+    const fileName = fileNameMatch?.[1] || 'conceptos.zip'
+    const link = document.createElement('a')
+
+    link.href = objectUrl
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(objectUrl)
+  }
+  catch (error) {
+    console.error(error)
+    alert('No pudimos exportar las imagenes activas del studio.')
+  }
+  finally {
+    loadingExport.value = false
   }
 }
 
