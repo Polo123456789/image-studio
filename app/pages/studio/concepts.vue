@@ -23,7 +23,7 @@
         </div>
       </div>
 
-      <header class="mb-8 flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-end lg:justify-between">
+      <header class="mb-8 flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Conceptos</p>
           <h1 class="mt-3 font-display text-3xl text-text">
@@ -32,19 +32,20 @@
           <p class="mt-3 max-w-3xl text-sm leading-6 text-text-muted">
             Gemini Flash propone {{ brief.conceptCount }} conceptos. Cada uno usa un preview de baja calidad con Imagen 4 para validar la idea antes de generar todas las versiones finales con Gemini Flash Image 3.1.
           </p>
+          <div class="mt-4 flex flex-wrap gap-2 text-sm text-text-muted">
+            <span class="rounded border border-border px-3 py-1.5 text-xs">{{ brief.goal }}</span>
+            <span class="rounded border border-border px-3 py-1.5 text-xs">{{ brief.mediaChannels.join(', ') }}</span>
+          </div>
         </div>
 
-        <div class="flex flex-wrap gap-2 text-sm text-text-muted">
-          <AppButton
-            type="button"
-            :disabled="!routeProjectSlug || loadingExport || !hasExportableConcepts"
-            @click="exportConcepts"
-          >
-            {{ loadingExport ? 'Preparando ZIP...' : 'Exportar ZIP' }}
-          </AppButton>
-          <span class="rounded border border-border px-3 py-1.5">{{ brief.goal }}</span>
-          <span class="rounded border border-border px-3 py-1.5">{{ brief.mediaChannels.join(', ') }}</span>
-        </div>
+        <AppButton
+          class="shrink-0"
+          type="button"
+          :disabled="!routeProjectSlug || loadingExport || !hasExportableConcepts"
+          @click="exportConcepts"
+        >
+          {{ loadingExport ? 'Preparando ZIP...' : 'Exportar ZIP' }}
+        </AppButton>
       </header>
 
       <div v-if="pending" class="rounded-lg border border-border bg-surface px-6 py-8">
