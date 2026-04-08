@@ -208,7 +208,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AssetRecord } from '../../../shared/types/assets'
+import type { AssetRecord, AssetUploadResponse } from '../../../shared/types/assets'
 import type { BrandOption } from '../../../shared/types/brands'
 
 import AppModal from '~/components/base/AppModal.vue'
@@ -372,17 +372,23 @@ async function uploadFile(file: File) {
   uploadFeedback.value = ''
 
   try {
-    const response = await $fetch<{ asset: AssetRecord, duplicate: boolean }>('/api/assets', {
+    const response = await $fetch<AssetUploadResponse>('/api/assets', {
       method: 'POST',
       body: formData,
     })
 
-    if (!localSelection.value.includes(response.asset.id)) {
-      localSelection.value = [...localSelection.value, response.asset.id]
+    const uploaded = response.uploads[0]
+
+    if (!uploaded) {
+      throw new Error('Upload returned no assets')
+    }
+
+    if (!localSelection.value.includes(uploaded.asset.id)) {
+      localSelection.value = [...localSelection.value, uploaded.asset.id]
     }
 
     uploadFeedbackTone.value = 'success'
-    uploadFeedback.value = response.duplicate
+    uploadFeedback.value = uploaded.duplicate
       ? 'Ese asset ya existia. Se selecciono la version guardada.'
       : 'Asset subido y seleccionado.'
     emit('assetsUploaded')

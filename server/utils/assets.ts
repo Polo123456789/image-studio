@@ -5,7 +5,7 @@ import { extname, resolve } from 'node:path'
 import { GoogleGenAI, Type } from '@google/genai'
 import { asc, eq, inArray } from 'drizzle-orm'
 
-import type { AssetRecord, AssetsResponse, AssetUpdatePayload } from '../../shared/types/assets'
+import type { AssetRecord, AssetsResponse, AssetUpdatePayload, AssetUploadItem, AssetUploadResponse } from '../../shared/types/assets'
 import { db } from '../db/client'
 import { assets, brands } from '../db/schema'
 import { getBrandOptions } from './brands'
@@ -288,41 +288,25 @@ export async function getAssetInlineDataByIds(ids: number[]) {
   }))
 }
 
-export async function createAssetFromUpload(formData: FormData) {
-  const name = String(formData.get('name') || '').trim()
-  const brandValue = String(formData.get('brandId') || '').trim()
-  const brandId = parseBrandId(brandValue)
-  const uploadedFile = formData.get('file')
-
-  if (!(uploadedFile instanceof File)) {
-    throw createError({
-      statusCode: 400,
-      statusMessage: 'Asset file is required'
-    })
-  }
-
-  if (!uploadedFile.size) {
+async function createAssetFromFile(file: File, name: string, brandId: number | null): Promise<AssetUploadItem> {
+  if (!file.size) {
     throw createError({
       statusCode: 400,
       statusMessage: 'Asset file is empty'
     })
   }
 
-  ensureBrandExists(brandId)
-
-  const buffer = Buffer.from(await uploadedFile.arrayBuffer())
+  const buffer = Buffer.from(await file.arrayBuffer())
   const hash = createHash('sha256').update(buffer).digest('hex')
   const existing = db.query.assets.findFirst({
     where: eq(assets.hash, hash)
   }).sync()
 
   if (existing) {
-    const nextBrandId = brandId
-
-    if (existing.brandId !== nextBrandId) {
+    if (existing.brandId !== brandId) {
       db.update(assets)
         .set({
-          brandId: nextBrandId,
+          brandId,
           updatedAt: new Date()
         })
         .where(eq(assets.id, existing.id))
@@ -335,8 +319,8 @@ export async function createAssetFromUpload(formData: FormData) {
     }
   }
 
-  const mimeType = uploadedFile.type || 'application/octet-stream'
-  const originalFileName = uploadedFile.name || 'asset'
+  const mimeType = file.type || 'application/octet-stream'
+  const originalFileName = file.name || 'asset'
   const displayName = name || slugifyFilePart(originalFileName.replace(extname(originalFileName), '')) || 'asset'
   const storedFileName = buildStoredFileName(hash, originalFileName, mimeType)
   const relativeFilePath = getAssetRelativeFilePath(storedFileName)
@@ -353,7 +337,7 @@ export async function createAssetFromUpload(formData: FormData) {
       originalFileName,
       filePath: relativeFilePath,
       mimeType,
-      fileSize: uploadedFile.size,
+      fileSize: file.size,
       hash,
       description: generatedMetadata.description,
       tags: JSON.stringify(generatedMetadata.tags),
@@ -367,6 +351,32 @@ export async function createAssetFromUpload(formData: FormData) {
   return {
     asset: getAssetRecordById(result.id),
     duplicate: false
+  }
+}
+
+export async function createAssetFromUpload(formData: FormData): Promise<AssetUploadResponse> {
+  const name = String(formData.get('name') || '').trim()
+  const brandValue = String(formData.get('brandId') || '').trim()
+  const brandId = parseBrandId(brandValue)
+  const uploadedFiles = [
+    ...formData.getAll('files'),
+    ...(!formData.has('files') ? formData.getAll('file') : [])
+  ].filter((value): value is File => value instanceof File)
+
+  if (!uploadedFiles.length) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Asset file is required'
+    })
+  }
+
+  ensureBrandExists(brandId)
+  return {
+    uploads: await Promise.all(uploadedFiles.map((file, index) => {
+      const nextName = uploadedFiles.length === 1 && index === 0 ? name : ''
+
+      return createAssetFromFile(file, nextName, brandId)
+    }))
   }
 }
 

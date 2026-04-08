@@ -21,9 +21,13 @@ export interface AssetsResponse {
   brands: BrandOption[]
 }
 
-export interface AssetUploadResponse {
+export interface AssetUploadItem {
   asset: AssetRecord
   duplicate: boolean
+}
+
+export interface AssetUploadResponse {
+  uploads: AssetUploadItem[]
 }
 
 export interface AssetUpdatePayload {

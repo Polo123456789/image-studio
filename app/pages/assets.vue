@@ -264,14 +264,14 @@
 
         <!-- File area: preview or dropzone -->
         <div>
-          <!-- Preview when file is selected -->
+          <!-- Preview when a single file is selected -->
           <div
-            v-if="selectedUploadFile && filePreviewUrl"
+            v-if="selectedUploadFiles.length === 1 && selectedUploadFiles[0] && filePreviewUrl"
             class="group relative overflow-hidden rounded-xl border border-border bg-surface-2"
           >
             <img
               :src="filePreviewUrl"
-              :alt="selectedUploadFile.name"
+              :alt="selectedUploadFiles[0].name"
               class="h-44 w-full object-cover"
             >
             <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
@@ -279,13 +279,43 @@
                 class="cursor-pointer rounded-lg border border-white/30 bg-black/50 px-4 py-2 text-sm text-white backdrop-blur-sm transition hover:bg-black/70"
                 :class="{ 'pointer-events-none opacity-60': uploading }"
               >
-                <input ref="fileInputRef" class="hidden" type="file" accept="image/*" :disabled="uploading" @change="onFileChange">
-                Cambiar archivo
+                <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
+                Cambiar archivos
               </label>
             </div>
             <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-3 pt-6">
-              <p class="truncate font-mono text-xs text-white/80">{{ selectedUploadFile.name }}</p>
-              <p class="font-mono text-[10px] text-white/50">{{ formatFileSize(selectedUploadFile.size) }}</p>
+              <p class="truncate font-mono text-xs text-white/80">{{ selectedUploadFiles[0].name }}</p>
+              <p class="font-mono text-[10px] text-white/50">{{ formatFileSize(selectedUploadFiles[0].size) }}</p>
+            </div>
+          </div>
+
+          <div
+            v-else-if="selectedUploadFiles.length > 1"
+            class="rounded-xl border border-border bg-surface-2 p-4"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="text-sm text-text">{{ selectedUploadFiles.length }} archivos listos para subir</p>
+                <p class="mt-1 font-mono text-[10px] text-text-muted">{{ selectedFilesTotalSize }}</p>
+              </div>
+              <label
+                class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-muted transition hover:border-accent/40 hover:text-text"
+                :class="{ 'pointer-events-none opacity-60': uploading }"
+              >
+                <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
+                Cambiar archivos
+              </label>
+            </div>
+
+            <div class="mt-4 grid gap-2 sm:grid-cols-2">
+              <div
+                v-for="file in selectedUploadFiles"
+                :key="`${file.name}-${file.size}-${file.lastModified}`"
+                class="rounded-lg border border-border bg-surface px-3 py-2"
+              >
+                <p class="truncate text-xs text-text">{{ file.name }}</p>
+                <p class="mt-0.5 font-mono text-[10px] text-text-muted">{{ formatFileSize(file.size) }}</p>
+              </div>
             </div>
           </div>
 
@@ -315,8 +345,8 @@
                 class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:border-accent/40 hover:text-text"
                 :class="{ 'pointer-events-none opacity-60': uploading }"
               >
-                <input ref="fileInputRef" class="hidden" type="file" accept="image/*" :disabled="uploading" @change="onFileChange">
-                Elegir archivo
+                <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
+                Elegir archivos
               </label>
             </div>
           </section>
@@ -330,7 +360,11 @@
               class="mt-1.5"
               type="text"
               placeholder="Ej. Packshot botella frontal"
+              :disabled="selectedUploadFiles.length > 1"
             />
+            <span v-if="selectedUploadFiles.length > 1" class="mt-1 block text-[11px] text-text-muted">
+              Con multiples archivos se usa el nombre de cada archivo automaticamente.
+            </span>
           </label>
 
           <label class="block text-xs font-medium text-text-muted">
@@ -342,6 +376,14 @@
               </option>
             </AppSelect>
           </label>
+        </div>
+
+        <div
+          v-if="selectedUploadFiles.length > 1"
+          class="rounded-lg border border-accent/20 bg-accent/6 px-3 py-2.5 text-sm text-text-muted"
+        >
+          Subir varios assets puede tardar un poco mas porque se generan descripcion y tags para cada uno.
+          <span v-if="uploadBrandId" class="text-text"> Todos se asociaran a la marca seleccionada.</span>
         </div>
 
         <div
@@ -362,8 +404,8 @@
         >
           Cancelar
         </button>
-        <AppButton :disabled="uploading || !selectedUploadFile" @click="submitUpload()">
-          {{ uploading ? 'Subiendo...' : 'Subir asset' }}
+        <AppButton :disabled="uploading || !selectedUploadFiles.length" @click="submitUpload()">
+          {{ uploading ? 'Subiendo...' : selectedUploadFiles.length > 1 ? `Subir ${selectedUploadFiles.length} assets` : 'Subir asset' }}
         </AppButton>
       </div>
     </AppModal>
@@ -371,7 +413,7 @@
 </template>
 
 <script setup lang="ts">
-import type { AssetRecord, AssetsResponse } from '../../shared/types/assets'
+import type { AssetRecord, AssetsResponse, AssetUploadResponse } from '../../shared/types/assets'
 import type { BrandOption } from '../../shared/types/brands'
 
 import AppButton from '~/components/base/AppButton.vue'
@@ -392,7 +434,7 @@ const search = ref('')
 const activeBrandFilter = ref('all')
 const uploadName = ref('')
 const uploadBrandId = ref('')
-const selectedUploadFile = ref<File | null>(null)
+const selectedUploadFiles = ref<File[]>([])
 const uploading = ref(false)
 const isDragging = ref(false)
 const isUploadModalOpen = ref(false)
@@ -440,15 +482,19 @@ onUnmounted(() => {
 // File preview URL — create/revoke object URL reactively
 const filePreviewUrl = ref<string | null>(null)
 
-watch(selectedUploadFile, (newFile) => {
+watch(selectedUploadFiles, (newFiles) => {
   if (filePreviewUrl.value) {
     URL.revokeObjectURL(filePreviewUrl.value)
     filePreviewUrl.value = null
   }
-  if (newFile) {
-    filePreviewUrl.value = URL.createObjectURL(newFile)
+  if (newFiles.length === 1) {
+    filePreviewUrl.value = URL.createObjectURL(newFiles[0])
   }
 })
+
+const selectedFilesTotalSize = computed(() => formatFileSize(
+  selectedUploadFiles.value.reduce((sum, file) => sum + file.size, 0)
+))
 
 // Brand filter pills
 const brandFilters = computed(() => {
@@ -540,7 +586,7 @@ function openUploadModal() {
 function resetUploadForm() {
   uploadName.value = ''
   uploadBrandId.value = ''
-  selectedUploadFile.value = null
+  selectedUploadFiles.value = []
   uploadModalError.value = ''
 
   if (fileInputRef.value) {
@@ -555,19 +601,36 @@ function closeUploadModal() {
   resetUploadForm()
 }
 
-function setUploadFile(file: File) {
-  selectedUploadFile.value = file
+function setUploadFiles(files: File[]) {
+  const imageFiles = files.filter(file => file.type.startsWith('image/'))
+
+  if (!imageFiles.length) {
+    uploadModalError.value = 'Solo se permiten archivos de imagen.'
+    return
+  }
+
+  selectedUploadFiles.value = imageFiles
   uploadModalError.value = ''
 
-  if (!uploadName.value.trim()) {
-    uploadName.value = prettifyFilename(file.name)
+  if (imageFiles.length === 1 && !uploadName.value.trim()) {
+    uploadName.value = prettifyFilename(imageFiles[0].name)
+  }
+
+  if (imageFiles.length > 1) {
+    uploadName.value = ''
   }
 }
 
-async function uploadFile(file: File) {
+async function uploadFiles(files: File[]) {
   const formData = new FormData()
-  formData.append('file', file)
-  formData.append('name', uploadName.value.trim() || prettifyFilename(file.name))
+
+  for (const file of files) {
+    formData.append('files', file)
+  }
+
+  if (files.length === 1) {
+    formData.append('name', uploadName.value.trim() || prettifyFilename(files[0].name))
+  }
 
   if (uploadBrandId.value) {
     formData.append('brandId', uploadBrandId.value)
@@ -576,20 +639,31 @@ async function uploadFile(file: File) {
   uploading.value = true
 
   try {
-    const response = await $fetch<{ asset: AssetRecord, duplicate: boolean }>('/api/assets', {
+    const response = await $fetch<AssetUploadResponse>('/api/assets', {
       method: 'POST',
       body: formData,
     })
+
+    const createdCount = response.uploads.filter(upload => !upload.duplicate).length
+    const duplicateCount = response.uploads.length - createdCount
 
     isUploadModalOpen.value = false
     isDragging.value = false
     resetUploadForm()
     await refresh()
 
+    if (response.uploads.length === 1) {
+      showNotification(
+        duplicateCount
+          ? 'Ese asset ya existia. Se reutilizo la version guardada y se actualizo su marca si hacia falta.'
+          : 'Asset subido correctamente.',
+        'success'
+      )
+      return
+    }
+
     showNotification(
-      response.duplicate
-        ? 'Ese asset ya existia. Se reutilizo la version guardada y se actualizo su marca si hacia falta.'
-        : 'Asset subido correctamente.',
+      `Subida completada: ${createdCount} nuevos, ${duplicateCount} reutilizados.`,
       'success'
     )
   }
@@ -602,33 +676,28 @@ async function uploadFile(file: File) {
 }
 
 async function submitUpload() {
-  if (!selectedUploadFile.value) {
-    uploadModalError.value = 'Selecciona un archivo antes de subirlo.'
+  if (!selectedUploadFiles.value.length) {
+    uploadModalError.value = 'Selecciona al menos un archivo antes de subirlo.'
     return
   }
 
-  await uploadFile(selectedUploadFile.value)
+  await uploadFiles(selectedUploadFiles.value)
 }
 
 function onFileChange(event: Event) {
   const input = event.target as HTMLInputElement | null
-  const file = input?.files?.[0]
 
-  if (file && file.type.startsWith('image/')) {
-    setUploadFile(file)
-  } else if (file) {
-    uploadModalError.value = 'Solo se permiten archivos de imagen.'
+  if (input?.files?.length) {
+    setUploadFiles(Array.from(input.files))
   }
 }
 
 function onDrop(event: DragEvent) {
   isDragging.value = false
-  const file = event.dataTransfer?.files?.[0]
+  const files = event.dataTransfer?.files
 
-  if (file && file.type.startsWith('image/')) {
-    setUploadFile(file)
-  } else if (file) {
-    uploadModalError.value = 'Solo se permiten archivos de imagen.'
+  if (files?.length) {
+    setUploadFiles(Array.from(files))
   }
 }
 
