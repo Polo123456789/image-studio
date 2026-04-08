@@ -136,6 +136,19 @@ function normalizeAssetUpdatePayload(payload: AssetUpdatePayload): AssetUpdatePa
   }
 }
 
+function isUniqueHashConstraintError(error: unknown) {
+  if (typeof error !== 'object' || error === null) {
+    return false
+  }
+
+  const maybeCode = 'code' in error ? error.code : undefined
+  const maybeMessage = 'message' in error ? error.message : undefined
+
+  return maybeCode === 'SQLITE_CONSTRAINT_UNIQUE'
+    && typeof maybeMessage === 'string'
+    && maybeMessage.includes('assets.hash')
+}
+
 function getAssetAiClient() {
   const settings = getServerAppSettings()
   const apiKey = settings.geminiApiKey || process.env.GEMINI_API_KEY
@@ -331,26 +344,56 @@ async function createAssetFromFile(file: File, name: string, brandId: number | n
   await mkdir(assetsDirectory, { recursive: true })
   await writeFile(absoluteFilePath, buffer)
 
-  const result = db.insert(assets)
-    .values({
-      name: displayName,
-      originalFileName,
-      filePath: relativeFilePath,
-      mimeType,
-      fileSize: file.size,
-      hash,
-      description: generatedMetadata.description,
-      tags: JSON.stringify(generatedMetadata.tags),
-      brandId,
-      createdAt: now,
-      updatedAt: now
-    })
-    .returning({ id: assets.id })
-    .get()
+  try {
+    const result = db.insert(assets)
+      .values({
+        name: displayName,
+        originalFileName,
+        filePath: relativeFilePath,
+        mimeType,
+        fileSize: file.size,
+        hash,
+        description: generatedMetadata.description,
+        tags: JSON.stringify(generatedMetadata.tags),
+        brandId,
+        createdAt: now,
+        updatedAt: now
+      })
+      .returning({ id: assets.id })
+      .get()
 
-  return {
-    asset: getAssetRecordById(result.id),
-    duplicate: false
+    return {
+      asset: getAssetRecordById(result.id),
+      duplicate: false
+    }
+  }
+  catch (error) {
+    if (!isUniqueHashConstraintError(error)) {
+      throw error
+    }
+
+    const concurrentExisting = db.query.assets.findFirst({
+      where: eq(assets.hash, hash)
+    }).sync()
+
+    if (!concurrentExisting) {
+      throw error
+    }
+
+    if (concurrentExisting.brandId !== brandId) {
+      db.update(assets)
+        .set({
+          brandId,
+          updatedAt: new Date()
+        })
+        .where(eq(assets.id, concurrentExisting.id))
+        .run()
+    }
+
+    return {
+      asset: getAssetRecordById(concurrentExisting.id),
+      duplicate: true
+    }
   }
 }
 
@@ -371,12 +414,16 @@ export async function createAssetFromUpload(formData: FormData): Promise<AssetUp
   }
 
   ensureBrandExists(brandId)
-  return {
-    uploads: await Promise.all(uploadedFiles.map((file, index) => {
-      const nextName = uploadedFiles.length === 1 && index === 0 ? name : ''
 
-      return createAssetFromFile(file, nextName, brandId)
-    }))
+  const uploads: AssetUploadItem[] = []
+
+  for (const [index, file] of uploadedFiles.entries()) {
+    const nextName = uploadedFiles.length === 1 && index === 0 ? name : ''
+    uploads.push(await createAssetFromFile(file, nextName, brandId))
+  }
+
+  return {
+    uploads
   }
 }
 
