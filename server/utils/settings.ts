@@ -22,11 +22,40 @@ const defaultImageGeneratorPrompt = [
   'Cuando el contexto lo requiera, indica de forma clara el montaje, la ubicacion de assets y la jerarquia visual de cada elemento.'
 ].join(' ')
 
+const defaultStyleGuideReverseEngineeringPrompt = `Contexto: Actúa como un experto en Brand Strategy y Prompt Engineering para modelos de IA generativa. 
+Tarea: Analiza las imágenes adjuntas y la descripción proporcionada para realizar una ingeniería inversa de su identidad visual. 
+Objetivo: Crear una Guía de Estilo Técnica diseñada para que un generador de imágenes y un diseñador (o herramienta de composición) puedan replicar la estética de la marca con total consistencia.
+
+Restricción de salida: Entrega EXCLUSIVAMENTE la guía de estilo siguiendo la estructura solicitada abajo. No incluyas introducciones, comentarios ni conclusiones. 
+
+ESTRUCTURA DE LA GUIA DE ESTILO:
+
+1. CONCEPTO ESTÉTICO CENTRAL: Define en una frase el "look & feel" técnico y emocional.
+2. PALETA CROMÁTICA (DNA COLOR): Especifica Colores Dominantes (con códigos HEX si es posible deducirlos) y la Atmósfera Lumínica.
+3. COMPOSICIÓN Y ENCUADRE: Define Ángulos de cámara, Profundidad de campo y uso del Espacio Negativo.
+4. ILUMINACIÓN Y TEXTURA: Define el Tipo de Luz (ej. cenital, rembrandt, softbox) y el acabado de materiales (ej. mate, orgánico, metálico).
+
+5. PROMPT MAESTRO (TEMPLATE DE DISEÑO): Crea un ejemplo de uso siguiendo estrictamente esta estructura:
+    ---
+    Prompt Visual: [Describe aquí la escena de fondo y el mood usando el estilo de la marca, incluyendo placeholders como {SUJETO}]
+    Instrucciones de Montaje:
+    - Fondo: [Descripción del entorno generado]
+    - Centro: [Instrucción para colocar el producto o elemento principal de forma nítida]
+    - Texto Superior: [Headline sugerido, Fuente y Color]
+    - Texto Inferior: [Oferta o CTA, Estilo de sticker/botón y Subtítulo]
+    - Assets: [Instrucción de integración de logos o elementos gráficos adjuntos]
+    ---
+
+6. PROMPT NEGATIVO (LO QUE DEBE EVITAR): Lista de elementos, colores o acabados que rompen la estética.
+
+Responde en español técnico. Usa la descripción solo como contexto adicional y no inventes elementos que no se sostengan en las referencias visuales.`
+
 function normalizeSettingsResponse(record?: typeof appSettings.$inferSelect | null): AppSettingsResponse {
   return {
     hasGeminiApiKey: Boolean(record?.geminiApiKey),
     conceptGeneratorPrompt: record?.conceptGeneratorPrompt || defaultConceptGeneratorPrompt,
-    imageGeneratorPrompt: record?.imageGeneratorPrompt || defaultImageGeneratorPrompt
+    imageGeneratorPrompt: record?.imageGeneratorPrompt || defaultImageGeneratorPrompt,
+    styleGuideReverseEngineeringPrompt: record?.styleGuideReverseEngineeringPrompt || defaultStyleGuideReverseEngineeringPrompt
   }
 }
 
@@ -40,7 +69,8 @@ export function getDefaultSettings(): AppSettingsPayload {
   return {
     geminiApiKey: '',
     conceptGeneratorPrompt: defaultConceptGeneratorPrompt,
-    imageGeneratorPrompt: defaultImageGeneratorPrompt
+    imageGeneratorPrompt: defaultImageGeneratorPrompt,
+    styleGuideReverseEngineeringPrompt: defaultStyleGuideReverseEngineeringPrompt
   }
 }
 
@@ -54,7 +84,8 @@ export function getServerAppSettings(): AppSettingsPayload {
   return {
     geminiApiKey: record?.geminiApiKey || '',
     conceptGeneratorPrompt: record?.conceptGeneratorPrompt || defaultConceptGeneratorPrompt,
-    imageGeneratorPrompt: record?.imageGeneratorPrompt || defaultImageGeneratorPrompt
+    imageGeneratorPrompt: record?.imageGeneratorPrompt || defaultImageGeneratorPrompt,
+    styleGuideReverseEngineeringPrompt: record?.styleGuideReverseEngineeringPrompt || defaultStyleGuideReverseEngineeringPrompt
   }
 }
 
@@ -64,13 +95,14 @@ export function saveAppSettings(payload: AppSettingsPayload): AppSettingsRespons
   const normalizedPayload = {
     geminiApiKey: payload.geminiApiKey.trim() || existingRecord?.geminiApiKey || '',
     conceptGeneratorPrompt: payload.conceptGeneratorPrompt.trim(),
-    imageGeneratorPrompt: payload.imageGeneratorPrompt.trim()
+    imageGeneratorPrompt: payload.imageGeneratorPrompt.trim(),
+    styleGuideReverseEngineeringPrompt: payload.styleGuideReverseEngineeringPrompt.trim()
   }
 
-  if (!normalizedPayload.conceptGeneratorPrompt || !normalizedPayload.imageGeneratorPrompt) {
+  if (!normalizedPayload.conceptGeneratorPrompt || !normalizedPayload.imageGeneratorPrompt || !normalizedPayload.styleGuideReverseEngineeringPrompt) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'Both generator prompts are required'
+      statusMessage: 'All generator prompts are required'
     })
   }
 
@@ -80,6 +112,7 @@ export function saveAppSettings(payload: AppSettingsPayload): AppSettingsRespons
       geminiApiKey: normalizedPayload.geminiApiKey,
       conceptGeneratorPrompt: normalizedPayload.conceptGeneratorPrompt,
       imageGeneratorPrompt: normalizedPayload.imageGeneratorPrompt,
+      styleGuideReverseEngineeringPrompt: normalizedPayload.styleGuideReverseEngineeringPrompt,
       createdAt: now,
       updatedAt: now
     })
@@ -89,6 +122,7 @@ export function saveAppSettings(payload: AppSettingsPayload): AppSettingsRespons
         geminiApiKey: normalizedPayload.geminiApiKey,
         conceptGeneratorPrompt: normalizedPayload.conceptGeneratorPrompt,
         imageGeneratorPrompt: normalizedPayload.imageGeneratorPrompt,
+        styleGuideReverseEngineeringPrompt: normalizedPayload.styleGuideReverseEngineeringPrompt,
         updatedAt: now
       }
     })

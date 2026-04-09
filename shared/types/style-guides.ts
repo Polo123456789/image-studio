@@ -20,3 +20,7 @@ export interface StyleGuidesResponse {
   guides: StyleGuideRecord[]
   brands: BrandOption[]
 }
+
+export interface ReverseEngineeredStyleGuideResponse {
+  content: string
+}

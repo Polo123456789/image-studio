@@ -188,6 +188,62 @@ function summarizeGenerateContentResponse(response: unknown) {
   }
 }
 
+const reverseEngineeringImageMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp'])
+
+export async function reverseEngineerStyleGuide(files: File[], description: string): Promise<string> {
+  const ai = getClient()
+  const settings = getServerAppSettings()
+  const validFiles = files.filter((file) => reverseEngineeringImageMimeTypes.has(file.type))
+
+  if (!validFiles.length) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'At least one JPG, PNG, or WEBP image is required'
+    })
+  }
+
+  const parts = [
+    {
+      text: [
+        settings.styleGuideReverseEngineeringPrompt,
+        `Descripcion adicional: ${description.trim() || 'Ninguna.'}`,
+        `Cantidad de referencias visuales: ${validFiles.length}.`
+      ].join('\n\n')
+    }
+  ]
+
+  for (const file of validFiles) {
+    const buffer = Buffer.from(await file.arrayBuffer())
+    parts.push({
+      text: `Referencia visual: ${file.name || 'imagen'}.`
+    })
+    parts.push({
+      inlineData: {
+        data: buffer.toString('base64'),
+        mimeType: file.type
+      }
+    })
+  }
+
+  const response = await ai.models.generateContent({
+    model: textModel,
+    contents: {
+      parts
+    }
+  })
+
+  const text = response.text?.trim()
+
+  if (!text) {
+    throw createError({
+      statusCode: 502,
+      statusMessage: 'Gemini did not return a style guide'
+    })
+  }
+
+  return text
+}
+
 export async function generateConceptSeeds(payload: StudioBriefPayload): Promise<StudioConceptSeed[]> {
   const ai = getClient()
 

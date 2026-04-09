@@ -6,6 +6,7 @@ export const appSettings = sqliteTable('app_settings', {
   geminiApiKey: text('gemini_api_key'),
   conceptGeneratorPrompt: text('concept_generator_prompt').notNull(),
   imageGeneratorPrompt: text('image_generator_prompt').notNull(),
+  styleGuideReverseEngineeringPrompt: text('style_guide_reverse_engineering_prompt').notNull(),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
 })

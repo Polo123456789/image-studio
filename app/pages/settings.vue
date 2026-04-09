@@ -8,7 +8,7 @@
             Proveedor y system prompts
           </h2>
           <p class="mt-3 max-w-2xl text-sm leading-6 text-text-muted">
-            Define la llave de Gemini y los prompts base que moldean como el estudio propone conceptos y genera imagenes.
+            Define la llave de Gemini y los prompts base que moldean como el estudio propone conceptos, genera imagenes y reconstruye guias de estilo desde referencias.
           </p>
         </div>
 
@@ -89,6 +89,24 @@
           </div>
         </section>
 
+        <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+          <div class="border-b border-border px-6 py-5">
+            <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Prompt base</p>
+            <h3 class="mt-2 text-xl text-text">Ingenieria inversa de guias</h3>
+            <p class="mt-2 max-w-2xl text-sm leading-6 text-text-muted">
+              Se usa antes de analizar referencias visuales temporales para convertirlas en una guia de estilo tecnica reutilizable.
+            </p>
+          </div>
+
+          <div class="px-6 py-6">
+            <AppTextarea
+              v-model="form.styleGuideReverseEngineeringPrompt"
+              :rows="12"
+              placeholder="Define la estructura y criterios para reconstruir una guia de estilo desde imagenes de referencia."
+            ></AppTextarea>
+          </div>
+        </section>
+
         <div class="flex flex-col gap-3 rounded-2xl border border-border bg-surface-2/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p class="text-sm text-text">Guardar configuracion activa</p>
@@ -132,13 +150,15 @@ const { data, pending } = await useFetch<AppSettingsResponse>('/api/settings')
 const form = reactive({
   geminiApiKey: '',
   conceptGeneratorPrompt: '',
-  imageGeneratorPrompt: ''
+  imageGeneratorPrompt: '',
+  styleGuideReverseEngineeringPrompt: ''
 })
 
 const loadedSnapshot = ref({
   geminiApiKey: '',
   conceptGeneratorPrompt: '',
-  imageGeneratorPrompt: ''
+  imageGeneratorPrompt: '',
+  styleGuideReverseEngineeringPrompt: ''
 })
 
 const saving = ref(false)
@@ -153,7 +173,8 @@ watchEffect(() => {
   const nextSnapshot = {
     geminiApiKey: '',
     conceptGeneratorPrompt: data.value.conceptGeneratorPrompt,
-    imageGeneratorPrompt: data.value.imageGeneratorPrompt
+    imageGeneratorPrompt: data.value.imageGeneratorPrompt,
+    styleGuideReverseEngineeringPrompt: data.value.styleGuideReverseEngineeringPrompt
   }
 
   loadedSnapshot.value = nextSnapshot
@@ -167,6 +188,7 @@ const canSave = computed(() => {
   return Boolean(
     form.conceptGeneratorPrompt.trim()
     && form.imageGeneratorPrompt.trim()
+    && form.styleGuideReverseEngineeringPrompt.trim()
   )
 })
 
@@ -184,7 +206,7 @@ function resetForm() {
 
 async function saveSettings() {
   if (!canSave.value) {
-    feedback.value = 'Completa ambos system prompts antes de guardar.'
+    feedback.value = 'Completa todos los prompts base antes de guardar.'
     feedbackTone.value = 'error'
     return
   }
@@ -198,7 +220,8 @@ async function saveSettings() {
       body: {
         geminiApiKey: form.geminiApiKey,
         conceptGeneratorPrompt: form.conceptGeneratorPrompt,
-        imageGeneratorPrompt: form.imageGeneratorPrompt
+        imageGeneratorPrompt: form.imageGeneratorPrompt,
+        styleGuideReverseEngineeringPrompt: form.styleGuideReverseEngineeringPrompt
       }
     })
 
@@ -206,12 +229,14 @@ async function saveSettings() {
     Object.assign(form, {
       geminiApiKey: '',
       conceptGeneratorPrompt: response.conceptGeneratorPrompt,
-      imageGeneratorPrompt: response.imageGeneratorPrompt
+      imageGeneratorPrompt: response.imageGeneratorPrompt,
+      styleGuideReverseEngineeringPrompt: response.styleGuideReverseEngineeringPrompt
     })
     loadedSnapshot.value = {
       geminiApiKey: '',
       conceptGeneratorPrompt: response.conceptGeneratorPrompt,
-      imageGeneratorPrompt: response.imageGeneratorPrompt
+      imageGeneratorPrompt: response.imageGeneratorPrompt,
+      styleGuideReverseEngineeringPrompt: response.styleGuideReverseEngineeringPrompt
     }
     feedback.value = 'Configuracion guardada.'
     feedbackTone.value = 'success'
