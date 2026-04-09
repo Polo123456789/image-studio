@@ -10,3 +10,23 @@ export function requireSlugParam(event: Parameters<typeof getRouterParam>[0]) {
 
   return slug
 }
+
+export function requireSameOriginRequest(event: Parameters<typeof getRequestHost>[0]) {
+  const method = getMethod(event)
+
+  if (method !== 'GET' && method !== 'POST') {
+    return
+  }
+
+  const originHeader = getHeader(event, 'origin')
+  const host = getRequestHost(event)
+  const protocol = getRequestProtocol(event, { xForwardedProto: true })
+  const expectedOrigin = `${protocol}://${host}`
+
+  if (originHeader && originHeader !== expectedOrigin) {
+    throw createError({
+      statusCode: 403,
+      statusMessage: 'Origen no permitido para esta operacion.'
+    })
+  }
+}
