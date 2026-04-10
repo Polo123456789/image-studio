@@ -191,6 +191,26 @@ function listFormatVariantRows(formatIds: number[]) {
     .all()
 }
 
+function listMappedProjectConcepts(projectId: number): StudioConcept[] {
+  const conceptRows = listProjectConceptRows(projectId)
+
+  if (!conceptRows.length) {
+    return []
+  }
+
+  const conceptIds = conceptRows.map((concept) => concept.id)
+  const formatRows = listConceptFormatRows(conceptIds)
+
+  if (!formatRows.length) {
+    return mapConcepts(conceptRows, [], [])
+  }
+
+  const formatIds = formatRows.map((format) => format.id)
+  const variantRows = listFormatVariantRows(formatIds)
+
+  return mapConcepts(conceptRows, formatRows, variantRows)
+}
+
 function touchProject(tx: StudioTransaction, projectId: number, now: Date) {
   tx.update(studioProjects)
     .set({ updatedAt: now })
@@ -397,23 +417,7 @@ function upsertVariantRows(
 export function getStudioProjectBySlug(slug: string): StudioProject {
   const project = getStudioProjectRowBySlug(slug)
 
-  const conceptRows = listProjectConceptRows(project.id)
-
-  if (!conceptRows.length) {
-    return mapProject(project, [])
-  }
-
-  const conceptIds = conceptRows.map((concept) => concept.id)
-  const formatRows = listConceptFormatRows(conceptIds)
-
-  if (!formatRows.length) {
-    return mapProject(project, mapConcepts(conceptRows, [], []))
-  }
-
-  const formatIds = formatRows.map((format) => format.id)
-  const variantRows = listFormatVariantRows(formatIds)
-
-  return mapProject(project, mapConcepts(conceptRows, formatRows, variantRows))
+  return mapProject(project, listMappedProjectConcepts(project.id))
 }
 
 export function listStudioProjects(): StudioProjectListItem[] {
