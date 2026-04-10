@@ -1,8 +1,6 @@
 <template>
   <div class="px-6 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
     <div class="mx-auto max-w-7xl">
-
-      <!-- Header -->
       <header class="mb-10">
         <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Biblioteca</p>
         <div class="mt-3 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -18,7 +16,6 @@
           </AppButton>
         </div>
 
-        <!-- Stats -->
         <div class="mt-5 flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2">
             <span class="font-mono text-lg text-text">{{ assets.length }}</span>
@@ -39,14 +36,11 @@
         </div>
       </header>
 
-      <!-- Loading -->
       <div v-if="pending" class="rounded-xl border border-border bg-surface px-6 py-16 text-center text-sm text-text-muted">
         Cargando assets...
       </div>
 
       <template v-else>
-
-        <!-- Notification bar -->
         <Transition
           enter-active-class="transition duration-300 ease-out"
           leave-active-class="transition duration-200 ease-in"
@@ -74,7 +68,6 @@
           </div>
         </Transition>
 
-        <!-- Search + brand filters -->
         <div class="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center">
           <div class="relative flex-1">
             <svg class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" /></svg>
@@ -103,7 +96,6 @@
           </div>
         </div>
 
-        <!-- Gallery grid -->
         <div
           v-if="filteredAssets.length"
           class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
@@ -113,7 +105,6 @@
             :key="asset.id"
             class="group overflow-hidden rounded-xl border border-border bg-surface transition hover:border-accent/25 hover:shadow-md"
           >
-            <!-- Image -->
             <div class="relative aspect-[4/3] overflow-hidden bg-surface-2">
               <img
                 :src="asset.fileUrl"
@@ -131,7 +122,6 @@
               </span>
             </div>
 
-            <!-- Card body -->
             <div class="p-3.5">
               <h3 class="truncate text-sm font-medium text-text">{{ asset.name }}</h3>
               <p class="mt-0.5 truncate font-mono text-[10px] text-text-muted">
@@ -158,15 +148,12 @@
                 </span>
               </div>
 
-              <!-- Meta -->
               <div class="mt-3 flex items-center justify-between border-t border-border pt-2.5 font-mono text-[10px] text-text-muted">
                 <span>{{ formatFileSize(asset.fileSize) }}</span>
                 <span>{{ formatDate(asset.createdAt) }}</span>
               </div>
 
-              <!-- Actions -->
               <div class="mt-3">
-                <!-- Inline delete confirmation -->
                 <div
                   v-if="confirmDeleteId === asset.id"
                   class="flex items-center justify-between gap-2 rounded-lg border border-danger/25 bg-danger/8 px-3 py-2"
@@ -192,7 +179,6 @@
                   </div>
                 </div>
 
-                <!-- Normal action row -->
                 <div v-else class="flex items-center gap-2">
                   <AppSelect
                     :model-value="assetBrandSelection(asset)"
@@ -227,7 +213,6 @@
           </article>
         </div>
 
-        <!-- Empty state -->
         <div v-else class="rounded-xl border border-border bg-surface px-8 py-20 text-center">
           <div class="mx-auto max-w-sm">
             <div class="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-surface-2">
@@ -246,508 +231,46 @@
             </AppButton>
           </div>
         </div>
-
       </template>
     </div>
 
-    <!-- Upload modal -->
-    <AppModal :open="isUploadModalOpen" size="xl" @close="closeUploadModal()">
-      <div class="border-b border-border px-6 py-5">
-        <p class="font-mono text-[10px] uppercase tracking-[0.28em] text-accent">Nuevo asset</p>
-        <h2 class="mt-2 font-display text-2xl text-text">Preparar subida</h2>
-        <p class="mt-2 text-sm leading-6 text-text-muted">
-          Define la marca antes de guardar para que el asset llegue al etiquetado IA con el contexto correcto.
-        </p>
-      </div>
-
-      <div class="space-y-5 overflow-y-auto px-6 py-6">
-
-        <!-- File area: preview or dropzone -->
-        <div>
-          <!-- Preview when a single file is selected -->
-          <div
-            v-if="selectedUploadFiles.length === 1 && selectedUploadFiles[0] && filePreviewUrl"
-            class="group relative overflow-hidden rounded-xl border border-border bg-surface-2"
-          >
-            <img
-              :src="filePreviewUrl"
-              :alt="selectedUploadFiles[0].name"
-              class="h-44 w-full object-cover"
-            >
-            <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
-              <label
-                class="cursor-pointer rounded-lg border border-white/30 bg-black/50 px-4 py-2 text-sm text-white backdrop-blur-sm transition hover:bg-black/70"
-                :class="{ 'pointer-events-none opacity-60': uploading }"
-              >
-                <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
-                Cambiar archivos
-              </label>
-            </div>
-            <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-3 pt-6">
-              <p class="truncate font-mono text-xs text-white/80">{{ selectedUploadFiles[0].name }}</p>
-              <p class="font-mono text-[10px] text-white/50">{{ formatFileSize(selectedUploadFiles[0].size) }}</p>
-            </div>
-          </div>
-
-          <div
-            v-else-if="selectedUploadFiles.length > 1"
-            class="rounded-xl border border-border bg-surface-2 p-4"
-          >
-            <div class="flex items-start justify-between gap-4">
-              <div>
-                <p class="text-sm text-text">{{ selectedUploadFiles.length }} archivos listos para subir</p>
-                <p class="mt-1 font-mono text-[10px] text-text-muted">{{ selectedFilesTotalSize }}</p>
-              </div>
-              <label
-                class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-muted transition hover:border-accent/40 hover:text-text"
-                :class="{ 'pointer-events-none opacity-60': uploading }"
-              >
-                <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
-                Cambiar archivos
-              </label>
-            </div>
-
-            <div class="mt-4 grid gap-2 sm:grid-cols-2">
-              <div
-                v-for="file in selectedUploadFiles"
-                :key="`${file.name}-${file.size}-${file.lastModified}`"
-                class="rounded-lg border border-border bg-surface px-3 py-2"
-              >
-                <p class="truncate text-xs text-text">{{ file.name }}</p>
-                <p class="mt-0.5 font-mono text-[10px] text-text-muted">{{ formatFileSize(file.size) }}</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- Dropzone when no file -->
-          <section
-            v-else
-            class="rounded-xl border border-dashed transition"
-            :class="isDragging ? 'border-accent bg-accent/5' : 'border-border bg-surface-2/40'"
-            @dragover.prevent="isDragging = true"
-            @dragleave.prevent="isDragging = false"
-            @drop.prevent="onDrop"
-          >
-            <div class="flex flex-col items-center gap-4 px-6 py-10 text-center">
-              <div
-                class="flex h-12 w-12 items-center justify-center rounded-xl transition"
-                :class="isDragging ? 'bg-accent/20 text-accent' : 'bg-surface text-text-muted'"
-              >
-                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-              </div>
-              <div>
-                <p class="text-sm text-text">
-                  {{ isDragging ? 'Suelta el archivo aqui' : 'Arrastra una imagen o selecciona un archivo' }}
-                </p>
-                <p class="mt-1 text-xs text-text-muted">JPG, PNG, WebP o GIF</p>
-              </div>
-              <label
-                class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:border-accent/40 hover:text-text"
-                :class="{ 'pointer-events-none opacity-60': uploading }"
-              >
-                <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
-                Elegir archivos
-              </label>
-            </div>
-          </section>
-        </div>
-
-        <div class="grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px]">
-          <label class="block text-xs font-medium text-text-muted">
-            Nombre
-            <AppInput
-              v-model="uploadName"
-              class="mt-1.5"
-              type="text"
-              placeholder="Ej. Packshot botella frontal"
-              :disabled="selectedUploadFiles.length > 1"
-            />
-            <span v-if="selectedUploadFiles.length > 1" class="mt-1 block text-[11px] text-text-muted">
-              Con multiples archivos se usa el nombre de cada archivo automaticamente.
-            </span>
-          </label>
-
-          <label class="block text-xs font-medium text-text-muted">
-            Marca
-            <AppSelect v-model="uploadBrandId" class="mt-1.5">
-              <option value="">Global</option>
-              <option v-for="brand in brandOptions" :key="brand.id" :value="String(brand.id)">
-                {{ brand.name }}
-              </option>
-            </AppSelect>
-          </label>
-        </div>
-
-        <div
-          v-if="selectedUploadFiles.length > 1"
-          class="rounded-lg border border-accent/20 bg-accent/6 px-3 py-2.5 text-sm text-text-muted"
-        >
-          Subir varios assets puede tardar un poco mas porque se generan descripcion y tags para cada uno.
-          <span v-if="uploadBrandId" class="text-text"> Todos se asociaran a la marca seleccionada.</span>
-        </div>
-
-        <div
-          v-if="uploadModalError"
-          class="rounded-lg border border-danger/30 bg-danger/8 px-3 py-2.5 text-sm text-danger"
-        >
-          {{ uploadModalError }}
-        </div>
-
-      </div>
-
-      <div class="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
-        <button
-          type="button"
-          class="rounded-lg border border-border px-4 py-2.5 text-sm text-text-muted transition hover:border-accent/30 hover:text-text disabled:opacity-50"
-          :disabled="uploading"
-          @click="closeUploadModal()"
-        >
-          Cancelar
-        </button>
-        <AppButton :disabled="uploading || !selectedUploadFiles.length" @click="submitUpload()">
-          {{ uploading ? 'Subiendo...' : selectedUploadFiles.length > 1 ? `Subir ${selectedUploadFiles.length} assets` : 'Subir asset' }}
-        </AppButton>
-      </div>
-    </AppModal>
+    <AssetUploadModal
+      :open="isUploadModalOpen"
+      :brands="brandOptions"
+      @close="closeUploadModal()"
+      @uploaded="handleUploadComplete"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import type { AssetRecord, AssetsResponse, AssetUploadResponse } from '../../shared/types/assets'
-import type { BrandOption } from '../../shared/types/brands'
-
 import AppButton from '~/components/base/AppButton.vue'
-import AppInput from '~/components/base/AppInput.vue'
-import AppModal from '~/components/base/AppModal.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
-import { prettifyAssetFilename } from '~/utils/assets'
-import { getRequestErrorMessage } from '~/utils/http-errors'
+import AssetUploadModal from '~/components/assets/AssetUploadModal.vue'
 
-const { data, pending, refresh } = await useFetch<AssetsResponse>('/api/assets')
-
-const assets = computed<AssetRecord[]>(() => data.value?.assets ?? [])
-const brandOptions = computed<BrandOption[]>(() => data.value?.brands ?? [])
-const globalAssetsCount = computed(() => assets.value.filter(a => a.brandId === null).length)
-const brandAssetsCount = computed(() => assets.value.filter(a => a.brandId !== null).length)
-const totalSize = computed(() => assets.value.reduce((sum, a) => sum + (a.fileSize || 0), 0))
-const totalSizeFormatted = computed(() => formatFileSize(totalSize.value))
-
-const search = ref('')
-const activeBrandFilter = ref('all')
-const uploadName = ref('')
-const uploadBrandId = ref('')
-const selectedUploadFiles = ref<File[]>([])
-const uploading = ref(false)
-const isDragging = ref(false)
-const isUploadModalOpen = ref(false)
-const uploadModalError = ref('')
-const fileInputRef = ref<HTMLInputElement | null>(null)
-const assetActionId = ref<number | null>(null)
-const confirmDeleteId = ref<number | null>(null)
-
-// Notification bar
-const notification = reactive<{ message: string; tone: 'success' | 'error' }>({
-  message: '',
-  tone: 'success',
-})
-let notificationTimer: ReturnType<typeof setTimeout> | null = null
-
-function showNotification(message: string, tone: 'success' | 'error' = 'success') {
-  if (notificationTimer !== null) {
-    clearTimeout(notificationTimer)
-  }
-  notification.message = message
-  notification.tone = tone
-  notificationTimer = setTimeout(() => {
-    notification.message = ''
-    notificationTimer = null
-  }, 5000)
-}
-
-function clearNotification() {
-  if (notificationTimer !== null) {
-    clearTimeout(notificationTimer)
-    notificationTimer = null
-  }
-  notification.message = ''
-}
-
-onUnmounted(() => {
-  if (notificationTimer !== null) {
-    clearTimeout(notificationTimer)
-  }
-  if (filePreviewUrl.value) {
-    URL.revokeObjectURL(filePreviewUrl.value)
-  }
-})
-
-// File preview URL — create/revoke object URL reactively
-const filePreviewUrl = ref<string | null>(null)
-
-watch(selectedUploadFiles, (newFiles) => {
-  if (filePreviewUrl.value) {
-    URL.revokeObjectURL(filePreviewUrl.value)
-    filePreviewUrl.value = null
-  }
-  if (newFiles.length === 1) {
-    filePreviewUrl.value = URL.createObjectURL(newFiles[0])
-  }
-})
-
-const selectedFilesTotalSize = computed(() => formatFileSize(
-  selectedUploadFiles.value.reduce((sum, file) => sum + file.size, 0)
-))
-
-// Brand filter pills
-const brandFilters = computed(() => {
-  const filters: { id: string, label: string, count: number }[] = [
-    { id: 'all', label: 'Todos', count: assets.value.length },
-    { id: 'global', label: 'Global', count: globalAssetsCount.value },
-  ]
-
-  const brandCounts = new Map<number, { name: string, count: number }>()
-
-  for (const asset of assets.value) {
-    if (asset.brandId !== null && asset.brandName) {
-      const existing = brandCounts.get(asset.brandId)
-
-      if (existing) {
-        existing.count++
-      } else {
-        brandCounts.set(asset.brandId, { name: asset.brandName, count: 1 })
-      }
-    }
-  }
-
-  for (const [id, { name, count }] of brandCounts) {
-    filters.push({ id: String(id), label: name, count })
-  }
-
-  return filters
-})
-
-// Filtered + sorted assets
-const filteredAssets = computed(() => {
-  let result = [...assets.value]
-
-  if (activeBrandFilter.value === 'global') {
-    result = result.filter(a => a.brandId === null)
-  } else if (activeBrandFilter.value !== 'all') {
-    const brandId = Number(activeBrandFilter.value)
-    result = result.filter(a => a.brandId === brandId)
-  }
-
-  const term = search.value.trim().toLowerCase()
-
-  if (term) {
-    result = result.filter((asset) => {
-      const haystack = [
-        asset.name,
-        asset.brandName || '',
-        asset.description,
-        asset.tags.join(' '),
-      ].join(' ').toLowerCase()
-
-      return haystack.includes(term)
-    })
-  }
-
-  return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-})
-
-function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B'
-  const units = ['B', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(1024))
-
-  return `${(bytes / Math.pow(1024, i)).toFixed(i > 0 ? 1 : 0)} ${units[i]}`
-}
-
-function formatDate(dateStr: string): string {
-  return new Intl.DateTimeFormat('es-ES', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(dateStr))
-}
-
-function openUploadModal() {
-  resetUploadForm()
-  isUploadModalOpen.value = true
-  uploadModalError.value = ''
-}
-
-function resetUploadForm() {
-  uploadName.value = ''
-  uploadBrandId.value = ''
-  selectedUploadFiles.value = []
-  uploadModalError.value = ''
-
-  if (fileInputRef.value) {
-    fileInputRef.value.value = ''
-  }
-}
-
-function closeUploadModal() {
-  if (uploading.value) return
-  isUploadModalOpen.value = false
-  isDragging.value = false
-  resetUploadForm()
-}
-
-function setUploadFiles(files: File[]) {
-  const imageFiles = files.filter(file => file.type.startsWith('image/'))
-
-  if (!imageFiles.length) {
-    uploadModalError.value = 'Solo se permiten archivos de imagen.'
-    return
-  }
-
-  selectedUploadFiles.value = imageFiles
-  uploadModalError.value = ''
-
-  if (imageFiles.length === 1 && !uploadName.value.trim()) {
-    uploadName.value = prettifyAssetFilename(imageFiles[0].name)
-  }
-
-  if (imageFiles.length > 1) {
-    uploadName.value = ''
-  }
-}
-
-async function uploadFiles(files: File[]) {
-  const formData = new FormData()
-
-  for (const file of files) {
-    formData.append('files', file)
-  }
-
-  if (files.length === 1) {
-    formData.append('name', uploadName.value.trim() || prettifyAssetFilename(files[0].name))
-  }
-
-  if (uploadBrandId.value) {
-    formData.append('brandId', uploadBrandId.value)
-  }
-
-  uploading.value = true
-
-  try {
-    const response = await $fetch<AssetUploadResponse>('/api/assets', {
-      method: 'POST',
-      body: formData,
-    })
-
-    const createdCount = response.uploads.filter(upload => !upload.duplicate).length
-    const duplicateCount = response.uploads.length - createdCount
-
-    isUploadModalOpen.value = false
-    isDragging.value = false
-    resetUploadForm()
-    await refresh()
-
-    if (response.uploads.length === 1) {
-      showNotification(
-        duplicateCount
-          ? 'Ese asset ya existia. Se reutilizo la version guardada y se actualizo su marca si hacia falta.'
-          : 'Asset subido correctamente.',
-        'success'
-      )
-      return
-    }
-
-    showNotification(
-      `Subida completada: ${createdCount} nuevos, ${duplicateCount} reutilizados.`,
-      'success'
-    )
-  }
-  catch (error) {
-    uploadModalError.value = getErrorMessage(error)
-  }
-  finally {
-    uploading.value = false
-  }
-}
-
-async function submitUpload() {
-  if (!selectedUploadFiles.value.length) {
-    uploadModalError.value = 'Selecciona al menos un archivo antes de subirlo.'
-    return
-  }
-
-  await uploadFiles(selectedUploadFiles.value)
-}
-
-function onFileChange(event: Event) {
-  const input = event.target as HTMLInputElement | null
-
-  if (input?.files?.length) {
-    setUploadFiles(Array.from(input.files))
-  }
-}
-
-function onDrop(event: DragEvent) {
-  isDragging.value = false
-  const files = event.dataTransfer?.files
-
-  if (files?.length) {
-    setUploadFiles(Array.from(files))
-  }
-}
-
-function assetBrandSelection(asset: AssetRecord) {
-  return asset.brandId === null ? '' : String(asset.brandId)
-}
-
-async function updateAssetBrand(asset: AssetRecord, value: string | number) {
-  const nextBrandId = String(value || '').trim()
-  const parsedBrandId = nextBrandId ? Number(nextBrandId) : null
-
-  if (parsedBrandId === asset.brandId) return
-
-  assetActionId.value = asset.id
-
-  try {
-    await $fetch(`/api/assets/${asset.id}`, {
-      method: 'PUT',
-      body: { brandId: parsedBrandId },
-    })
-
-    await refresh()
-    showNotification(`Marca actualizada para ${asset.name}.`, 'success')
-  }
-  catch (error) {
-    showNotification(getErrorMessage(error), 'error')
-  }
-  finally {
-    assetActionId.value = null
-  }
-}
-
-async function removeAsset(asset: AssetRecord) {
-  assetActionId.value = asset.id
-
-  try {
-    await $fetch(`/api/assets/${asset.id}`, {
-      method: 'DELETE',
-    })
-
-    confirmDeleteId.value = null
-    await refresh()
-    showNotification(`Asset eliminado: ${asset.name}.`, 'success')
-  }
-  catch (error) {
-    confirmDeleteId.value = null
-    showNotification(getErrorMessage(error), 'error')
-  }
-  finally {
-    assetActionId.value = null
-  }
-}
-
-function getErrorMessage(error: unknown): string {
-  return getRequestErrorMessage(error, 'No se pudo completar la accion sobre el asset.', {
-    includeMessage: false
-  })
-}
+const {
+  pending,
+  assets,
+  brandOptions,
+  globalAssetsCount,
+  brandAssetsCount,
+  totalSizeFormatted,
+  search,
+  activeBrandFilter,
+  brandFilters,
+  filteredAssets,
+  isUploadModalOpen,
+  assetActionId,
+  confirmDeleteId,
+  notification,
+  clearNotification,
+  openUploadModal,
+  closeUploadModal,
+  handleUploadComplete,
+  assetBrandSelection,
+  updateAssetBrand,
+  removeAsset,
+  formatFileSize,
+  formatDate
+} = await useAssetLibrary()
 </script>
