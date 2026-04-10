@@ -16,6 +16,12 @@ import {
   studioVariants
 } from '../db/schema'
 
+type StudioProjectRow = typeof studioProjects.$inferSelect
+type StudioConceptRow = typeof studioConcepts.$inferSelect
+type StudioConceptFormatRow = typeof studioConceptFormats.$inferSelect
+type StudioVariantRow = typeof studioVariants.$inferSelect
+type StudioTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0]
+
 function normalizeSlugPart(value: string) {
   return value
     .normalize('NFD')
@@ -41,7 +47,7 @@ function deserializeBrief(value: string): StudioBriefPayload {
   return JSON.parse(value) as StudioBriefPayload
 }
 
-function mapProjectListItem(project: typeof studioProjects.$inferSelect): StudioProjectListItem {
+function mapProjectListItem(project: StudioProjectRow): StudioProjectListItem {
   const brief = deserializeBrief(project.brief)
   const projectConceptRows = db.select({ approvedAt: studioConcepts.approvedAt })
     .from(studioConcepts)
@@ -64,7 +70,7 @@ function formatTimestamp(value: Date | null) {
   return value ? value.toISOString() : null
 }
 
-function ensureProject(project?: typeof studioProjects.$inferSelect) {
+function ensureProject(project?: StudioProjectRow) {
   if (!project) {
     throw createError({
       statusCode: 404,
@@ -73,6 +79,12 @@ function ensureProject(project?: typeof studioProjects.$inferSelect) {
   }
 
   return project
+}
+
+function getStudioProjectRowBySlug(slug: string) {
+  return ensureProject(db.query.studioProjects.findFirst({
+    where: eq(studioProjects.slug, slug)
+  }).sync())
 }
 
 async function generateUniqueSlug(projectName: string) {
@@ -95,7 +107,7 @@ async function generateUniqueSlug(projectName: string) {
   })
 }
 
-function mapProject(project: typeof studioProjects.$inferSelect, concepts: StudioConcept[]): StudioProject {
+function mapProject(project: StudioProjectRow, concepts: StudioConcept[]): StudioProject {
   return {
     id: project.id,
     slug: project.slug,
@@ -107,9 +119,9 @@ function mapProject(project: typeof studioProjects.$inferSelect, concepts: Studi
 }
 
 function mapConcepts(
-  conceptRows: Array<typeof studioConcepts.$inferSelect>,
-  formatRows: Array<typeof studioConceptFormats.$inferSelect>,
-  variantRows: Array<typeof studioVariants.$inferSelect>
+  conceptRows: StudioConceptRow[],
+  formatRows: StudioConceptFormatRow[],
+  variantRows: StudioVariantRow[]
 ) {
   const variantsByFormatId = new Map<number, StudioVariant[]>()
 
@@ -155,38 +167,251 @@ function mapConcepts(
   }))
 }
 
-export function getStudioProjectBySlug(slug: string): StudioProject {
-  const project = ensureProject(db.query.studioProjects.findFirst({
-    where: eq(studioProjects.slug, slug)
-  }).sync())
-
-  const conceptRows = db.select()
+function listProjectConceptRows(projectId: number) {
+  return db.select()
     .from(studioConcepts)
-    .where(and(eq(studioConcepts.projectId, project.id), isNull(studioConcepts.discardedAt)))
+    .where(and(eq(studioConcepts.projectId, projectId), isNull(studioConcepts.discardedAt)))
     .orderBy(asc(studioConcepts.position), asc(studioConcepts.id))
     .all()
+}
+
+function listConceptFormatRows(conceptIds: number[]) {
+  return db.select()
+    .from(studioConceptFormats)
+    .where(inArray(studioConceptFormats.conceptId, conceptIds))
+    .orderBy(asc(studioConceptFormats.id))
+    .all()
+}
+
+function listFormatVariantRows(formatIds: number[]) {
+  return db.select()
+    .from(studioVariants)
+    .where(inArray(studioVariants.formatId, formatIds))
+    .orderBy(desc(studioVariants.createdAt), desc(studioVariants.id))
+    .all()
+}
+
+function touchProject(tx: StudioTransaction, projectId: number, now: Date) {
+  tx.update(studioProjects)
+    .set({ updatedAt: now })
+    .where(eq(studioProjects.id, projectId))
+    .run()
+}
+
+function createConceptFormatKey(conceptId: number, ratio: string) {
+  return `${conceptId}:${ratio}`
+}
+
+function discardMissingConceptRows(tx: StudioTransaction, projectId: number, concepts: StudioConcept[], now: Date) {
+  const incomingConceptIds = new Set(concepts.map((concept) => concept.id))
+  const existingConceptRows = tx.select()
+    .from(studioConcepts)
+    .where(eq(studioConcepts.projectId, projectId))
+    .all()
+
+  existingConceptRows.forEach((conceptRow) => {
+    if (incomingConceptIds.has(conceptRow.conceptKey)) {
+      return
+    }
+
+    tx.update(studioConcepts)
+      .set({
+        discardedAt: now,
+        updatedAt: now
+      })
+      .where(eq(studioConcepts.id, conceptRow.id))
+      .run()
+  })
+}
+
+function upsertConceptRows(tx: StudioTransaction, projectId: number, concepts: StudioConcept[], now: Date) {
+  concepts.forEach((concept, conceptIndex) => {
+    tx.insert(studioConcepts)
+      .values({
+        projectId,
+        conceptKey: concept.id,
+        title: concept.title,
+        subtitle: concept.subtitle,
+        rationale: concept.rationale,
+        selectedRatio: concept.selectedRatio,
+        approvedAt: toDate(concept.approvedAt),
+        position: conceptIndex,
+        discardedAt: null,
+        createdAt: now,
+        updatedAt: now
+      })
+      .onConflictDoUpdate({
+        target: [studioConcepts.projectId, studioConcepts.conceptKey],
+        set: {
+          title: concept.title,
+          subtitle: concept.subtitle,
+          rationale: concept.rationale,
+          selectedRatio: concept.selectedRatio,
+          approvedAt: toDate(concept.approvedAt),
+          position: conceptIndex,
+          discardedAt: null,
+          updatedAt: now
+        }
+      })
+      .run()
+  })
+}
+
+function listPersistedConceptRows(tx: StudioTransaction, projectId: number, concepts: StudioConcept[]) {
+  return tx.select()
+    .from(studioConcepts)
+    .where(and(eq(studioConcepts.projectId, projectId), inArray(studioConcepts.conceptKey, concepts.map((concept) => concept.id))))
+    .all()
+}
+
+function createConceptRowMap(conceptRows: StudioConceptRow[]) {
+  return new Map(conceptRows.map((concept) => [concept.conceptKey, concept]))
+}
+
+function upsertFormatRows(
+  tx: StudioTransaction,
+  concepts: StudioConcept[],
+  conceptRowByKey: Map<string, StudioConceptRow>,
+  now: Date
+) {
+  concepts.forEach((concept) => {
+    const conceptRow = conceptRowByKey.get(concept.id)
+
+    if (!conceptRow) {
+      return
+    }
+
+    concept.formats.forEach((format) => {
+      tx.insert(studioConceptFormats)
+        .values({
+          conceptId: conceptRow.id,
+          ratio: format.ratio,
+          isPreviewSource: format.isPreviewSource,
+          promptDraft: format.promptDraft,
+          activeVariantKey: format.activeVariantId,
+          createdAt: now,
+          updatedAt: now
+        })
+        .onConflictDoUpdate({
+          target: [studioConceptFormats.conceptId, studioConceptFormats.ratio],
+          set: {
+            isPreviewSource: format.isPreviewSource,
+            promptDraft: format.promptDraft,
+            activeVariantKey: format.activeVariantId,
+            updatedAt: now
+          }
+        })
+        .run()
+    })
+  })
+}
+
+function listPersistedFormatRows(tx: StudioTransaction, conceptRows: StudioConceptRow[]) {
+  return tx.select()
+    .from(studioConceptFormats)
+    .where(inArray(studioConceptFormats.conceptId, conceptRows.map((concept) => concept.id)))
+    .all()
+}
+
+function removeDeletedFormatRows(
+  tx: StudioTransaction,
+  concepts: StudioConcept[],
+  conceptRowByKey: Map<string, StudioConceptRow>,
+  formatRows: StudioConceptFormatRow[]
+) {
+  concepts.forEach((concept) => {
+    const conceptRow = conceptRowByKey.get(concept.id)
+
+    if (!conceptRow) {
+      return
+    }
+
+    const incomingRatios = new Set(concept.formats.map((format) => format.ratio))
+
+    formatRows
+      .filter((format) => format.conceptId === conceptRow.id && !incomingRatios.has(format.ratio))
+      .forEach((format) => {
+        tx.delete(studioVariants)
+          .where(eq(studioVariants.formatId, format.id))
+          .run()
+
+        tx.delete(studioConceptFormats)
+          .where(eq(studioConceptFormats.id, format.id))
+          .run()
+      })
+  })
+}
+
+function createFormatRowMap(formatRows: StudioConceptFormatRow[]) {
+  return new Map(
+    formatRows.map((format) => [createConceptFormatKey(format.conceptId, format.ratio), format])
+  )
+}
+
+function upsertVariantRows(
+  tx: StudioTransaction,
+  concepts: StudioConcept[],
+  conceptRowByKey: Map<string, StudioConceptRow>,
+  formatRowByConceptAndRatio: Map<string, StudioConceptFormatRow>
+) {
+  concepts.forEach((concept) => {
+    const conceptRow = conceptRowByKey.get(concept.id)
+
+    if (!conceptRow) {
+      return
+    }
+
+    concept.formats.forEach((format) => {
+      const formatRow = formatRowByConceptAndRatio.get(createConceptFormatKey(conceptRow.id, format.ratio))
+
+      if (!formatRow) {
+        return
+      }
+
+      format.variants.forEach((variant) => {
+        tx.insert(studioVariants)
+          .values({
+            formatId: formatRow.id,
+            variantKey: variant.id,
+            label: variant.label,
+            mode: variant.mode,
+            prompt: variant.prompt,
+            imageUrl: variant.imageUrl,
+            createdAt: new Date(variant.createdAt)
+          })
+          .onConflictDoUpdate({
+            target: [studioVariants.formatId, studioVariants.variantKey],
+            set: {
+              label: variant.label,
+              mode: variant.mode,
+              prompt: variant.prompt,
+              imageUrl: variant.imageUrl
+            }
+          })
+          .run()
+      })
+    })
+  })
+}
+
+export function getStudioProjectBySlug(slug: string): StudioProject {
+  const project = getStudioProjectRowBySlug(slug)
+
+  const conceptRows = listProjectConceptRows(project.id)
 
   if (!conceptRows.length) {
     return mapProject(project, [])
   }
 
   const conceptIds = conceptRows.map((concept) => concept.id)
-  const formatRows = db.select()
-    .from(studioConceptFormats)
-    .where(inArray(studioConceptFormats.conceptId, conceptIds))
-    .orderBy(asc(studioConceptFormats.id))
-    .all()
+  const formatRows = listConceptFormatRows(conceptIds)
 
   if (!formatRows.length) {
     return mapProject(project, mapConcepts(conceptRows, [], []))
   }
 
   const formatIds = formatRows.map((format) => format.id)
-  const variantRows = db.select()
-    .from(studioVariants)
-    .where(inArray(studioVariants.formatId, formatIds))
-    .orderBy(desc(studioVariants.createdAt), desc(studioVariants.id))
-    .all()
+  const variantRows = listFormatVariantRows(formatIds)
 
   return mapProject(project, mapConcepts(conceptRows, formatRows, variantRows))
 }
@@ -218,9 +443,7 @@ export async function createStudioProject(brief: StudioBriefPayload): Promise<St
 }
 
 export function updateStudioProjectBrief(slug: string, brief: StudioBriefPayload): StudioProject {
-  const project = ensureProject(db.query.studioProjects.findFirst({
-    where: eq(studioProjects.slug, slug)
-  }).sync())
+  const project = getStudioProjectRowBySlug(slug)
 
   db.update(studioProjects)
     .set({
@@ -235,183 +458,33 @@ export function updateStudioProjectBrief(slug: string, brief: StudioBriefPayload
 }
 
 export function saveStudioConcepts(slug: string, concepts: StudioConcept[]): StudioProject {
-  const project = ensureProject(db.query.studioProjects.findFirst({
-    where: eq(studioProjects.slug, slug)
-  }).sync())
+  const project = getStudioProjectRowBySlug(slug)
 
   db.transaction((tx) => {
     const now = new Date()
-    const incomingConceptIds = new Set(concepts.map((concept) => concept.id))
-    const existingConceptRows = tx.select()
-      .from(studioConcepts)
-      .where(eq(studioConcepts.projectId, project.id))
-      .all()
-
-    existingConceptRows.forEach((conceptRow) => {
-      if (incomingConceptIds.has(conceptRow.conceptKey)) {
-        return
-      }
-
-      tx.update(studioConcepts)
-        .set({
-          discardedAt: now,
-          updatedAt: now
-        })
-        .where(eq(studioConcepts.id, conceptRow.id))
-        .run()
-    })
-
-    concepts.forEach((concept, conceptIndex) => {
-      tx.insert(studioConcepts)
-        .values({
-          projectId: project.id,
-          conceptKey: concept.id,
-          title: concept.title,
-          subtitle: concept.subtitle,
-          rationale: concept.rationale,
-          selectedRatio: concept.selectedRatio,
-          approvedAt: toDate(concept.approvedAt),
-          position: conceptIndex,
-          discardedAt: null,
-          createdAt: now,
-          updatedAt: now
-        })
-        .onConflictDoUpdate({
-          target: [studioConcepts.projectId, studioConcepts.conceptKey],
-          set: {
-            title: concept.title,
-            subtitle: concept.subtitle,
-            rationale: concept.rationale,
-            selectedRatio: concept.selectedRatio,
-            approvedAt: toDate(concept.approvedAt),
-            position: conceptIndex,
-            discardedAt: null,
-            updatedAt: now
-          }
-        })
-        .run()
-    })
+    discardMissingConceptRows(tx, project.id, concepts, now)
+    upsertConceptRows(tx, project.id, concepts, now)
 
     if (!concepts.length) {
-      tx.update(studioProjects)
-        .set({ updatedAt: now })
-        .where(eq(studioProjects.id, project.id))
-        .run()
+      touchProject(tx, project.id, now)
 
       return
     }
 
-    const persistedConceptRows = tx.select()
-      .from(studioConcepts)
-      .where(and(eq(studioConcepts.projectId, project.id), inArray(studioConcepts.conceptKey, concepts.map((concept) => concept.id))))
-      .all()
-    const conceptRowByKey = new Map(persistedConceptRows.map((concept) => [concept.conceptKey, concept]))
+    const persistedConceptRows = listPersistedConceptRows(tx, project.id, concepts)
+    const conceptRowByKey = createConceptRowMap(persistedConceptRows)
 
-    concepts.forEach((concept) => {
-      const conceptRow = conceptRowByKey.get(concept.id)
+    upsertFormatRows(tx, concepts, conceptRowByKey, now)
 
-      if (!conceptRow) {
-        return
-      }
+    const persistedFormatRows = listPersistedFormatRows(tx, persistedConceptRows)
 
-      concept.formats.forEach((format) => {
-        tx.insert(studioConceptFormats)
-          .values({
-            conceptId: conceptRow.id,
-            ratio: format.ratio,
-            isPreviewSource: format.isPreviewSource,
-            promptDraft: format.promptDraft,
-            activeVariantKey: format.activeVariantId,
-            createdAt: now,
-            updatedAt: now
-          })
-          .onConflictDoUpdate({
-            target: [studioConceptFormats.conceptId, studioConceptFormats.ratio],
-            set: {
-              isPreviewSource: format.isPreviewSource,
-              promptDraft: format.promptDraft,
-              activeVariantKey: format.activeVariantId,
-              updatedAt: now
-            }
-          })
-          .run()
-      })
-    })
+    removeDeletedFormatRows(tx, concepts, conceptRowByKey, persistedFormatRows)
 
-    const persistedFormatRows = tx.select()
-      .from(studioConceptFormats)
-      .where(inArray(studioConceptFormats.conceptId, persistedConceptRows.map((concept) => concept.id)))
-      .all()
+    const formatRowByConceptAndRatio = createFormatRowMap(persistedFormatRows)
 
-    concepts.forEach((concept) => {
-      const conceptRow = conceptRowByKey.get(concept.id)
+    upsertVariantRows(tx, concepts, conceptRowByKey, formatRowByConceptAndRatio)
 
-      if (!conceptRow) {
-        return
-      }
-
-      const incomingRatios = new Set(concept.formats.map((format) => format.ratio))
-
-      persistedFormatRows
-        .filter((format) => format.conceptId === conceptRow.id && !incomingRatios.has(format.ratio))
-        .forEach((format) => {
-          tx.delete(studioVariants)
-            .where(eq(studioVariants.formatId, format.id))
-            .run()
-
-          tx.delete(studioConceptFormats)
-            .where(eq(studioConceptFormats.id, format.id))
-            .run()
-        })
-    })
-
-    const formatRowByConceptAndRatio = new Map(
-      persistedFormatRows.map((format) => [`${format.conceptId}:${format.ratio}`, format])
-    )
-
-    concepts.forEach((concept) => {
-      const conceptRow = conceptRowByKey.get(concept.id)
-
-      if (!conceptRow) {
-        return
-      }
-
-      concept.formats.forEach((format) => {
-        const formatRow = formatRowByConceptAndRatio.get(`${conceptRow.id}:${format.ratio}`)
-
-        if (!formatRow) {
-          return
-        }
-
-        format.variants.forEach((variant) => {
-          tx.insert(studioVariants)
-            .values({
-              formatId: formatRow.id,
-              variantKey: variant.id,
-              label: variant.label,
-              mode: variant.mode,
-              prompt: variant.prompt,
-              imageUrl: variant.imageUrl,
-              createdAt: new Date(variant.createdAt)
-            })
-            .onConflictDoUpdate({
-              target: [studioVariants.formatId, studioVariants.variantKey],
-              set: {
-                label: variant.label,
-                mode: variant.mode,
-                prompt: variant.prompt,
-                imageUrl: variant.imageUrl
-              }
-            })
-            .run()
-        })
-      })
-    })
-
-    tx.update(studioProjects)
-      .set({ updatedAt: now })
-      .where(eq(studioProjects.id, project.id))
-      .run()
+    touchProject(tx, project.id, now)
   })
 
   return getStudioProjectBySlug(slug)
