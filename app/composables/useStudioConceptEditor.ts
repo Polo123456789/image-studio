@@ -196,6 +196,10 @@ export async function useStudioConceptEditor() {
     return format.variants.find((variant) => variant.id === format.activeVariantId)
   }
 
+  function activeVariantsByRatio(concept: StudioConcept) {
+    return Object.fromEntries(concept.formats.map((format) => [format.ratio, activeVariantForFormat(format)]))
+  }
+
   function updateConcept(conceptId: string, updater: (concept: StudioConcept) => StudioConcept) {
     concepts.value = concepts.value.map((concept) => concept.id === conceptId ? updater(concept) : concept)
   }
@@ -553,6 +557,7 @@ export async function useStudioConceptEditor() {
     selectedFormat,
     activeVariant,
     activeVariantForFormat,
+    activeVariantsByRatio,
     selectRatio,
     cycleRatio,
     resetPrompt,
