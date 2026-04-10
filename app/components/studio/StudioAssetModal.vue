@@ -212,6 +212,8 @@ import type { AssetRecord, AssetUploadResponse } from '../../../shared/types/ass
 import type { BrandOption } from '../../../shared/types/brands'
 
 import AppModal from '~/components/base/AppModal.vue'
+import { prettifyAssetFilename } from '~/utils/assets'
+import { getRequestErrorMessage } from '~/utils/http-errors'
 
 const props = defineProps<{
   open: boolean
@@ -351,18 +353,10 @@ function triggerFileInput() {
   fileInputRef.value?.click()
 }
 
-function prettifyFilename(filename: string): string {
-  return filename
-    .replace(/\.[^.]+$/, '')
-    .replace(/[-_]+/g, ' ')
-    .replace(/^\w/, c => c.toUpperCase())
-    .trim() || 'Asset'
-}
-
 async function uploadFile(file: File) {
   const formData = new FormData()
   formData.append('file', file)
-  formData.append('name', prettifyFilename(file.name))
+  formData.append('name', prettifyAssetFilename(file.name))
 
   if (activeBrandFilter.value !== 'all' && activeBrandFilter.value !== 'global') {
     formData.append('brandId', activeBrandFilter.value)
@@ -425,24 +419,8 @@ function onDrop(event: DragEvent) {
 }
 
 function getUploadErrorMessage(error: unknown): string {
-  if (typeof error === 'object' && error !== null) {
-    const maybeStatusMessage = 'statusMessage' in error ? error.statusMessage : undefined
-
-    if (typeof maybeStatusMessage === 'string' && maybeStatusMessage) {
-      return maybeStatusMessage
-    }
-
-    const maybeData = 'data' in error ? error.data : undefined
-
-    if (typeof maybeData === 'object' && maybeData !== null && 'statusMessage' in maybeData) {
-      const nestedStatusMessage = maybeData.statusMessage
-
-      if (typeof nestedStatusMessage === 'string' && nestedStatusMessage) {
-        return nestedStatusMessage
-      }
-    }
-  }
-
-  return 'No se pudo subir el asset.'
+  return getRequestErrorMessage(error, 'No se pudo subir el asset.', {
+    includeMessage: false
+  })
 }
 </script>

@@ -420,6 +420,8 @@ import AppButton from '~/components/base/AppButton.vue'
 import AppInput from '~/components/base/AppInput.vue'
 import AppModal from '~/components/base/AppModal.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
+import { prettifyAssetFilename } from '~/utils/assets'
+import { getRequestErrorMessage } from '~/utils/http-errors'
 
 const { data, pending, refresh } = await useFetch<AssetsResponse>('/api/assets')
 
@@ -553,14 +555,6 @@ const filteredAssets = computed(() => {
   return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 })
 
-function prettifyFilename(filename: string): string {
-  return filename
-    .replace(/\.[^.]+$/, '')
-    .replace(/[-_]+/g, ' ')
-    .replace(/^\w/, c => c.toUpperCase())
-    .trim() || 'Asset'
-}
-
 function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 B'
   const units = ['B', 'KB', 'MB', 'GB']
@@ -613,7 +607,7 @@ function setUploadFiles(files: File[]) {
   uploadModalError.value = ''
 
   if (imageFiles.length === 1 && !uploadName.value.trim()) {
-    uploadName.value = prettifyFilename(imageFiles[0].name)
+    uploadName.value = prettifyAssetFilename(imageFiles[0].name)
   }
 
   if (imageFiles.length > 1) {
@@ -629,7 +623,7 @@ async function uploadFiles(files: File[]) {
   }
 
   if (files.length === 1) {
-    formData.append('name', uploadName.value.trim() || prettifyFilename(files[0].name))
+    formData.append('name', uploadName.value.trim() || prettifyAssetFilename(files[0].name))
   }
 
   if (uploadBrandId.value) {
@@ -752,24 +746,8 @@ async function removeAsset(asset: AssetRecord) {
 }
 
 function getErrorMessage(error: unknown): string {
-  if (typeof error === 'object' && error !== null) {
-    const maybeStatusMessage = 'statusMessage' in error ? error.statusMessage : undefined
-
-    if (typeof maybeStatusMessage === 'string' && maybeStatusMessage) {
-      return maybeStatusMessage
-    }
-
-    const maybeData = 'data' in error ? error.data : undefined
-
-    if (typeof maybeData === 'object' && maybeData !== null && 'statusMessage' in maybeData) {
-      const nestedStatusMessage = maybeData.statusMessage
-
-      if (typeof nestedStatusMessage === 'string' && nestedStatusMessage) {
-        return nestedStatusMessage
-      }
-    }
-  }
-
-  return 'No se pudo completar la accion sobre el asset.'
+  return getRequestErrorMessage(error, 'No se pudo completar la accion sobre el asset.', {
+    includeMessage: false
+  })
 }
 </script>

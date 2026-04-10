@@ -254,6 +254,7 @@ import AppButton from '~/components/base/AppButton.vue'
 import AppInput from '~/components/base/AppInput.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
 import AppTextarea from '~/components/base/AppTextarea.vue'
+import { getRequestErrorMessage } from '~/utils/http-errors'
 
 const { data, pending } = await useFetch<BrandsResponse>('/api/brands')
 const { data: styleGuideData } = await useFetch<StyleGuidesResponse>('/api/style-guides')
@@ -408,21 +409,7 @@ function getPayload(): BrandPayload {
 }
 
 function getErrorMessage(error: unknown) {
-  if (typeof error === 'object' && error !== null) {
-    const maybeStatusMessage = 'statusMessage' in error ? error.statusMessage : undefined
-    if (typeof maybeStatusMessage === 'string' && maybeStatusMessage) return maybeStatusMessage
-
-    const maybeData = 'data' in error ? error.data : undefined
-    if (typeof maybeData === 'object' && maybeData !== null && 'statusMessage' in maybeData) {
-      const nestedStatusMessage = maybeData.statusMessage
-      if (typeof nestedStatusMessage === 'string' && nestedStatusMessage) return nestedStatusMessage
-    }
-
-    const maybeMessage = 'message' in error ? error.message : undefined
-    if (typeof maybeMessage === 'string' && maybeMessage) return maybeMessage
-  }
-
-  return 'No se pudo guardar la marca.'
+  return getRequestErrorMessage(error, 'No se pudo guardar la marca.')
 }
 
 async function saveBrand() {

@@ -400,6 +400,7 @@ import AppButton from '~/components/base/AppButton.vue'
 import AppInput from '~/components/base/AppInput.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
 import AppTextarea from '~/components/base/AppTextarea.vue'
+import { getRequestErrorMessage } from '~/utils/http-errors'
 
 interface SelectedFileItem {
   key: string
@@ -452,21 +453,7 @@ onBeforeUnmount(() => {
 })
 
 function getErrorMessage(error: unknown, fallback: string) {
-  if (typeof error === 'object' && error !== null) {
-    const maybeStatusMessage = 'statusMessage' in error ? error.statusMessage : undefined
-    if (typeof maybeStatusMessage === 'string' && maybeStatusMessage) return maybeStatusMessage
-
-    const maybeData = 'data' in error ? error.data : undefined
-    if (typeof maybeData === 'object' && maybeData !== null && 'statusMessage' in maybeData) {
-      const nestedStatusMessage = maybeData.statusMessage
-      if (typeof nestedStatusMessage === 'string' && nestedStatusMessage) return nestedStatusMessage
-    }
-
-    const maybeMessage = 'message' in error ? error.message : undefined
-    if (typeof maybeMessage === 'string' && maybeMessage) return maybeMessage
-  }
-
-  return fallback
+  return getRequestErrorMessage(error, fallback)
 }
 
 function formatFileSize(size: number) {
