@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
+import type { StudioBriefPayload } from '../../../shared/types/studio'
 import type { StudioConcept, StudioConceptFormat, StudioConceptResponse, StudioGenerateConceptsPayload, StudioVariant } from '../../../shared/types/studio'
 
 import { generateConceptSeeds, generatePreviewImage } from '../../utils/gemini'
@@ -18,7 +19,7 @@ function createVariant(ratio: string, prompt: string, seed: string, imageUrl: st
   }
 }
 
-async function createConcept(payload: StudioBriefPayload, index: number, seedData: { title: string, subtitle: string, rationale: string, variantPrompts: Record<string, string> }): Promise<StudioConcept> {
+async function createConcept(payload: StudioBriefPayload, index: number, seedData: { creativeStyleId?: number | null, creativeStyleName?: string | null, title: string, subtitle: string, rationale: string, variantPrompts: Record<string, string> }): Promise<StudioConcept> {
   const conceptId = `concept-${randomUUID()}`
   const previewSourceRatio = payload.aspectRatios[0] || '1:1'
   const formats = await Promise.all(payload.aspectRatios.map(async (ratio): Promise<StudioConceptFormat> => {
@@ -45,6 +46,8 @@ async function createConcept(payload: StudioBriefPayload, index: number, seedDat
     title: seedData.title,
     subtitle: seedData.subtitle,
     rationale: seedData.rationale,
+    creativeStyleId: seedData.creativeStyleId ?? payload.creativeStyleId ?? null,
+    creativeStyleName: seedData.creativeStyleName ?? null,
     selectedRatio: payload.aspectRatios[0] || '1:1',
     approvedAt: null,
     formats

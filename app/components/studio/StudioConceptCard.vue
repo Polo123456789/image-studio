@@ -9,7 +9,12 @@
         <span class="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 font-mono text-xs font-medium text-accent">
           {{ index + 1 }}
         </span>
-        <h2 class="text-base font-medium text-text">{{ concept.title }}</h2>
+        <div class="min-w-0">
+          <h2 class="truncate text-base font-medium text-text">{{ concept.title }}</h2>
+          <p v-if="concept.creativeStyleName" class="mt-1 text-[11px] text-text-muted">
+            Estilo: <span class="text-text">{{ concept.creativeStyleName }}</span>
+          </p>
+        </div>
       </div>
 
       <button
@@ -96,6 +101,24 @@
         <div class="border-b border-border px-5 py-5">
           <p class="text-sm leading-6 text-text-muted">{{ concept.subtitle }}</p>
           <p class="mt-2 text-sm leading-6 text-text-muted/70">{{ concept.rationale }}</p>
+
+          <div v-if="concept.creativeStyleName" class="mt-4 rounded-lg border border-border bg-surface-2/40 px-4 py-3">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-text-muted">Estilo elegido</p>
+                <p class="mt-1 text-sm text-text">{{ concept.creativeStyleName }}</p>
+              </div>
+
+              <button
+                v-if="concept.creativeStyleId"
+                type="button"
+                class="rounded border border-accent/30 bg-accent/8 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-accent hover:bg-accent/15"
+                @click="$emit('use-style', concept.id)"
+              >
+                Usar este estilo despues
+              </button>
+            </div>
+          </div>
         </div>
 
         <div class="flex-1 space-y-5 overflow-y-auto px-5 py-5">
@@ -242,5 +265,6 @@ defineEmits<{
   regenerate: [conceptId: string]
   'reset-prompt': [conceptId: string]
   'select-variant': [conceptId: string, ratio: string, variantId: string]
+  'use-style': [conceptId: string]
 }>()
 </script>

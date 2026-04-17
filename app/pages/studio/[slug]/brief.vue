@@ -125,13 +125,21 @@
             :brand-name="selectedBrandName"
           />
 
-          <StudioAssetSection
-            v-model:selected-asset-ids="selectedAssetIds"
-            :assets="assets"
-            :brands="styleGuideData?.brands ?? []"
-            :brand-name="selectedBrandName"
-            @assets-uploaded="refreshAssets"
-          />
+          <div class="space-y-8">
+            <StudioCreativeStyleSection
+              v-model:selected-style-id="form.creativeStyleId"
+              :styles="creativeStyleData?.styles ?? []"
+              :selected-guide-id="selectedStyleGuideId"
+            />
+
+            <StudioAssetSection
+              v-model:selected-asset-ids="selectedAssetIds"
+              :assets="assets"
+              :brands="styleGuideData?.brands ?? []"
+              :brand-name="selectedBrandName"
+              @assets-uploaded="refreshAssets"
+            />
+          </div>
         </div>
 
         <div class="grid gap-8 sm:grid-cols-3">
@@ -181,6 +189,7 @@
 <script setup lang="ts">
 import type { AssetRecord, AssetsResponse } from '../../../../shared/types/assets'
 import type { BrandOption } from '../../../../shared/types/brands'
+import type { CreativeStylesResponse } from '../../../../shared/types/creative-styles'
 import type { StudioBriefPayload, StudioProjectResponse } from '../../../../shared/types/studio'
 import type { StyleGuidesResponse } from '../../../../shared/types/style-guides'
 
@@ -190,6 +199,7 @@ import AppSelect from '~/components/base/AppSelect.vue'
 import AppTextarea from '~/components/base/AppTextarea.vue'
 import StudioAssetSection from '~/components/studio/StudioAssetSection.vue'
 import StudioChipMultiSelect from '~/components/studio/StudioChipMultiSelect.vue'
+import StudioCreativeStyleSection from '~/components/studio/StudioCreativeStyleSection.vue'
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
 import StudioStyleGuideSection from '~/components/studio/StudioStyleGuideSection.vue'
 import { requireStudioSlug } from '~/utils/studio-routing'
@@ -210,6 +220,7 @@ import {
 const route = useRoute()
 const { brief, setProject } = useStudioSession()
 const { data: styleGuideData } = await useFetch<StyleGuidesResponse>('/api/style-guides')
+const { data: creativeStyleData } = await useFetch<CreativeStylesResponse>('/api/creative-styles')
 const { data: assetData, refresh: refreshAssets } = await useFetch<AssetsResponse>('/api/assets')
 
 const slug = requireStudioSlug(route)
@@ -287,7 +298,16 @@ const canSave = computed(() => {
 })
 
 const summaryText = computed(() => {
-  return summarizeStudioBrief(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value.length)
+  const creativeStyleLabel = creativeStyleData.value?.styles.find((style) => style.id === form.creativeStyleId)?.name ?? ''
+
+  return summarizeStudioBrief(
+    form,
+    selectedMedia.value,
+    selectedRatios.value,
+    selectedStyleGuideId.value,
+    creativeStyleLabel,
+    selectedAssetIds.value.length
+  )
 })
 
 const feedbackClass = computed(() => feedbackTone.value === 'success' ? 'text-accent' : 'text-danger')
@@ -323,6 +343,12 @@ watch(() => form.brandId, (brandId) => {
     if (selectedGuide?.brandId !== null && selectedGuide.brandId !== brandId) {
       selectedStyleGuideId.value = null
     }
+  }
+})
+
+watch(selectedStyleGuideId, (guideId) => {
+  if (guideId !== null) {
+    form.creativeStyleId = null
   }
 })
 

@@ -2,6 +2,7 @@ import { GoogleGenAI, Type } from '@google/genai'
 
 import type { StudioBriefPayload, StudioConceptSeed } from '../../shared/types/studio'
 import { getAssetInlineDataByIds, getAssetsByIds } from './assets'
+import { getActiveCreativeStyles } from './creative-styles'
 import { getAppSettings, getServerAppSettings } from './settings'
 import { getStyleGuidesByIds } from './style-guides'
 
@@ -52,14 +53,65 @@ function mapPreviewAspectRatio(aspectRatio: string): string {
   return '1:1'
 }
 
+function shuffleArray<T>(items: T[]) {
+  const next = [...items]
+
+  for (let index = next.length - 1; index > 0; index -= 1) {
+    const randomIndex = Math.floor(Math.random() * (index + 1))
+    const current = next[index]
+
+    next[index] = next[randomIndex] as T
+    next[randomIndex] = current as T
+  }
+
+  return next
+}
+
+function normalizeCreativeStyleSelection(
+  payload: StudioBriefPayload,
+  seed: StudioConceptSeed,
+  activeCreativeStyleIds: Set<number>
+): StudioConceptSeed {
+  if (payload.styleGuideId) {
+    return {
+      ...seed,
+      creativeStyleId: null,
+      creativeStyleName: ''
+    }
+  }
+
+  if (payload.creativeStyleId) {
+    return {
+      ...seed,
+      creativeStyleId: payload.creativeStyleId,
+      creativeStyleName: seed.creativeStyleName || ''
+    }
+  }
+
+  if (!seed.creativeStyleId || !activeCreativeStyleIds.has(seed.creativeStyleId)) {
+    return {
+      ...seed,
+      creativeStyleId: null,
+      creativeStyleName: seed.creativeStyleName || ''
+    }
+  }
+
+  return seed
+}
+
 function buildCreativePrompt(payload: StudioBriefPayload): string {
   const settings = getAppSettings()
   const selectedAssets = getAssetsByIds(Array.isArray(payload.assetIds) ? payload.assetIds : [])
+  const creativeStyles = getActiveCreativeStyles()
+  const shuffledCreativeStyles = shuffleArray(creativeStyles)
   const legacyStyleGuideIds = Array.isArray(payload.styleGuideIds) ? payload.styleGuideIds : []
   const selectedGuide = getStyleGuidesByIds(payload.styleGuideId ? [payload.styleGuideId] : legacyStyleGuideIds.slice(0, 1))[0]
   const styleGuideSection = selectedGuide
     ? `Guia de estilo aplicada: ${selectedGuide.name}${selectedGuide.brandName ? ` (${selectedGuide.brandName})` : ' (Global)'}: ${selectedGuide.content}`
     : 'Guia de estilo aplicada: ninguna.'
+  const selectedCreativeStyle = payload.creativeStyleId
+    ? creativeStyles.find((style) => style.id === payload.creativeStyleId) ?? null
+    : null
   const assetSection = selectedAssets.length
     ? `Assets seleccionados: ${selectedAssets.map((asset) => {
       const scope = asset.brandName ? `marca ${asset.brandName}` : 'global'
@@ -69,6 +121,17 @@ function buildCreativePrompt(payload: StudioBriefPayload): string {
     }).join(' ')}`
     : 'Assets seleccionados: ninguno.'
   const styleGuideNotes = payload.styleGuideNotes?.trim()
+  const creativeStyleSection = selectedGuide
+    ? 'Estilo creativo libre: desactivado porque ya existe una guia aplicada.'
+    : selectedCreativeStyle
+      ? `Estilo creativo fijo: ${selectedCreativeStyle.name}. ${selectedCreativeStyle.description || 'Sin descripcion adicional.'}`
+      : shuffledCreativeStyles.length
+        ? [
+          'Biblioteca de estilos creativos disponible para que elijas el mas adecuado por concepto:',
+          ...shuffledCreativeStyles.map((style, index) => `${index + 1}. [${style.id}] ${style.name}. ${style.description || 'Sin descripcion adicional.'}`),
+          'Debes escoger el estilo mas apropiado para cada concepto segun la idea, el texto y la composicion. No fuerces siempre el mismo estilo ni repitas el mismo estilo en todos los conceptos si existen alternativas viables.'
+        ].join(' ')
+        : 'No hay estilos creativos configurados. Decide libremente el lenguaje visual de cada concepto.'
 
   return [
     settings.conceptGeneratorPrompt,
@@ -84,7 +147,13 @@ function buildCreativePrompt(payload: StudioBriefPayload): string {
     `Contexto adicional: ${payload.additionalContext || 'Sin contexto adicional'}.`,
     assetSection,
     styleGuideSection,
+    creativeStyleSection,
     `Ajustes adicionales de guia: ${styleGuideNotes || 'Ninguno'}.`,
+    selectedGuide
+      ? 'Si existe una guia aplicada, no elijas un estilo creativo libre: la guia debe gobernar la direccion visual.'
+      : selectedCreativeStyle
+        ? 'Todos los conceptos deben respetar exactamente el estilo creativo fijo indicado.'
+        : 'Cuando no haya estilo fijo, elige el estilo mas conveniente para cada concepto y reportalo en la salida JSON.',
     `Responde en espanol claro y profesional.`,
     `Los prompts deben ser directamente utilizables para generar imagen publicitaria.`
   ].join(' ')
@@ -246,6 +315,7 @@ export async function reverseEngineerStyleGuide(files: File[], description: stri
 
 export async function generateConceptSeeds(payload: StudioBriefPayload): Promise<StudioConceptSeed[]> {
   const ai = getClient()
+  const activeCreativeStyleIds = new Set(getActiveCreativeStyles().map((style) => style.id))
 
   const variantPromptProperties = Object.fromEntries(payload.aspectRatios.map((ratio) => [ratio, {
     type: Type.STRING,
@@ -262,6 +332,8 @@ export async function generateConceptSeeds(payload: StudioBriefPayload): Promise
         items: {
           type: Type.OBJECT,
           properties: {
+            creativeStyleId: { type: Type.INTEGER },
+            creativeStyleName: { type: Type.STRING },
             title: { type: Type.STRING },
             subtitle: { type: Type.STRING },
             rationale: { type: Type.STRING },
@@ -271,7 +343,7 @@ export async function generateConceptSeeds(payload: StudioBriefPayload): Promise
               required: payload.aspectRatios
             }
           },
-          required: ['title', 'subtitle', 'rationale', 'variantPrompts']
+          required: ['creativeStyleId', 'creativeStyleName', 'title', 'subtitle', 'rationale', 'variantPrompts']
         }
       }
     }
@@ -286,7 +358,9 @@ export async function generateConceptSeeds(payload: StudioBriefPayload): Promise
     })
   }
 
-  return JSON.parse(text) as StudioConceptSeed[]
+  const parsed = JSON.parse(text) as StudioConceptSeed[]
+
+  return parsed.map((seed) => normalizeCreativeStyleSelection(payload, seed, activeCreativeStyleIds))
 }
 
 export async function generatePreviewImage(prompt: string, aspectRatio: string, assetIds: number[] = []): Promise<string> {

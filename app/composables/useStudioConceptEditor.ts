@@ -419,6 +419,33 @@ export async function useStudioConceptEditor() {
     }
   }
 
+  async function useConceptStyleForNextGenerations(conceptId: string) {
+    if (!routeProjectSlug.value) {
+      return
+    }
+
+    const concept = concepts.value.find((item) => item.id === conceptId)
+
+    if (!concept || !concept.creativeStyleId) {
+      return
+    }
+
+    const nextBrief = {
+      ...brief.value,
+      styleGuideId: null,
+      creativeStyleId: concept.creativeStyleId
+    }
+
+    const response = await $fetch<StudioProjectResponse>(`/api/studio/projects/${routeProjectSlug.value}/brief`, {
+      method: 'PUT',
+      body: {
+        brief: nextBrief
+      }
+    })
+
+    setProject(response.project)
+  }
+
   async function exportConcepts() {
     if (!routeProjectSlug.value || loadingExport.value || !hasExportableConcepts.value) {
       return
@@ -567,6 +594,7 @@ export async function useStudioConceptEditor() {
     formatTimestamp,
     discardConcept,
     generateMoreConcepts,
+    useConceptStyleForNextGenerations,
     exportConcepts,
     openPromptModal,
     closePromptModal,

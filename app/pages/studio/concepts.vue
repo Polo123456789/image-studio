@@ -92,6 +92,7 @@
           @regenerate="regenerateVariant"
           @reset-prompt="resetPrompt"
           @select-variant="selectVariant"
+          @use-style="useConceptStyleForNextGenerations"
         />
 
         <section class="rounded-xl border border-border bg-surface px-6 py-8">
@@ -101,15 +102,20 @@
               Genera conceptos adicionales con el mismo brief. No modifica lo que ya aprobaste.
             </p>
 
+            <div v-if="brief.creativeStyleId" class="mt-3 inline-flex items-center gap-2 rounded-lg border border-accent/20 bg-accent/5 px-3 py-1.5">
+              <span class="font-mono text-[10px] uppercase tracking-[0.15em] text-accent">Estilo fijado</span>
+              <span class="text-xs text-text-muted">Las siguientes tandas usaran el estilo seleccionado.</span>
+            </div>
+            <p v-else class="mt-3 text-xs leading-5 text-text-muted">
+              Sin estilo fijo: Gemini elegira el mejor estilo para cada concepto usando la biblioteca activa.
+            </p>
+
             <div class="mt-5 flex items-center gap-3">
-              <select
-                v-model="moreConceptCount"
-                class="rounded-lg border border-border bg-bg px-3 py-2.5 font-mono text-sm text-text outline-none transition focus:border-accent"
-              >
-                <option v-for="count in extraConceptCounts" :key="count" :value="count">
+              <AppSelect v-model="moreConceptCountValue" class="w-20">
+                <option v-for="count in extraConceptCounts" :key="count" :value="String(count)">
                   {{ count }}
                 </option>
-              </select>
+              </AppSelect>
 
               <AppButton
                 type="button"
@@ -140,6 +146,7 @@
 
 <script setup lang="ts">
 import AppButton from '~/components/base/AppButton.vue'
+import AppSelect from '~/components/base/AppSelect.vue'
 import StudioConceptCard from '~/components/studio/StudioConceptCard.vue'
 import StudioConceptPromptModal from '~/components/studio/StudioConceptPromptModal.vue'
 
@@ -175,6 +182,7 @@ const {
   formatTimestamp,
   discardConcept,
   generateMoreConcepts,
+  useConceptStyleForNextGenerations,
   exportConcepts,
   openPromptModal,
   closePromptModal,
@@ -183,4 +191,13 @@ const {
   activeVariantsByRatio,
   formatStatusLabel
 } = await useStudioConceptEditor()
+
+const moreConceptCountValue = computed<string>({
+  get() {
+    return String(moreConceptCount.value)
+  },
+  set(value: string) {
+    moreConceptCount.value = Number(value)
+  }
+})
 </script>

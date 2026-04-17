@@ -57,6 +57,13 @@
       "when": 1775753453015,
       "tag": "0007_crazy_blindfold",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1776451760382,
+      "tag": "0008_bumpy_apocalypse",
+      "breakpoints": true
     }
   ]
 }

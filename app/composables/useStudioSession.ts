@@ -10,6 +10,7 @@ const defaultBrief = (): StudioBriefPayload => ({
   assetIds: [],
   styleGuideId: null,
   styleGuideNotes: '',
+  creativeStyleId: null,
   resolution: '1K rapido',
   conceptCount: 3,
   mediaChannels: ['Google Ads', 'Instagram Stories'],

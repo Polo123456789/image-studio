@@ -33,6 +33,7 @@ export interface StudioBriefFormState {
   keyMessage: string
   additionalContext: string
   styleGuideNotes: string
+  creativeStyleId: number | null
   resolution: string
   conceptCount: number
 }
@@ -46,6 +47,7 @@ export function createStudioBriefFormState(): StudioBriefFormState {
     keyMessage: '',
     additionalContext: '',
     styleGuideNotes: '',
+    creativeStyleId: null,
     resolution: '1K rapido',
     conceptCount: 3
   }
@@ -70,6 +72,7 @@ export function buildStudioBriefPayload(
     assetIds: [...selectedAssetIds],
     styleGuideId: selectedStyleGuideId,
     styleGuideNotes: form.styleGuideNotes,
+    creativeStyleId: selectedStyleGuideId ? null : form.creativeStyleId,
     resolution: form.resolution,
     conceptCount: Number(form.conceptCount),
     mediaChannels: [...selectedMedia],
@@ -91,6 +94,7 @@ export function applyStudioBriefToForm(
     keyMessage: brief.keyMessage,
     additionalContext: brief.additionalContext,
     styleGuideNotes: brief.styleGuideNotes || '',
+    creativeStyleId: brief.creativeStyleId ?? null,
     resolution: brief.resolution,
     conceptCount: brief.conceptCount
   })
@@ -107,13 +111,18 @@ export function summarizeStudioBrief(
   selectedMedia: string[],
   selectedRatios: string[],
   selectedStyleGuideId: number | null,
+  creativeStyleLabel = '',
   selectedAssetCount = 0,
   conceptLabel = 'conceptos'
 ) {
   const project = form.projectName || 'Proyecto sin nombre'
   const channels = selectedMedia.length ? selectedMedia.join(', ') : 'sin medios'
   const ratios = selectedRatios.length ? selectedRatios.join(', ') : 'sin formatos'
-  const styleGuides = selectedStyleGuideId ? 'con guia' : 'sin guia'
+  const styleGuides = selectedStyleGuideId
+    ? 'con guia'
+    : creativeStyleLabel
+      ? `estilo ${creativeStyleLabel.toLowerCase()}`
+      : 'estilo aleatorio'
   const assets = selectedAssetCount ? `${selectedAssetCount} assets` : 'sin assets'
 
   return `${project} — ${form.goal.toLowerCase()} — ${channels} — ${ratios} — ${styleGuides} — ${assets} — ${form.conceptCount} ${conceptLabel}.`

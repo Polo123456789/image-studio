@@ -107,6 +107,11 @@
           </div>
         </section>
 
+        <CreativeStylesManager
+          :model-value="creativeStylesData?.styles ?? []"
+          @update:model-value="updateCreativeStyles"
+        />
+
         <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div class="border-b border-border px-6 py-5">
             <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Respaldo</p>
@@ -272,14 +277,17 @@
 
 <script setup lang="ts">
 import type { BackupImportResponse, BackupStatusResponse } from '../../shared/types/backup'
+import type { CreativeStylesResponse } from '../../shared/types/creative-styles'
 import type { AppSettingsResponse } from '../../shared/types/settings'
 
+import CreativeStylesManager from '~/components/settings/CreativeStylesManager.vue'
 import AppButton from '~/components/base/AppButton.vue'
 import AppInput from '~/components/base/AppInput.vue'
 import AppModal from '~/components/base/AppModal.vue'
 import AppTextarea from '~/components/base/AppTextarea.vue'
 
 const { data, pending } = await useFetch<AppSettingsResponse>('/api/settings')
+const { data: creativeStylesData } = await useFetch<CreativeStylesResponse>('/api/creative-styles')
 const { data: restoreStatus, refresh: refreshRestoreStatus } = await useFetch<BackupStatusResponse>('/api/backup/status')
 
 const form = reactive({
@@ -343,6 +351,12 @@ const settingsStateClass = computed(() => data.value?.hasGeminiApiKey
 const feedbackClass = computed(() => feedbackTone.value === 'success' ? 'text-accent' : 'text-danger')
 const backupFeedbackClass = computed(() => backupFeedbackTone.value === 'success' ? 'text-accent' : 'text-danger')
 const canConfirmRestore = computed(() => restoreConfirmation.value.trim() === 'SOBREESCRIBIR' && Boolean(selectedBackupFile.value))
+
+function updateCreativeStyles(styles: CreativeStylesResponse['styles']) {
+  if (creativeStylesData.value) {
+    creativeStylesData.value.styles = styles
+  }
+}
 
 function resetForm() {
   Object.assign(form, loadedSnapshot.value)

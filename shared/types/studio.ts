@@ -10,6 +10,7 @@ export interface StudioBriefPayload {
   styleGuideId?: number | null
   styleGuideIds?: number[]
   styleGuideNotes?: string
+  creativeStyleId?: number | null
   resolution: string
   conceptCount: number
   mediaChannels: string[]
@@ -86,6 +87,8 @@ export interface StudioConcept {
   title: string
   subtitle: string
   rationale: string
+  creativeStyleId?: number | null
+  creativeStyleName?: string | null
   selectedRatio: string
   approvedAt: string | null
   formats: StudioConceptFormat[]
@@ -104,6 +107,8 @@ export interface StudioRegenerateVariantPayload {
 }
 
 export interface StudioConceptSeed {
+  creativeStyleId?: number | null
+  creativeStyleName?: string | null
   title: string
   subtitle: string
   rationale: string

@@ -48,6 +48,19 @@ export const assets = sqliteTable('assets', {
   hashUnique: uniqueIndex('assets_hash_unique').on(table.hash)
 }))
 
+export const creativeStyles = sqliteTable('creative_styles', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  description: text('description').notNull().default(''),
+  referenceImagePath: text('reference_image_path'),
+  position: integer('position').notNull().default(0),
+  isActive: integer('is_active', { mode: 'boolean' }).notNull().default(true),
+  createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
+}, (table) => ({
+  nameUnique: uniqueIndex('creative_styles_name_unique').on(table.name)
+}))
+
 export const studioProjects = sqliteTable('studio_projects', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   slug: text('slug').notNull(),
@@ -66,6 +79,8 @@ export const studioConcepts = sqliteTable('studio_concepts', {
   title: text('title').notNull(),
   subtitle: text('subtitle').notNull(),
   rationale: text('rationale').notNull(),
+  creativeStyleId: integer('creative_style_id').references(() => creativeStyles.id),
+  creativeStyleName: text('creative_style_name'),
   selectedRatio: text('selected_ratio').notNull(),
   approvedAt: integer('approved_at', { mode: 'timestamp' }),
   position: integer('position').notNull(),
@@ -125,6 +140,10 @@ export const assetsRelations = relations(assets, ({ one }) => ({
   })
 }))
 
+export const creativeStylesRelations = relations(creativeStyles, ({ many }) => ({
+  concepts: many(studioConcepts)
+}))
+
 export const studioProjectsRelations = relations(studioProjects, ({ many }) => ({
   concepts: many(studioConcepts)
 }))
@@ -133,6 +152,10 @@ export const studioConceptsRelations = relations(studioConcepts, ({ one, many })
   project: one(studioProjects, {
     fields: [studioConcepts.projectId],
     references: [studioProjects.id]
+  }),
+  creativeStyle: one(creativeStyles, {
+    fields: [studioConcepts.creativeStyleId],
+    references: [creativeStyles.id]
   }),
   formats: many(studioConceptFormats)
 }))
