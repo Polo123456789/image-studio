@@ -417,19 +417,14 @@ export async function useStudioConceptEditor() {
     loadingMoreConcepts.value = true
 
     try {
-      const response = await $fetch<StudioConceptResponse>('/api/studio/concepts', {
+      const response = await $fetch<StudioConceptResponse>(`/api/studio/projects/${routeProjectSlug.value}/concepts/append`, {
         method: 'POST',
         body: {
-          projectSlug: routeProjectSlug.value,
-          brief: {
-            ...brief.value,
-            conceptCount: moreConceptCount.value,
-            conceptOffset: concepts.value.length
-          }
+          count: moreConceptCount.value
         }
       })
 
-      concepts.value = response.concepts
+      concepts.value = [...concepts.value, ...response.concepts]
     }
     finally {
       loadingMoreConcepts.value = false

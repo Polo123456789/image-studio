@@ -316,6 +316,28 @@ function createConceptRowMap(conceptRows: StudioConceptRow[]) {
   return new Map(conceptRows.map((concept) => [concept.conceptKey, concept]))
 }
 
+function insertConceptRows(tx: StudioTransaction, projectId: number, concepts: StudioConcept[], startPosition: number, now: Date) {
+  concepts.forEach((concept, conceptIndex) => {
+    tx.insert(studioConcepts)
+      .values({
+        projectId,
+        conceptKey: concept.id,
+        title: concept.title,
+        subtitle: concept.subtitle,
+        rationale: concept.rationale,
+        creativeStyleId: concept.creativeStyleId ?? null,
+        creativeStyleName: concept.creativeStyleName ?? null,
+        selectedRatio: concept.selectedRatio,
+        approvedAt: toDate(concept.approvedAt),
+        position: startPosition + conceptIndex,
+        discardedAt: null,
+        createdAt: now,
+        updatedAt: now
+      })
+      .run()
+  })
+}
+
 function upsertFormatRows(
   tx: StudioTransaction,
   concepts: StudioConcept[],
@@ -520,6 +542,40 @@ export function saveStudioConcepts(slug: string, concepts: StudioConcept[]): Stu
   })
 
   return getStudioProjectBySlug(slug)
+}
+
+export function appendStudioConcepts(slug: string, concepts: StudioConcept[]): StudioConcept[] {
+  if (!concepts.length) {
+    return []
+  }
+
+  const project = getStudioProjectRowBySlug(slug)
+
+  db.transaction((tx) => {
+    const now = new Date()
+    const lastPositionRow = tx.select({ position: studioConcepts.position })
+      .from(studioConcepts)
+      .where(and(eq(studioConcepts.projectId, project.id), isNull(studioConcepts.discardedAt)))
+      .orderBy(desc(studioConcepts.position), desc(studioConcepts.id))
+      .limit(1)
+      .get()
+    const startPosition = lastPositionRow ? lastPositionRow.position + 1 : 0
+
+    insertConceptRows(tx, project.id, concepts, startPosition, now)
+
+    const persistedConceptRows = listPersistedConceptRows(tx, project.id, concepts)
+    const conceptRowByKey = createConceptRowMap(persistedConceptRows)
+
+    upsertFormatRows(tx, concepts, conceptRowByKey, now)
+
+    const persistedFormatRows = listPersistedFormatRows(tx, persistedConceptRows)
+    const formatRowByConceptAndRatio = createFormatRowMap(persistedFormatRows)
+
+    upsertVariantRows(tx, concepts, conceptRowByKey, formatRowByConceptAndRatio)
+    touchProject(tx, project.id, now)
+  })
+
+  return concepts.map((concept) => getStudioConceptById(slug, concept.id))
 }
 
 export function updateStudioConcept(

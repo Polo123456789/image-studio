@@ -15,7 +15,6 @@ export interface StudioBriefPayload {
   conceptCount: number
   mediaChannels: string[]
   aspectRatios: string[]
-  conceptOffset?: number
 }
 
 export interface StudioProject {
@@ -90,6 +89,10 @@ export interface StudioDiscardConceptPayload {
 export interface StudioGenerateConceptsPayload {
   projectSlug: string
   brief: StudioBriefPayload
+}
+
+export interface StudioAppendConceptsPayload {
+  count: number
 }
 
 export type StudioVariantMode = 'preview' | 'final'

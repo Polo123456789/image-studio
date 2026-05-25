@@ -4,7 +4,7 @@ import type { StudioBriefPayload } from '../../../shared/types/studio'
 import type { StudioConcept, StudioConceptFormat, StudioConceptResponse, StudioGenerateConceptsPayload, StudioVariant } from '../../../shared/types/studio'
 
 import { generateConceptSeeds, generatePreviewImage } from '../../utils/gemini'
-import { getStudioProjectBySlug, saveStudioConcepts, updateStudioProjectBrief } from '../../utils/studio-projects'
+import { saveStudioConcepts, updateStudioProjectBrief } from '../../utils/studio-projects'
 
 function createVariant(ratio: string, prompt: string, seed: string, imageUrl: string): StudioVariant {
   const label = `Preview ${ratio}`
@@ -57,7 +57,6 @@ async function createConcept(payload: StudioBriefPayload, index: number, seedDat
 export default defineEventHandler(async (event): Promise<StudioConceptResponse> => {
   const payload = await readBody<StudioGenerateConceptsPayload>(event)
 
-  const existingProject = getStudioProjectBySlug(payload.projectSlug)
   const brief = payload.brief
 
   updateStudioProjectBrief(payload.projectSlug, brief)
@@ -72,11 +71,8 @@ export default defineEventHandler(async (event): Promise<StudioConceptResponse> 
   }
 
   const generatedConcepts = await Promise.all(seedConcepts.slice(0, brief.conceptCount).map((concept, index) => createConcept(brief, index, concept)))
-  const concepts = brief.conceptOffset
-    ? [...existingProject.concepts, ...generatedConcepts]
-    : generatedConcepts
 
-  saveStudioConcepts(payload.projectSlug, concepts)
+  saveStudioConcepts(payload.projectSlug, generatedConcepts)
 
-  return { concepts }
+  return { concepts: generatedConcepts }
 })
