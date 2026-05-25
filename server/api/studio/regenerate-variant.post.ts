@@ -1,7 +1,7 @@
-import type { StudioConcept, StudioRegenerateVariantPayload, StudioVariant } from '../../../shared/types/studio'
+import type { StudioConcept, StudioConceptMutationResponse, StudioRegenerateVariantPayload, StudioVariant } from '../../../shared/types/studio'
 
 import { generateFinalImage, generatePreviewImage } from '../../utils/gemini'
-import { getStudioProjectBySlug, saveStudioConcepts } from '../../utils/studio-projects'
+import { getStudioConceptById, getStudioProjectBySlug, updateStudioConceptFormat } from '../../utils/studio-projects'
 
 function nextPreviewVariant(concept: StudioConcept, ratio: string, prompt: string, imageUrl: string): StudioVariant {
   const format = concept.formats.find((item) => item.ratio === ratio)
@@ -31,18 +31,10 @@ function nextFinalVariant(concept: StudioConcept, ratio: string, prompt: string,
   }
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioRegenerateVariantPayload>(event)
   const project = getStudioProjectBySlug(payload.projectSlug)
-  const storedConcept = project.concepts.find((concept) => concept.id === payload.concept.id)
-
-  if (!storedConcept) {
-    throw createError({
-      statusCode: 404,
-      statusMessage: 'Concept not found'
-    })
-  }
-
+  const storedConcept = getStudioConceptById(payload.projectSlug, payload.concept.id)
   const storedFormat = storedConcept.formats.find((format) => format.ratio === payload.ratio)
 
   if (!storedFormat) {
@@ -54,61 +46,35 @@ export default defineEventHandler(async (event) => {
 
   if (storedConcept.approvedAt) {
     const imageUrl = await generateFinalImage(payload.prompt, payload.ratio, payload.resolution || '1K rapido', project.brief.assetIds ?? [])
-    const variant = nextFinalVariant(storedConcept, payload.ratio, payload.prompt, payload.resolution || '1K rapido', imageUrl)
-
-    saveStudioConcepts(payload.projectSlug, project.concepts.map((concept) => {
-      if (concept.id !== storedConcept.id) {
-        return concept
-      }
+    const concept = updateStudioConceptFormat(payload.projectSlug, payload.concept.id, payload.ratio, (format, concept) => {
+      const variant = nextFinalVariant(concept, payload.ratio, payload.prompt, payload.resolution || '1K rapido', imageUrl)
 
       return {
-        ...concept,
-        formats: concept.formats.map((format) => {
-          if (format.ratio !== payload.ratio) {
-            return format
-          }
-
-          return {
-            ...format,
-            promptDraft: payload.prompt,
-            variants: [variant, ...format.variants],
-            activeVariantId: variant.id
-          }
-        })
+        ...format,
+        promptDraft: payload.prompt,
+        variants: [variant, ...format.variants],
+        activeVariantId: variant.id
       }
-    }))
+    })
 
     return {
-      variant
+      concept
     }
   }
 
   const imageUrl = await generatePreviewImage(payload.prompt, payload.ratio, project.brief.assetIds ?? [])
-  const variant = nextPreviewVariant(storedConcept, payload.ratio, payload.prompt, imageUrl)
-
-  saveStudioConcepts(payload.projectSlug, project.concepts.map((concept) => {
-    if (concept.id !== storedConcept.id) {
-      return concept
-    }
+  const concept = updateStudioConceptFormat(payload.projectSlug, payload.concept.id, payload.ratio, (format, concept) => {
+    const variant = nextPreviewVariant(concept, payload.ratio, payload.prompt, imageUrl)
 
     return {
-      ...concept,
-      formats: concept.formats.map((format) => {
-        if (format.ratio !== payload.ratio) {
-          return format
-        }
-
-        return {
-          ...format,
-          promptDraft: payload.prompt,
-          variants: [variant, ...format.variants],
-          activeVariantId: variant.id
-        }
-      })
+      ...format,
+      promptDraft: payload.prompt,
+      variants: [variant, ...format.variants],
+      activeVariantId: variant.id
     }
-  }))
+  })
 
   return {
-    variant
+    concept
   }
 })

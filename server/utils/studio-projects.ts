@@ -118,6 +118,28 @@ function mapProject(project: StudioProjectRow, concepts: StudioConcept[]): Studi
   }
 }
 
+function ensureConcept(concept?: StudioConcept) {
+  if (!concept) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Concept not found'
+    })
+  }
+
+  return concept
+}
+
+function ensureFormat(format?: StudioConceptFormat) {
+  if (!format) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Concept format not found'
+    })
+  }
+
+  return format
+}
+
 function mapConcepts(
   conceptRows: StudioConceptRow[],
   formatRows: StudioConceptFormatRow[],
@@ -498,4 +520,47 @@ export function saveStudioConcepts(slug: string, concepts: StudioConcept[]): Stu
   })
 
   return getStudioProjectBySlug(slug)
+}
+
+export function updateStudioConcept(
+  slug: string,
+  conceptId: string,
+  updater: (concept: StudioConcept, project: StudioProject) => StudioConcept
+): StudioConcept {
+  const project = getStudioProjectBySlug(slug)
+  const currentConcept = ensureConcept(project.concepts.find((concept) => concept.id === conceptId))
+  const nextConcept = updater(currentConcept, project)
+  const nextConcepts = project.concepts.map((concept) => concept.id === conceptId ? nextConcept : concept)
+
+  saveStudioConcepts(slug, nextConcepts)
+
+  return ensureConcept(getStudioProjectBySlug(slug).concepts.find((concept) => concept.id === conceptId))
+}
+
+export function updateStudioConceptFormat(
+  slug: string,
+  conceptId: string,
+  ratio: string,
+  updater: (format: StudioConceptFormat, concept: StudioConcept, project: StudioProject) => StudioConceptFormat
+): StudioConcept {
+  return updateStudioConcept(slug, conceptId, (concept, project) => ({
+    ...concept,
+    formats: concept.formats.map((format) => {
+      if (format.ratio !== ratio) {
+        return format
+      }
+
+      return updater(format, concept, project)
+    })
+  }))
+}
+
+export function getStudioConceptById(slug: string, conceptId: string): StudioConcept {
+  return ensureConcept(getStudioProjectBySlug(slug).concepts.find((concept) => concept.id === conceptId))
+}
+
+export function getStudioConceptFormatByRatio(slug: string, conceptId: string, ratio: string): StudioConceptFormat {
+  const concept = getStudioConceptById(slug, conceptId)
+
+  return ensureFormat(concept.formats.find((format) => format.ratio === ratio))
 }

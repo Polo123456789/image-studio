@@ -1,7 +1,7 @@
-import type { StudioFinalizeConceptPayload, StudioVariant } from '../../../shared/types/studio'
+import type { StudioConceptMutationResponse, StudioFinalizeConceptPayload, StudioVariant } from '../../../shared/types/studio'
 
 import { generateFinalImage } from '../../utils/gemini'
-import { getStudioProjectBySlug, saveStudioConcepts } from '../../utils/studio-projects'
+import { getStudioProjectBySlug, updateStudioConcept } from '../../utils/studio-projects'
 
 function createFinalVariant(conceptId: string, ratio: string, prompt: string, resolution: string, versionNumber: number, imageUrl: string): StudioVariant {
   return {
@@ -14,9 +14,10 @@ function createFinalVariant(conceptId: string, ratio: string, prompt: string, re
   }
 }
 
-export default defineEventHandler(async (event) => {
+export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioFinalizeConceptPayload>(event)
   const project = getStudioProjectBySlug(payload.projectSlug)
+  const requestConcept = payload.concept
   const storedConcept = project.concepts.find((concept) => concept.id === payload.concept.id)
 
   if (!storedConcept) {
@@ -26,51 +27,46 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const formats = await Promise.all(storedConcept.formats.map(async (format) => {
+  const generatedFormats = await Promise.all(requestConcept.formats.map(async (format) => {
     const imageUrl = await generateFinalImage(format.promptDraft, format.ratio, payload.resolution, project.brief.assetIds ?? [])
 
     return {
       ratio: format.ratio,
-      variant: createFinalVariant(
-        storedConcept.id,
-        format.ratio,
-        format.promptDraft,
-        payload.resolution,
-        format.variants.length + 1,
-        imageUrl
-      )
+      promptDraft: format.promptDraft,
+      imageUrl
     }
   }))
 
   const approvedAt = new Date().toISOString()
-  const concepts = project.concepts.map((concept) => {
-    if (concept.id !== storedConcept.id) {
-      return concept
-    }
+  const concept = updateStudioConcept(payload.projectSlug, payload.concept.id, (currentConcept) => ({
+    ...currentConcept,
+    approvedAt,
+    formats: currentConcept.formats.map((format) => {
+      const generatedFormat = generatedFormats.find((item) => item.ratio === format.ratio)
 
-    return {
-      ...concept,
-      approvedAt,
-      formats: concept.formats.map((format) => {
-        const updated = formats.find((item) => item.ratio === format.ratio)
+      if (!generatedFormat) {
+        return format
+      }
 
-        if (!updated) {
-          return format
-        }
+      const variant = createFinalVariant(
+        currentConcept.id,
+        format.ratio,
+        generatedFormat.promptDraft,
+        payload.resolution,
+        format.variants.length + 1,
+        generatedFormat.imageUrl
+      )
 
-        return {
-          ...format,
-          variants: [updated.variant, ...format.variants],
-          activeVariantId: updated.variant.id
-        }
-      })
-    }
-  })
-
-  saveStudioConcepts(payload.projectSlug, concepts)
+      return {
+        ...format,
+        promptDraft: generatedFormat.promptDraft,
+        variants: [variant, ...format.variants],
+        activeVariantId: variant.id
+      }
+    })
+  }))
 
   return {
-    approvedAt,
-    formats
+    concept
   }
 })

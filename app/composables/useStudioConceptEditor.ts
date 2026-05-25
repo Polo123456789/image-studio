@@ -1,6 +1,8 @@
 import type {
   StudioConcept,
   StudioConceptFormat,
+  StudioConceptListMutationResponse,
+  StudioConceptMutationResponse,
   StudioConceptResponse,
   StudioProjectResponse,
   StudioVariant
@@ -17,8 +19,9 @@ export async function useStudioConceptEditor() {
 
   const pending = ref(isGeneratingConcepts.value && !concepts.value.length)
   const initialLoadError = ref('')
-  const loadingPreviewId = ref<string | null>(null)
-  const loadingFinalId = ref<string | null>(null)
+  const previewLoadingKeys = ref<Record<string, boolean>>({})
+  const finalLoadingKeys = ref<Record<string, boolean>>({})
+  const conceptMutationQueue = ref<Record<string, Promise<void>>>({})
   const promptDrafts = ref<Record<string, string>>({})
   const promptModalConceptId = ref<string | null>(null)
   const modalPromptDraft = ref('')
@@ -200,8 +203,52 @@ export async function useStudioConceptEditor() {
     return Object.fromEntries(concept.formats.map((format) => [format.ratio, activeVariantForFormat(format)]))
   }
 
+  function createFormatKey(conceptId: string, ratio: string) {
+    return `${conceptId}:${ratio}`
+  }
+
+  function setLoadingKey(target: typeof previewLoadingKeys | typeof finalLoadingKeys, key: string, value: boolean) {
+    target.value = value
+      ? { ...target.value, [key]: true }
+      : Object.fromEntries(Object.entries(target.value).filter(([entryKey]) => entryKey !== key))
+  }
+
   function updateConcept(conceptId: string, updater: (concept: StudioConcept) => StudioConcept) {
     concepts.value = concepts.value.map((concept) => concept.id === conceptId ? updater(concept) : concept)
+  }
+
+  function replaceConcept(nextConcept: StudioConcept) {
+    updateConcept(nextConcept.id, () => nextConcept)
+  }
+
+  function enqueueConceptMutation(conceptId: string, task: () => Promise<void>) {
+    const currentTask = conceptMutationQueue.value[conceptId] || Promise.resolve()
+    const nextTask = currentTask
+      .catch(() => undefined)
+      .then(task)
+
+    conceptMutationQueue.value = {
+      ...conceptMutationQueue.value,
+      [conceptId]: nextTask
+    }
+
+    return nextTask.finally(() => {
+      if (conceptMutationQueue.value[conceptId] !== nextTask) {
+        return
+      }
+
+      conceptMutationQueue.value = Object.fromEntries(
+        Object.entries(conceptMutationQueue.value).filter(([key]) => key !== conceptId)
+      )
+    })
+  }
+
+  function isPreviewLoading(conceptId: string, ratio: string) {
+    return Boolean(previewLoadingKeys.value[createFormatKey(conceptId, ratio)])
+  }
+
+  function isFinalLoading(conceptId: string, ratio: string) {
+    return Boolean(finalLoadingKeys.value[createFormatKey(conceptId, ratio)])
   }
 
   function selectRatio(conceptId: string, ratio: string, options: ConceptSelectionOptions = {}) {
@@ -217,7 +264,7 @@ export async function useStudioConceptEditor() {
     })
 
     if (options.persist !== false) {
-      void persistConcepts()
+      void enqueueConceptMutation(conceptId, () => persistSelectedRatio(conceptId, ratio))
     }
   }
 
@@ -269,7 +316,7 @@ export async function useStudioConceptEditor() {
     }))
 
     if (options.persist !== false) {
-      void persistConcepts()
+      void enqueueConceptMutation(conceptId, () => persistSelectedVariant(conceptId, ratio, variantId))
     }
   }
 
@@ -281,11 +328,13 @@ export async function useStudioConceptEditor() {
       return
     }
 
-    loadingPreviewId.value = conceptId
+    const loadingKey = createFormatKey(conceptId, concept.selectedRatio)
+
+    setLoadingKey(previewLoadingKeys, loadingKey, true)
 
     try {
       const prompt = promptDrafts.value[conceptId]
-      const response = await $fetch<{ variant: StudioVariant }>('/api/studio/regenerate-variant', {
+      const response = await $fetch<StudioConceptMutationResponse>('/api/studio/regenerate-variant', {
         method: 'POST',
         body: {
           projectSlug: routeProjectSlug.value,
@@ -296,26 +345,10 @@ export async function useStudioConceptEditor() {
         }
       })
 
-      updateConcept(conceptId, (currentConcept) => ({
-        ...currentConcept,
-        formats: currentConcept.formats.map((currentFormat) => {
-          if (currentFormat.ratio !== concept.selectedRatio) {
-            return currentFormat
-          }
-
-          return {
-            ...currentFormat,
-            promptDraft: prompt,
-            variants: [response.variant, ...currentFormat.variants],
-            activeVariantId: response.variant.id
-          }
-        })
-      }))
-
-      await persistConcepts()
+      replaceConcept(response.concept)
     }
     finally {
-      loadingPreviewId.value = null
+      setLoadingKey(previewLoadingKeys, loadingKey, false)
     }
   }
 
@@ -326,18 +359,20 @@ export async function useStudioConceptEditor() {
       return
     }
 
-    loadingFinalId.value = conceptId
+    const loadingKey = createFormatKey(conceptId, concept.selectedRatio)
+
+    setLoadingKey(finalLoadingKeys, loadingKey, true)
 
     try {
       const conceptForRequest: StudioConcept = {
         ...concept,
         formats: concept.formats.map((format) => ({
           ...format,
-          promptDraft: format.ratio === concept.selectedRatio ? promptDrafts.value[conceptId] : format.promptDraft
+          promptDraft: format.ratio === concept.selectedRatio ? (promptDrafts.value[conceptId] ?? format.promptDraft) : format.promptDraft
         }))
       }
 
-      const response = await $fetch<{ approvedAt: string, formats: { ratio: string, variant: StudioVariant }[] }>('/api/studio/finalize-concept', {
+      const response = await $fetch<StudioConceptMutationResponse>('/api/studio/finalize-concept', {
         method: 'POST',
         body: {
           projectSlug: routeProjectSlug.value,
@@ -346,28 +381,10 @@ export async function useStudioConceptEditor() {
         }
       })
 
-      updateConcept(conceptId, (currentConcept) => ({
-        ...currentConcept,
-        approvedAt: response.approvedAt,
-        formats: currentConcept.formats.map((format) => {
-          const updated = response.formats.find((item) => item.ratio === format.ratio)
-
-          if (!updated) {
-            return format
-          }
-
-          return {
-            ...format,
-            variants: [updated.variant, ...format.variants],
-            activeVariantId: updated.variant.id
-          }
-        })
-      }))
-
-      await persistConcepts()
+      replaceConcept(response.concept)
     }
     finally {
-      loadingFinalId.value = null
+      setLoadingKey(finalLoadingKeys, loadingKey, false)
     }
   }
 
@@ -389,7 +406,7 @@ export async function useStudioConceptEditor() {
 
     delete promptDrafts.value[conceptId]
 
-    void persistConcepts()
+    void enqueueConceptMutation(conceptId, () => persistDiscardedConcept(conceptId))
   }
 
   async function generateMoreConcepts() {
@@ -503,7 +520,11 @@ export async function useStudioConceptEditor() {
 
     promptDrafts.value[promptModalConceptId.value] = modalPromptDraft.value
 
-    updateConcept(promptModalConceptId.value, (concept) => ({
+    const conceptId = promptModalConceptId.value
+    const concept = concepts.value.find((item) => item.id === conceptId)
+    const ratio = concept?.selectedRatio
+
+    updateConcept(conceptId, (concept) => ({
       ...concept,
       formats: concept.formats.map((format) => {
         if (format.ratio !== concept.selectedRatio) {
@@ -518,7 +539,10 @@ export async function useStudioConceptEditor() {
     }))
 
     closePromptModal()
-    void persistConcepts()
+
+    if (ratio) {
+      void enqueueConceptMutation(conceptId, () => persistPromptDraft(conceptId, ratio, modalPromptDraft.value))
+    }
   }
 
   function promptPreview(conceptId: string) {
@@ -531,19 +555,69 @@ export async function useStudioConceptEditor() {
     return value.length > 240 ? `${value.slice(0, 240)}...` : value
   }
 
-  async function persistConcepts() {
+  async function persistSelectedRatio(conceptId: string, selectedRatio: string) {
     if (!routeProjectSlug.value) {
       return
     }
 
-    const response = await $fetch<StudioProjectResponse>(`/api/studio/projects/${routeProjectSlug.value}/concepts`, {
+    const response = await $fetch<StudioConceptMutationResponse>(`/api/studio/projects/${routeProjectSlug.value}/concepts/select-ratio`, {
       method: 'PUT',
       body: {
-        concepts: concepts.value
+        conceptId,
+        selectedRatio
       }
     })
 
-    setProject(response.project)
+    replaceConcept(response.concept)
+  }
+
+  async function persistSelectedVariant(conceptId: string, ratio: string, activeVariantId: string) {
+    if (!routeProjectSlug.value) {
+      return
+    }
+
+    const response = await $fetch<StudioConceptMutationResponse>(`/api/studio/projects/${routeProjectSlug.value}/concepts/select-variant`, {
+      method: 'PUT',
+      body: {
+        conceptId,
+        ratio,
+        activeVariantId
+      }
+    })
+
+    replaceConcept(response.concept)
+  }
+
+  async function persistPromptDraft(conceptId: string, ratio: string, promptDraft: string) {
+    if (!routeProjectSlug.value) {
+      return
+    }
+
+    const response = await $fetch<StudioConceptMutationResponse>(`/api/studio/projects/${routeProjectSlug.value}/concepts/prompt`, {
+      method: 'PUT',
+      body: {
+        conceptId,
+        ratio,
+        promptDraft
+      }
+    })
+
+    replaceConcept(response.concept)
+  }
+
+  async function persistDiscardedConcept(conceptId: string) {
+    if (!routeProjectSlug.value) {
+      return
+    }
+
+    const response = await $fetch<StudioConceptListMutationResponse>(`/api/studio/projects/${routeProjectSlug.value}/concepts/discard`, {
+      method: 'PUT',
+      body: {
+        conceptId
+      }
+    })
+
+    concepts.value = response.concepts
   }
 
   function formatStatusLabel(concept: StudioConcept, format: StudioConceptFormat) {
@@ -566,8 +640,8 @@ export async function useStudioConceptEditor() {
     generationMessage,
     pending,
     initialLoadError,
-    loadingPreviewId,
-    loadingFinalId,
+    isPreviewLoading,
+    isFinalLoading,
     promptDrafts,
     promptModalConceptId,
     modalPromptDraft,
@@ -600,7 +674,6 @@ export async function useStudioConceptEditor() {
     closePromptModal,
     savePromptModal,
     promptPreview,
-    persistConcepts,
     formatStatusLabel
   }
 }

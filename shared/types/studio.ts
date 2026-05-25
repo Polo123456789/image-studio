@@ -46,6 +46,14 @@ export interface StudioProjectResponse {
   project: StudioProject
 }
 
+export interface StudioConceptMutationResponse {
+  concept: StudioConcept
+}
+
+export interface StudioConceptListMutationResponse {
+  concepts: StudioConcept[]
+}
+
 export interface StudioCreateProjectPayload {
   brief: StudioBriefPayload
 }
@@ -56,6 +64,27 @@ export interface StudioUpdateProjectBriefPayload {
 
 export interface StudioSaveConceptsPayload {
   concepts: StudioConcept[]
+}
+
+export interface StudioUpdateConceptSelectionPayload {
+  conceptId: string
+  selectedRatio: string
+}
+
+export interface StudioUpdateFormatSelectionPayload {
+  conceptId: string
+  ratio: string
+  activeVariantId: string
+}
+
+export interface StudioUpdateFormatPromptPayload {
+  conceptId: string
+  ratio: string
+  promptDraft: string
+}
+
+export interface StudioDiscardConceptPayload {
+  conceptId: string
 }
 
 export interface StudioGenerateConceptsPayload {

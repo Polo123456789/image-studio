@@ -76,8 +76,8 @@
           :concept="concept"
           :index="conceptIndex"
           :focused="focusedConceptId === concept.id"
-          :loading-preview="loadingPreviewId === concept.id"
-          :loading-final="loadingFinalId === concept.id"
+          :loading-preview="isPreviewLoading(concept.id, concept.selectedRatio)"
+          :loading-final="isFinalLoading(concept.id, concept.selectedRatio)"
           :prompt-preview="promptPreview(concept.id)"
           :selected-format="selectedFormat(concept)"
           :active-variant="activeVariant(concept)"
@@ -156,8 +156,8 @@ const {
   generationMessage,
   pending,
   initialLoadError,
-  loadingPreviewId,
-  loadingFinalId,
+  isPreviewLoading,
+  isFinalLoading,
   promptModalConceptId,
   modalPromptDraft,
   moreConceptCount,
