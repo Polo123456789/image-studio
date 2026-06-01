@@ -6,7 +6,7 @@ import { getActiveCreativeStyles } from './creative-styles'
 import { getAppSettings, getServerAppSettings } from './settings'
 import { getStyleGuidesByIds } from './style-guides'
 
-const textModel = 'gemini-3-flash-preview'
+const textModel = 'gemini-3.5-flash'
 const imageModel = 'gemini-3.1-flash-image-preview'
 const previewModel = 'imagen-4.0-generate-001'
 const supportedPreviewRatios = new Set(['1:1', '3:4', '4:3', '9:16', '16:9'])

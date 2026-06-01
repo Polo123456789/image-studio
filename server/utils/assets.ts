@@ -13,7 +13,7 @@ import { getServerAppSettings } from './settings'
 
 export const assetsDirectory = resolve(process.cwd(), 'public/uploads/assets')
 const supportedImageMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
-const assetDescriptionModel = 'gemini-3-flash-preview'
+const assetDescriptionModel = 'gemini-3.1-flash-lite'
 
 export function getAssetRelativeFilePath(storedFileName: string) {
   return `/uploads/assets/${storedFileName}`
