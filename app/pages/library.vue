@@ -128,7 +128,7 @@
 
         <div v-else class="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           <button
-            v-for="image in filteredImages"
+            v-for="image in visibleImages"
             :key="image.id"
             type="button"
             class="group overflow-hidden rounded-xl border text-left transition"
@@ -163,6 +163,12 @@
           </button>
         </div>
 
+        <div v-if="canLoadMoreImages" class="mt-8 flex justify-center">
+          <AppButton @click="loadMoreImages()">
+            Cargar mas imagenes
+          </AppButton>
+        </div>
+
         <LibraryImageDetailModal
           :image="selectedImage"
           :selected-version="selectedVersion"
@@ -179,8 +185,10 @@
 <script setup lang="ts">
 import type { LibraryImageItem, LibraryImageVersion, LibraryResponse } from '../../shared/types/studio'
 
+import AppButton from '~/components/base/AppButton.vue'
 import LibraryImageDetailModal from '~/components/library/LibraryImageDetailModal.vue'
 
+const imagePageSize = 40
 const pending = ref(true)
 const errorMessage = ref('')
 const folders = ref<LibraryResponse['folders']>([])
@@ -192,6 +200,7 @@ const selectedImageId = ref<string | null>(null)
 const selectedVersionId = ref<string | null>(null)
 const searchQuery = ref('')
 const sortMode = ref<'recent' | 'versions' | 'project'>('recent')
+const visibleImageCount = ref(imagePageSize)
 
 await loadLibrary()
 
@@ -246,6 +255,22 @@ const filteredImages = computed(() => {
     return compareDatesDesc(left.updatedAt, right.updatedAt)
   })
 })
+
+const visibleImages = computed(() => filteredImages.value.slice(0, visibleImageCount.value))
+const canLoadMoreImages = computed(() => visibleImageCount.value < filteredImages.value.length)
+
+function resetVisibleImages() {
+  visibleImageCount.value = imagePageSize
+}
+
+function loadMoreImages() {
+  visibleImageCount.value = Math.min(
+    visibleImageCount.value + imagePageSize,
+    filteredImages.value.length
+  )
+}
+
+watch([selectedFolderSlug, selectedCollectionId, searchQuery, sortMode], resetVisibleImages)
 
 watch(filteredImages, (nextImages) => {
   if (!nextImages.length) {
