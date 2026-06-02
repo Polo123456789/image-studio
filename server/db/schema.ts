@@ -81,7 +81,6 @@ export const studioConcepts = sqliteTable('studio_concepts', {
   rationale: text('rationale').notNull(),
   creativeStyleId: integer('creative_style_id').references(() => creativeStyles.id),
   creativeStyleName: text('creative_style_name'),
-  selectedRatio: text('selected_ratio').notNull(),
   approvedAt: integer('approved_at', { mode: 'timestamp' }),
   position: integer('position').notNull(),
   discardedAt: integer('discarded_at', { mode: 'timestamp' }),

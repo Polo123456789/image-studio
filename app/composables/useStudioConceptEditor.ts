@@ -8,7 +8,7 @@ import type {
   StudioVariant
 } from '../../shared/types/studio'
 
-interface ConceptSelectionOptions {
+interface ConceptMutationOptions {
   persist?: boolean
 }
 
@@ -170,7 +170,7 @@ export async function useStudioConceptEditor() {
     focusedConceptId.value = conceptId
 
     if (ratio && concept.formats.some((format) => format.ratio === ratio)) {
-      selectRatio(conceptId, ratio, { persist: false })
+      selectRatio(conceptId, ratio)
     }
 
     if (ratio && variantId) {
@@ -251,7 +251,7 @@ export async function useStudioConceptEditor() {
     return Boolean(finalLoadingKeys.value[createFormatKey(conceptId, ratio)])
   }
 
-  function selectRatio(conceptId: string, ratio: string, options: ConceptSelectionOptions = {}) {
+  function selectRatio(conceptId: string, ratio: string) {
     updateConcept(conceptId, (concept) => {
       const format = concept.formats.find((item) => item.ratio === ratio)
 
@@ -263,9 +263,6 @@ export async function useStudioConceptEditor() {
       }
     })
 
-    if (options.persist !== false) {
-      void enqueueConceptMutation(conceptId, () => persistSelectedRatio(conceptId, ratio))
-    }
   }
 
   function cycleRatio(conceptId: string) {
@@ -296,7 +293,7 @@ export async function useStudioConceptEditor() {
     }
   }
 
-  function selectVariant(conceptId: string, ratio: string, variantId: string, options: ConceptSelectionOptions = {}) {
+  function selectVariant(conceptId: string, ratio: string, variantId: string, options: ConceptMutationOptions = {}) {
     updateConcept(conceptId, (concept) => ({
       ...concept,
       selectedRatio: ratio,
@@ -550,28 +547,12 @@ export async function useStudioConceptEditor() {
     return value.length > 240 ? `${value.slice(0, 240)}...` : value
   }
 
-  async function persistSelectedRatio(conceptId: string, selectedRatio: string) {
-    if (!routeProjectSlug.value) {
-      return
-    }
-
-    const response = await $fetch<StudioConceptMutationResponse>(`/api/studio/projects/${routeProjectSlug.value}/concepts/select-ratio`, {
-      method: 'PUT',
-      body: {
-        conceptId,
-        selectedRatio
-      }
-    })
-
-    replaceConcept(response.concept)
-  }
-
   async function persistSelectedVariant(conceptId: string, ratio: string, activeVariantId: string) {
     if (!routeProjectSlug.value) {
       return
     }
 
-    const response = await $fetch<StudioConceptMutationResponse>(`/api/studio/projects/${routeProjectSlug.value}/concepts/select-variant`, {
+    await $fetch<{ ok: true }>(`/api/studio/projects/${routeProjectSlug.value}/concepts/select-variant`, {
       method: 'PUT',
       body: {
         conceptId,
@@ -580,7 +561,6 @@ export async function useStudioConceptEditor() {
       }
     })
 
-    replaceConcept(response.concept)
   }
 
   async function persistPromptDraft(conceptId: string, ratio: string, promptDraft: string) {

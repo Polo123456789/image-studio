@@ -46,7 +46,7 @@ async function createConcept(brief: ReturnType<typeof getStudioProjectBySlug>['b
     rationale: seedData.rationale,
     creativeStyleId: seedData.creativeStyleId ?? brief.creativeStyleId ?? null,
     creativeStyleName: seedData.creativeStyleName ?? null,
-    selectedRatio: brief.aspectRatios[0] || '1:1',
+    selectedRatio: formats[0]?.ratio || '1:1',
     approvedAt: null,
     formats
   }

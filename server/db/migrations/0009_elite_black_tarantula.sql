@@ -1,0 +1,1 @@
+ALTER TABLE `studio_concepts` DROP COLUMN `selected_ratio`;

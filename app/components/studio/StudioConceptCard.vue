@@ -70,7 +70,7 @@
               type="button"
               class="group rounded-lg border p-2 text-left transition"
               :class="format.ratio === concept.selectedRatio ? 'border-accent bg-accent/8' : 'border-border hover:border-accent/30'"
-              @click="$emit('select-ratio', concept.id, format.ratio)"
+              @click="$emit('ratio-selected', concept.id, format.ratio)"
             >
               <div class="overflow-hidden rounded border border-white/[0.04] bg-[#0a0a0a]">
                 <img
@@ -259,7 +259,7 @@ defineProps<{
 defineEmits<{
   discard: [conceptId: string]
   'cycle-ratio': [conceptId: string]
-  'select-ratio': [conceptId: string, ratio: string]
+  'ratio-selected': [conceptId: string, ratio: string]
   finalize: [conceptId: string]
   'open-prompt': [conceptId: string]
   regenerate: [conceptId: string]

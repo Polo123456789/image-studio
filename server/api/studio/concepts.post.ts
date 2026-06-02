@@ -48,7 +48,7 @@ async function createConcept(payload: StudioBriefPayload, index: number, seedDat
     rationale: seedData.rationale,
     creativeStyleId: seedData.creativeStyleId ?? payload.creativeStyleId ?? null,
     creativeStyleName: seedData.creativeStyleName ?? null,
-    selectedRatio: payload.aspectRatios[0] || '1:1',
+    selectedRatio: formats[0]?.ratio || '1:1',
     approvedAt: null,
     formats
   }

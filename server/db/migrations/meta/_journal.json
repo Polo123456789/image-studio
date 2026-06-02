@@ -64,6 +64,13 @@
       "when": 1776451760382,
       "tag": "0008_bumpy_apocalypse",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1780422467090,
+      "tag": "0009_elite_black_tarantula",
+      "breakpoints": true
     }
   ]
 }

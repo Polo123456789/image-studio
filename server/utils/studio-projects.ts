@@ -228,17 +228,21 @@ function mapConcepts(
     formatsByConceptId.set(format.conceptId, formats)
   })
 
-  return conceptRows.map((concept) => ({
-    id: concept.conceptKey,
-    title: concept.title,
-    subtitle: concept.subtitle,
-    rationale: concept.rationale,
-    creativeStyleId: concept.creativeStyleId,
-    creativeStyleName: concept.creativeStyleName,
-    selectedRatio: concept.selectedRatio,
-    approvedAt: formatTimestamp(concept.approvedAt),
-    formats: formatsByConceptId.get(concept.id) || []
-  }))
+  return conceptRows.map((concept) => {
+    const formats = formatsByConceptId.get(concept.id) || []
+
+    return {
+      id: concept.conceptKey,
+      title: concept.title,
+      subtitle: concept.subtitle,
+      rationale: concept.rationale,
+      creativeStyleId: concept.creativeStyleId,
+      creativeStyleName: concept.creativeStyleName,
+      selectedRatio: formats[0]?.ratio || '1:1',
+      approvedAt: formatTimestamp(concept.approvedAt),
+      formats
+    }
+  })
 }
 
 function listProjectConceptRows(projectId: number) {
@@ -329,7 +333,6 @@ function upsertConceptRows(tx: StudioTransaction, projectId: number, concepts: S
         rationale: concept.rationale,
         creativeStyleId: concept.creativeStyleId ?? null,
         creativeStyleName: concept.creativeStyleName ?? null,
-        selectedRatio: concept.selectedRatio,
         approvedAt: toDate(concept.approvedAt),
         position: conceptIndex,
         discardedAt: null,
@@ -344,7 +347,6 @@ function upsertConceptRows(tx: StudioTransaction, projectId: number, concepts: S
           rationale: concept.rationale,
           creativeStyleId: concept.creativeStyleId ?? null,
           creativeStyleName: concept.creativeStyleName ?? null,
-          selectedRatio: concept.selectedRatio,
           approvedAt: toDate(concept.approvedAt),
           position: conceptIndex,
           discardedAt: null,
@@ -377,7 +379,6 @@ function insertConceptRows(tx: StudioTransaction, projectId: number, concepts: S
         rationale: concept.rationale,
         creativeStyleId: concept.creativeStyleId ?? null,
         creativeStyleName: concept.creativeStyleName ?? null,
-        selectedRatio: concept.selectedRatio,
         approvedAt: toDate(concept.approvedAt),
         position: startPosition + conceptIndex,
         discardedAt: null,
@@ -628,35 +629,12 @@ export function appendStudioConcepts(slug: string, concepts: StudioConcept[]): S
   return concepts.map((concept) => getStudioConceptById(slug, concept.id))
 }
 
-export function updateStudioConceptSelectedRatio(slug: string, conceptId: string, selectedRatio: string): StudioConcept {
-  const project = getStudioProjectRowBySlug(slug)
-  const conceptRow = getStudioConceptRow(project.id, conceptId)
-
-  getStudioConceptFormatRow(conceptRow.id, selectedRatio)
-
-  const now = new Date()
-
-  db.transaction((tx) => {
-    tx.update(studioConcepts)
-      .set({
-        selectedRatio,
-        updatedAt: now
-      })
-      .where(eq(studioConcepts.id, conceptRow.id))
-      .run()
-
-    touchProject(tx, project.id, now)
-  })
-
-  return getStudioConceptById(slug, conceptId)
-}
-
 export function updateStudioConceptSelectedVariant(
   slug: string,
   conceptId: string,
   ratio: string,
   activeVariantId: string
-): StudioConcept {
+): void {
   const project = getStudioProjectRowBySlug(slug)
   const conceptRow = getStudioConceptRow(project.id, conceptId)
   const formatRow = getStudioConceptFormatRow(conceptRow.id, ratio)
@@ -666,14 +644,6 @@ export function updateStudioConceptSelectedVariant(
   const now = new Date()
 
   db.transaction((tx) => {
-    tx.update(studioConcepts)
-      .set({
-        selectedRatio: ratio,
-        updatedAt: now
-      })
-      .where(eq(studioConcepts.id, conceptRow.id))
-      .run()
-
     tx.update(studioConceptFormats)
       .set({
         activeVariantKey: activeVariantId,
@@ -684,8 +654,6 @@ export function updateStudioConceptSelectedVariant(
 
     touchProject(tx, project.id, now)
   })
-
-  return getStudioConceptById(slug, conceptId)
 }
 
 export function updateStudioConceptFormatPrompt(slug: string, conceptId: string, ratio: string, promptDraft: string): StudioConcept {

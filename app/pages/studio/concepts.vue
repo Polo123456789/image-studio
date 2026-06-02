@@ -86,7 +86,7 @@
           :format-timestamp="formatTimestamp"
           @discard="discardConcept"
           @cycle-ratio="cycleRatio"
-          @select-ratio="selectRatio"
+          @ratio-selected="selectRatio"
           @finalize="finalizeConcept"
           @open-prompt="openPromptModal"
           @regenerate="regenerateVariant"
