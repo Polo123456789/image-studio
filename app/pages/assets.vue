@@ -96,14 +96,12 @@
           </div>
         </div>
 
-        <div
-          v-if="filteredAssets.length"
-          class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5"
-        >
-          <article
-            v-for="asset in filteredAssets"
-            :key="asset.id"
-            class="group overflow-hidden rounded-xl border border-border bg-surface transition hover:border-accent/25 hover:shadow-md"
+        <template v-if="visibleAssets.length">
+          <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            <article
+              v-for="asset in visibleAssets"
+              :key="asset.id"
+              class="group overflow-hidden rounded-xl border border-border bg-surface transition hover:border-accent/25 hover:shadow-md"
           >
             <div class="relative aspect-[4/3] overflow-hidden bg-surface-2">
               <img
@@ -210,8 +208,15 @@
                 </div>
               </div>
             </div>
-          </article>
-        </div>
+            </article>
+          </div>
+
+          <div v-if="canLoadMoreAssets" class="mt-8 flex justify-center">
+            <AppButton @click="loadMoreAssets()">
+              Cargar mas assets
+            </AppButton>
+          </div>
+        </template>
 
         <div v-else class="rounded-xl border border-border bg-surface px-8 py-20 text-center">
           <div class="mx-auto max-w-sm">
@@ -259,6 +264,9 @@ const {
   activeBrandFilter,
   brandFilters,
   filteredAssets,
+  visibleAssets,
+  canLoadMoreAssets,
+  loadMoreAssets,
   isUploadModalOpen,
   assetActionId,
   confirmDeleteId,

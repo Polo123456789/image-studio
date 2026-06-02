@@ -7,8 +7,10 @@ import { formatAssetFileSize } from '~/utils/assets'
 export async function useAssetLibrary() {
   const { data, pending, refresh } = await useFetch<AssetsResponse>('/api/assets')
 
+  const assetPageSize = 40
   const search = ref('')
   const activeBrandFilter = ref('all')
+  const visibleAssetCount = ref(assetPageSize)
   const isUploadModalOpen = ref(false)
   const assetActionId = ref<number | null>(null)
   const confirmDeleteId = ref<number | null>(null)
@@ -79,6 +81,21 @@ export async function useAssetLibrary() {
 
     return result.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   })
+  const visibleAssets = computed(() => filteredAssets.value.slice(0, visibleAssetCount.value))
+  const canLoadMoreAssets = computed(() => visibleAssetCount.value < filteredAssets.value.length)
+
+  function resetVisibleAssets() {
+    visibleAssetCount.value = assetPageSize
+  }
+
+  function loadMoreAssets() {
+    visibleAssetCount.value = Math.min(
+      visibleAssetCount.value + assetPageSize,
+      filteredAssets.value.length
+    )
+  }
+
+  watch([search, activeBrandFilter], resetVisibleAssets)
 
   function showNotification(message: string, tone: 'success' | 'error' = 'success') {
     if (notificationTimer !== null) {
@@ -208,6 +225,9 @@ export async function useAssetLibrary() {
     activeBrandFilter,
     brandFilters,
     filteredAssets,
+    visibleAssets,
+    canLoadMoreAssets,
+    loadMoreAssets,
     isUploadModalOpen,
     assetActionId,
     confirmDeleteId,
