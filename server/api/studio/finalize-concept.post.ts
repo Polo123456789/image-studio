@@ -1,18 +1,7 @@
-import type { StudioConceptMutationResponse, StudioFinalizeConceptPayload, StudioVariant } from '../../../shared/types/studio'
+import type { StudioConceptMutationResponse, StudioFinalizeConceptPayload } from '../../../shared/types/studio'
 
 import { generateFinalImage } from '../../utils/gemini'
-import { getStudioProjectBySlug, updateStudioConcept } from '../../utils/studio-projects'
-
-function createFinalVariant(conceptId: string, ratio: string, prompt: string, resolution: string, versionNumber: number, imageUrl: string): StudioVariant {
-  return {
-    id: `${conceptId}-${ratio}-final-${versionNumber}`,
-    label: `${ratio} final ${resolution}`,
-    mode: 'final',
-    prompt,
-    imageUrl,
-    createdAt: new Date().toISOString()
-  }
-}
+import { approveStudioConceptWithFinalVariants, getStudioProjectBySlug } from '../../utils/studio-projects'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioFinalizeConceptPayload>(event)
@@ -37,34 +26,7 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
     }
   }))
 
-  const approvedAt = new Date().toISOString()
-  const concept = updateStudioConcept(payload.projectSlug, payload.concept.id, (currentConcept) => ({
-    ...currentConcept,
-    approvedAt,
-    formats: currentConcept.formats.map((format) => {
-      const generatedFormat = generatedFormats.find((item) => item.ratio === format.ratio)
-
-      if (!generatedFormat) {
-        return format
-      }
-
-      const variant = createFinalVariant(
-        currentConcept.id,
-        format.ratio,
-        generatedFormat.promptDraft,
-        payload.resolution,
-        format.variants.length + 1,
-        generatedFormat.imageUrl
-      )
-
-      return {
-        ...format,
-        promptDraft: generatedFormat.promptDraft,
-        variants: [variant, ...format.variants],
-        activeVariantId: variant.id
-      }
-    })
-  }))
+  const concept = approveStudioConceptWithFinalVariants(payload.projectSlug, payload.concept.id, generatedFormats, payload.resolution)
 
   return {
     concept

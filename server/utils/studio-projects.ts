@@ -129,7 +129,18 @@ function ensureConcept(concept?: StudioConcept) {
   return concept
 }
 
-function ensureFormat(format?: StudioConceptFormat) {
+function ensureConceptRow(concept?: StudioConceptRow) {
+  if (!concept) {
+    throw createError({
+      statusCode: 404,
+      statusMessage: 'Concept not found'
+    })
+  }
+
+  return concept
+}
+
+function ensureFormatRow(format?: StudioConceptFormatRow) {
   if (!format) {
     throw createError({
       statusCode: 400,
@@ -138,6 +149,45 @@ function ensureFormat(format?: StudioConceptFormat) {
   }
 
   return format
+}
+
+function ensureVariantRow(variant?: StudioVariantRow) {
+  if (!variant) {
+    throw createError({
+      statusCode: 400,
+      statusMessage: 'Variant not found for selected format'
+    })
+  }
+
+  return variant
+}
+
+function getStudioConceptRow(projectId: number, conceptId: string) {
+  return ensureConceptRow(db.query.studioConcepts.findFirst({
+    where: and(
+      eq(studioConcepts.projectId, projectId),
+      eq(studioConcepts.conceptKey, conceptId),
+      isNull(studioConcepts.discardedAt)
+    )
+  }).sync())
+}
+
+function getStudioConceptFormatRow(conceptRowId: number, ratio: string) {
+  return ensureFormatRow(db.query.studioConceptFormats.findFirst({
+    where: and(
+      eq(studioConceptFormats.conceptId, conceptRowId),
+      eq(studioConceptFormats.ratio, ratio)
+    )
+  }).sync())
+}
+
+function getStudioVariantRow(formatRowId: number, variantId: string) {
+  return ensureVariantRow(db.query.studioVariants.findFirst({
+    where: and(
+      eq(studioVariants.formatId, formatRowId),
+      eq(studioVariants.variantKey, variantId)
+    )
+  }).sync())
 }
 
 function mapConcepts(
@@ -578,45 +628,257 @@ export function appendStudioConcepts(slug: string, concepts: StudioConcept[]): S
   return concepts.map((concept) => getStudioConceptById(slug, concept.id))
 }
 
-export function updateStudioConcept(
-  slug: string,
-  conceptId: string,
-  updater: (concept: StudioConcept, project: StudioProject) => StudioConcept
-): StudioConcept {
-  const project = getStudioProjectBySlug(slug)
-  const currentConcept = ensureConcept(project.concepts.find((concept) => concept.id === conceptId))
-  const nextConcept = updater(currentConcept, project)
-  const nextConcepts = project.concepts.map((concept) => concept.id === conceptId ? nextConcept : concept)
+export function updateStudioConceptSelectedRatio(slug: string, conceptId: string, selectedRatio: string): StudioConcept {
+  const project = getStudioProjectRowBySlug(slug)
+  const conceptRow = getStudioConceptRow(project.id, conceptId)
 
-  saveStudioConcepts(slug, nextConcepts)
+  getStudioConceptFormatRow(conceptRow.id, selectedRatio)
 
-  return ensureConcept(getStudioProjectBySlug(slug).concepts.find((concept) => concept.id === conceptId))
+  const now = new Date()
+
+  db.transaction((tx) => {
+    tx.update(studioConcepts)
+      .set({
+        selectedRatio,
+        updatedAt: now
+      })
+      .where(eq(studioConcepts.id, conceptRow.id))
+      .run()
+
+    touchProject(tx, project.id, now)
+  })
+
+  return getStudioConceptById(slug, conceptId)
 }
 
-export function updateStudioConceptFormat(
+export function updateStudioConceptSelectedVariant(
   slug: string,
   conceptId: string,
   ratio: string,
-  updater: (format: StudioConceptFormat, concept: StudioConcept, project: StudioProject) => StudioConceptFormat
+  activeVariantId: string
 ): StudioConcept {
-  return updateStudioConcept(slug, conceptId, (concept, project) => ({
-    ...concept,
-    formats: concept.formats.map((format) => {
-      if (format.ratio !== ratio) {
-        return format
-      }
+  const project = getStudioProjectRowBySlug(slug)
+  const conceptRow = getStudioConceptRow(project.id, conceptId)
+  const formatRow = getStudioConceptFormatRow(conceptRow.id, ratio)
 
-      return updater(format, concept, project)
-    })
+  getStudioVariantRow(formatRow.id, activeVariantId)
+
+  const now = new Date()
+
+  db.transaction((tx) => {
+    tx.update(studioConcepts)
+      .set({
+        selectedRatio: ratio,
+        updatedAt: now
+      })
+      .where(eq(studioConcepts.id, conceptRow.id))
+      .run()
+
+    tx.update(studioConceptFormats)
+      .set({
+        activeVariantKey: activeVariantId,
+        updatedAt: now
+      })
+      .where(eq(studioConceptFormats.id, formatRow.id))
+      .run()
+
+    touchProject(tx, project.id, now)
+  })
+
+  return getStudioConceptById(slug, conceptId)
+}
+
+export function updateStudioConceptFormatPrompt(slug: string, conceptId: string, ratio: string, promptDraft: string): StudioConcept {
+  const project = getStudioProjectRowBySlug(slug)
+  const conceptRow = getStudioConceptRow(project.id, conceptId)
+  const formatRow = getStudioConceptFormatRow(conceptRow.id, ratio)
+  const now = new Date()
+
+  db.transaction((tx) => {
+    tx.update(studioConceptFormats)
+      .set({
+        promptDraft,
+        updatedAt: now
+      })
+      .where(eq(studioConceptFormats.id, formatRow.id))
+      .run()
+
+    tx.update(studioConcepts)
+      .set({ updatedAt: now })
+      .where(eq(studioConcepts.id, conceptRow.id))
+      .run()
+
+    touchProject(tx, project.id, now)
+  })
+
+  return getStudioConceptById(slug, conceptId)
+}
+
+export function discardStudioConcept(slug: string, conceptId: string): StudioConcept[] {
+  const project = getStudioProjectRowBySlug(slug)
+  const conceptRow = getStudioConceptRow(project.id, conceptId)
+  const now = new Date()
+
+  db.transaction((tx) => {
+    tx.update(studioConcepts)
+      .set({
+        discardedAt: now,
+        updatedAt: now
+      })
+      .where(eq(studioConcepts.id, conceptRow.id))
+      .run()
+
+    touchProject(tx, project.id, now)
+  })
+
+  return getStudioProjectBySlug(slug).concepts
+}
+
+function countFormatVariants(tx: StudioTransaction, formatId: number) {
+  return tx.select({ id: studioVariants.id })
+    .from(studioVariants)
+    .where(eq(studioVariants.formatId, formatId))
+    .all().length
+}
+
+function createGeneratedVariant(
+  conceptId: string,
+  ratio: string,
+  versionNumber: number,
+  mode: StudioVariant['mode'],
+  prompt: string,
+  imageUrl: string,
+  resolution?: string
+): StudioVariant {
+  const id = `${conceptId}-${ratio}-${mode}-${versionNumber}`
+  const label = mode === 'final'
+    ? `${ratio} final ${resolution || '1K rapido'}`
+    : `Preview ${ratio} v${versionNumber}`
+
+  return {
+    id,
+    label,
+    mode,
+    prompt,
+    imageUrl,
+    createdAt: new Date().toISOString()
+  }
+}
+
+export function addStudioConceptVariant(
+  slug: string,
+  conceptId: string,
+  ratio: string,
+  mode: StudioVariant['mode'],
+  prompt: string,
+  imageUrl: string,
+  resolution?: string
+): StudioConcept {
+  const project = getStudioProjectRowBySlug(slug)
+  const conceptRow = getStudioConceptRow(project.id, conceptId)
+  const formatRow = getStudioConceptFormatRow(conceptRow.id, ratio)
+  const now = new Date()
+
+  db.transaction((tx) => {
+    const versionNumber = countFormatVariants(tx, formatRow.id) + 1
+    const variant = createGeneratedVariant(conceptId, ratio, versionNumber, mode, prompt, imageUrl, resolution)
+
+    tx.insert(studioVariants)
+      .values({
+        formatId: formatRow.id,
+        variantKey: variant.id,
+        label: variant.label,
+        mode: variant.mode,
+        prompt: variant.prompt,
+        imageUrl: variant.imageUrl,
+        createdAt: new Date(variant.createdAt)
+      })
+      .run()
+
+    tx.update(studioConceptFormats)
+      .set({
+        promptDraft: prompt,
+        activeVariantKey: variant.id,
+        updatedAt: now
+      })
+      .where(eq(studioConceptFormats.id, formatRow.id))
+      .run()
+
+    tx.update(studioConcepts)
+      .set({ updatedAt: now })
+      .where(eq(studioConcepts.id, conceptRow.id))
+      .run()
+
+    touchProject(tx, project.id, now)
+  })
+
+  return getStudioConceptById(slug, conceptId)
+}
+
+export function approveStudioConceptWithFinalVariants(
+  slug: string,
+  conceptId: string,
+  generatedFormats: Array<{ ratio: string, promptDraft: string, imageUrl: string }>,
+  resolution: string
+): StudioConcept {
+  const project = getStudioProjectRowBySlug(slug)
+  const conceptRow = getStudioConceptRow(project.id, conceptId)
+  const generatedFormatsWithRows = generatedFormats.map((generatedFormat) => ({
+    ...generatedFormat,
+    formatRow: getStudioConceptFormatRow(conceptRow.id, generatedFormat.ratio)
   }))
+  const approvedAt = new Date()
+
+  db.transaction((tx) => {
+    generatedFormatsWithRows.forEach((generatedFormat) => {
+      const formatRow = generatedFormat.formatRow
+      const versionNumber = countFormatVariants(tx, formatRow.id) + 1
+      const variant = createGeneratedVariant(
+        conceptId,
+        generatedFormat.ratio,
+        versionNumber,
+        'final',
+        generatedFormat.promptDraft,
+        generatedFormat.imageUrl,
+        resolution
+      )
+
+      tx.insert(studioVariants)
+        .values({
+          formatId: formatRow.id,
+          variantKey: variant.id,
+          label: variant.label,
+          mode: variant.mode,
+          prompt: variant.prompt,
+          imageUrl: variant.imageUrl,
+          createdAt: new Date(variant.createdAt)
+        })
+        .run()
+
+      tx.update(studioConceptFormats)
+        .set({
+          promptDraft: generatedFormat.promptDraft,
+          activeVariantKey: variant.id,
+          updatedAt: approvedAt
+        })
+        .where(eq(studioConceptFormats.id, formatRow.id))
+        .run()
+    })
+
+    tx.update(studioConcepts)
+      .set({
+        approvedAt,
+        updatedAt: approvedAt
+      })
+      .where(eq(studioConcepts.id, conceptRow.id))
+      .run()
+
+    touchProject(tx, project.id, approvedAt)
+  })
+
+  return getStudioConceptById(slug, conceptId)
 }
 
 export function getStudioConceptById(slug: string, conceptId: string): StudioConcept {
   return ensureConcept(getStudioProjectBySlug(slug).concepts.find((concept) => concept.id === conceptId))
-}
-
-export function getStudioConceptFormatByRatio(slug: string, conceptId: string, ratio: string): StudioConceptFormat {
-  const concept = getStudioConceptById(slug, conceptId)
-
-  return ensureFormat(concept.formats.find((format) => format.ratio === ratio))
 }
