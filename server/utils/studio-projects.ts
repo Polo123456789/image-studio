@@ -49,10 +49,25 @@ function deserializeBrief(value: string): StudioBriefPayload {
 
 function mapProjectListItem(project: StudioProjectRow): StudioProjectListItem {
   const brief = deserializeBrief(project.brief)
-  const projectConceptRows = db.select({ approvedAt: studioConcepts.approvedAt })
+  const projectConceptRows = db.select({ id: studioConcepts.id })
     .from(studioConcepts)
     .where(and(eq(studioConcepts.projectId, project.id), isNull(studioConcepts.discardedAt)))
     .all()
+  const conceptIds = projectConceptRows.map((concept) => concept.id)
+  const formatRows = conceptIds.length
+    ? db.select({ id: studioConceptFormats.id })
+        .from(studioConceptFormats)
+        .where(inArray(studioConceptFormats.conceptId, conceptIds))
+        .all()
+    : []
+  const formatIds = formatRows.map((format) => format.id)
+  const hasFinalVariants = formatIds.length
+    ? Boolean(db.select({ id: studioVariants.id })
+        .from(studioVariants)
+        .where(and(inArray(studioVariants.formatId, formatIds), eq(studioVariants.mode, 'final')))
+        .limit(1)
+        .get())
+    : false
 
   return {
     id: project.id,
@@ -60,7 +75,7 @@ function mapProjectListItem(project: StudioProjectRow): StudioProjectListItem {
     projectName: project.projectName,
     goal: brief.goal,
     conceptCount: projectConceptRows.length,
-    hasApprovedConcepts: projectConceptRows.some((concept) => Boolean(concept.approvedAt)),
+    hasFinalVariants,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString()
   }
@@ -783,7 +798,7 @@ export function addStudioConceptVariant(
   return getStudioConceptById(slug, conceptId)
 }
 
-export function approveStudioConceptWithFinalVariants(
+export function saveStudioConceptFinalVariants(
   slug: string,
   conceptId: string,
   generatedFormats: Array<{ ratio: string, promptDraft: string, imageUrl: string }>,
@@ -795,7 +810,7 @@ export function approveStudioConceptWithFinalVariants(
     ...generatedFormat,
     formatRow: getStudioConceptFormatRow(conceptRow.id, generatedFormat.ratio)
   }))
-  const approvedAt = new Date()
+  const generatedAt = new Date()
 
   db.transaction((tx) => {
     generatedFormatsWithRows.forEach((generatedFormat) => {
@@ -827,7 +842,7 @@ export function approveStudioConceptWithFinalVariants(
         .set({
           promptDraft: generatedFormat.promptDraft,
           activeVariantKey: variant.id,
-          updatedAt: approvedAt
+          updatedAt: generatedAt
         })
         .where(eq(studioConceptFormats.id, formatRow.id))
         .run()
@@ -835,13 +850,13 @@ export function approveStudioConceptWithFinalVariants(
 
     tx.update(studioConcepts)
       .set({
-        approvedAt,
-        updatedAt: approvedAt
+        approvedAt: conceptRow.approvedAt || generatedAt,
+        updatedAt: generatedAt
       })
       .where(eq(studioConcepts.id, conceptRow.id))
       .run()
 
-    touchProject(tx, project.id, approvedAt)
+    touchProject(tx, project.id, generatedAt)
   })
 
   return getStudioConceptById(slug, conceptId)

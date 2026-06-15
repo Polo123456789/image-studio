@@ -151,7 +151,7 @@
             <p class="max-w-xl text-sm leading-6 text-text-muted">
               {{ isSubmitting
                 ? 'Estamos creando el proyecto y generando conceptos iniciales...'
-                : `Siguiente paso: Gemini Flash redacta ${form.conceptCount} conceptos. Cada concepto se valida con preview barato antes de pasar a generacion final.` }}
+                : `Siguiente paso: Gemini redacta ${form.conceptCount} conceptos y genera directamente el primer arte de cada propuesta.` }}
             </p>
 
             <AppButton type="submit" :disabled="isSubmitting || !canContinue" :aria-busy="isSubmitting">

@@ -36,7 +36,7 @@
           </div>
           <h2 class="font-display text-xl text-text">Sin imagenes todavia</h2>
           <p class="mt-3 text-sm leading-6 text-text-muted">
-            Cuando generes conceptos o finales desde el estudio, apareceran aqui dentro de la carpeta del proyecto.
+            Cuando generes artes desde el estudio, apareceran aqui dentro de la carpeta del proyecto.
           </p>
           <NuxtLink
             to="/studio"
@@ -153,9 +153,9 @@
                   <span>{{ image.ratio }}</span>
                   <span
                     class="rounded px-1 py-0.5 text-[9px] uppercase tracking-wider"
-                    :class="image.approvedAt ? 'bg-accent/30 text-white/90' : 'bg-white/10'"
+                    :class="image.currentMode === 'final' ? 'bg-accent/30 text-white/90' : 'bg-white/10'"
                   >
-                    {{ image.approvedAt ? 'final' : 'preview' }}
+                    {{ image.currentMode === 'final' ? 'arte' : 'preview legado' }}
                   </span>
                 </div>
               </div>

@@ -32,7 +32,7 @@ export interface StudioProjectListItem {
   projectName: string
   goal: string
   conceptCount: number
-  hasApprovedConcepts: boolean
+  hasFinalVariants: boolean
   createdAt: string
   updatedAt: string
 }
@@ -127,10 +127,9 @@ export interface StudioConceptResponse {
 
 export interface StudioRegenerateVariantPayload {
   projectSlug: string
-  concept: StudioConcept
+  conceptId: string
   ratio: string
   prompt: string
-  resolution?: string
 }
 
 export interface StudioConceptSeed {
@@ -142,10 +141,9 @@ export interface StudioConceptSeed {
   variantPrompts: Record<string, string>
 }
 
-export interface StudioFinalizeConceptPayload {
+export interface StudioGeneratePendingFormatsPayload {
   projectSlug: string
-  concept: StudioConcept
-  resolution: string
+  conceptId: string
 }
 
 export interface StudioExportSummaryItem {
@@ -177,7 +175,7 @@ export interface LibraryImageItem {
   conceptTitle: string
   conceptSubtitle: string
   ratio: string
-  approvedAt: string | null
+  currentMode: StudioVariantMode
   createdAt: string
   updatedAt: string
   currentVersionId: string

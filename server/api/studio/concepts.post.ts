@@ -1,58 +1,8 @@
-import { randomUUID } from 'node:crypto'
+import type { StudioConceptResponse, StudioGenerateConceptsPayload } from '../../../shared/types/studio'
 
-import type { StudioBriefPayload } from '../../../shared/types/studio'
-import type { StudioConcept, StudioConceptFormat, StudioConceptResponse, StudioGenerateConceptsPayload, StudioVariant } from '../../../shared/types/studio'
-
-import { generateConceptSeeds, generatePreviewImage } from '../../utils/gemini'
+import { generateConceptSeeds } from '../../utils/gemini'
+import { createGeneratedConcept } from '../../utils/studio-generation'
 import { saveStudioConcepts, updateStudioProjectBrief } from '../../utils/studio-projects'
-
-function createVariant(ratio: string, prompt: string, seed: string, imageUrl: string): StudioVariant {
-  const label = `Preview ${ratio}`
-
-  return {
-    id: `${seed}-preview-1`,
-    label,
-    mode: 'preview',
-    prompt,
-    imageUrl,
-    createdAt: new Date().toISOString()
-  }
-}
-
-async function createConcept(payload: StudioBriefPayload, index: number, seedData: { creativeStyleId?: number | null, creativeStyleName?: string | null, title: string, subtitle: string, rationale: string, variantPrompts: Record<string, string> }): Promise<StudioConcept> {
-  const conceptId = `concept-${randomUUID()}`
-  const previewSourceRatio = payload.aspectRatios[0] || '1:1'
-  const formats = await Promise.all(payload.aspectRatios.map(async (ratio): Promise<StudioConceptFormat> => {
-    const promptDraft = seedData.variantPrompts[ratio] || seedData.variantPrompts[previewSourceRatio] || ''
-    const isPreviewSource = ratio === previewSourceRatio
-    const imageUrl = isPreviewSource
-      ? await generatePreviewImage(promptDraft, ratio, payload.assetIds ?? [])
-      : null
-    const variant = imageUrl
-      ? createVariant(ratio, promptDraft, `${conceptId}-${ratio}`, imageUrl)
-      : null
-
-    return {
-      ratio,
-      isPreviewSource,
-      promptDraft,
-      variants: variant ? [variant] : [],
-      activeVariantId: variant?.id || null
-    }
-  }))
-
-  return {
-    id: conceptId,
-    title: seedData.title,
-    subtitle: seedData.subtitle,
-    rationale: seedData.rationale,
-    creativeStyleId: seedData.creativeStyleId ?? payload.creativeStyleId ?? null,
-    creativeStyleName: seedData.creativeStyleName ?? null,
-    selectedRatio: formats[0]?.ratio || '1:1',
-    approvedAt: null,
-    formats
-  }
-}
 
 export default defineEventHandler(async (event): Promise<StudioConceptResponse> => {
   const payload = await readBody<StudioGenerateConceptsPayload>(event)
@@ -70,7 +20,9 @@ export default defineEventHandler(async (event): Promise<StudioConceptResponse> 
     })
   }
 
-  const generatedConcepts = await Promise.all(seedConcepts.slice(0, brief.conceptCount).map((concept, index) => createConcept(brief, index, concept)))
+  const generatedConcepts = await Promise.all(
+    seedConcepts.slice(0, brief.conceptCount).map((concept) => createGeneratedConcept(brief, concept))
+  )
 
   saveStudioConcepts(payload.projectSlug, generatedConcepts)
 

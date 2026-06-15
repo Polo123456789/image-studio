@@ -19,8 +19,8 @@ export async function useStudioConceptEditor() {
 
   const pending = ref(isGeneratingConcepts.value && !concepts.value.length)
   const initialLoadError = ref('')
-  const previewLoadingKeys = ref<Record<string, boolean>>({})
-  const finalLoadingKeys = ref<Record<string, boolean>>({})
+  const variantLoadingKeys = ref<Record<string, boolean>>({})
+  const pendingFormatsLoading = ref<Record<string, boolean>>({})
   const conceptMutationQueue = ref<Record<string, Promise<void>>>({})
   const promptDrafts = ref<Record<string, string>>({})
   const promptModalConceptId = ref<string | null>(null)
@@ -60,11 +60,7 @@ export async function useStudioConceptEditor() {
   }, { immediate: true })
 
   const hasExportableConcepts = computed(() => concepts.value.some((concept) => {
-    if (!concept.approvedAt) {
-      return false
-    }
-
-    return concept.formats.length > 0 && concept.formats.every((format) => {
+    return concept.formats.some((format) => {
       const variant = activeVariantForFormat(format)
 
       return variant?.mode === 'final' && Boolean(variant.imageUrl)
@@ -80,9 +76,7 @@ export async function useStudioConceptEditor() {
       return false
     }
 
-    const format = selectedFormat(promptModalConcept.value)
-
-    return Boolean(format && (format.isPreviewSource || promptModalConcept.value.approvedAt))
+    return Boolean(selectedFormat(promptModalConcept.value))
   })
 
   const promptModalDescription = computed(() => {
@@ -96,11 +90,9 @@ export async function useStudioConceptEditor() {
       return ''
     }
 
-    if (!format.isPreviewSource && !promptModalConcept.value.approvedAt) {
-      return 'Este formato todavia no tiene generacion propia. El prompt se deriva del preview principal y se aplicara cuando el concepto sea aprobado.'
-    }
-
-    return 'Edita el prompt con espacio suficiente. Quedara vinculado al historial del formato activo.'
+    return format.variants.length
+      ? 'Edita el prompt del formato. Se usara en la siguiente regeneracion.'
+      : 'Edita el prompt antes de generar este formato.'
   })
 
   async function ensureInitialConcepts() {
@@ -114,7 +106,7 @@ export async function useStudioConceptEditor() {
     generationMessage.value = 'Gemini esta redactando conceptos base para este brief.'
 
     try {
-      generationMessage.value = 'Generando conceptos y preparando el primer preview con Imagen...'
+      generationMessage.value = 'Generando conceptos y el primer arte de cada propuesta...'
       const response = await $fetch<StudioConceptResponse>('/api/studio/concepts', {
         method: 'POST',
         body: {
@@ -207,7 +199,7 @@ export async function useStudioConceptEditor() {
     return `${conceptId}:${ratio}`
   }
 
-  function setLoadingKey(target: typeof previewLoadingKeys | typeof finalLoadingKeys, key: string, value: boolean) {
+  function setLoadingKey(target: typeof variantLoadingKeys, key: string, value: boolean) {
     target.value = value
       ? { ...target.value, [key]: true }
       : Object.fromEntries(Object.entries(target.value).filter(([entryKey]) => entryKey !== key))
@@ -243,12 +235,12 @@ export async function useStudioConceptEditor() {
     })
   }
 
-  function isPreviewLoading(conceptId: string, ratio: string) {
-    return Boolean(previewLoadingKeys.value[createFormatKey(conceptId, ratio)])
+  function isVariantLoading(conceptId: string, ratio: string) {
+    return Boolean(variantLoadingKeys.value[createFormatKey(conceptId, ratio)])
   }
 
-  function isFinalLoading(conceptId: string, ratio: string) {
-    return Boolean(finalLoadingKeys.value[createFormatKey(conceptId, ratio)])
+  function isPendingFormatsLoading(conceptId: string) {
+    return Boolean(pendingFormatsLoading.value[conceptId])
   }
 
   function selectRatio(conceptId: string, ratio: string) {
@@ -321,13 +313,13 @@ export async function useStudioConceptEditor() {
     const concept = concepts.value.find((item) => item.id === conceptId)
     const format = concept ? selectedFormat(concept) : null
 
-    if (!concept || !format || (!format.isPreviewSource && !concept.approvedAt)) {
+    if (!concept || !format || !format.variants.length) {
       return
     }
 
     const loadingKey = createFormatKey(conceptId, concept.selectedRatio)
 
-    setLoadingKey(previewLoadingKeys, loadingKey, true)
+    setLoadingKey(variantLoadingKeys, loadingKey, true)
 
     try {
       const prompt = promptDrafts.value[conceptId]
@@ -335,53 +327,43 @@ export async function useStudioConceptEditor() {
         method: 'POST',
         body: {
           projectSlug: routeProjectSlug.value,
-          concept,
+          conceptId,
           ratio: concept.selectedRatio,
-          prompt,
-          resolution: brief.value.resolution
+          prompt
         }
       })
 
       replaceConcept(response.concept)
     }
     finally {
-      setLoadingKey(previewLoadingKeys, loadingKey, false)
+      setLoadingKey(variantLoadingKeys, loadingKey, false)
     }
   }
 
-  async function finalizeConcept(conceptId: string) {
+  async function generatePendingFormats(conceptId: string) {
     const concept = concepts.value.find((item) => item.id === conceptId)
 
     if (!concept) {
       return
     }
 
-    const loadingKey = createFormatKey(conceptId, concept.selectedRatio)
-
-    setLoadingKey(finalLoadingKeys, loadingKey, true)
+    pendingFormatsLoading.value = { ...pendingFormatsLoading.value, [conceptId]: true }
 
     try {
-      const conceptForRequest: StudioConcept = {
-        ...concept,
-        formats: concept.formats.map((format) => ({
-          ...format,
-          promptDraft: format.ratio === concept.selectedRatio ? (promptDrafts.value[conceptId] ?? format.promptDraft) : format.promptDraft
-        }))
-      }
-
-      const response = await $fetch<StudioConceptMutationResponse>('/api/studio/finalize-concept', {
+      const response = await $fetch<StudioConceptMutationResponse>('/api/studio/generate-pending-formats', {
         method: 'POST',
         body: {
           projectSlug: routeProjectSlug.value,
-          concept: conceptForRequest,
-          resolution: brief.value.resolution
+          conceptId
         }
       })
 
       replaceConcept(response.concept)
     }
     finally {
-      setLoadingKey(finalLoadingKeys, loadingKey, false)
+      pendingFormatsLoading.value = Object.fromEntries(
+        Object.entries(pendingFormatsLoading.value).filter(([key]) => key !== conceptId)
+      )
     }
   }
 
@@ -595,15 +577,15 @@ export async function useStudioConceptEditor() {
     concepts.value = response.concepts
   }
 
-  function formatStatusLabel(concept: StudioConcept, format: StudioConceptFormat) {
+  function formatStatusLabel(_concept: StudioConcept, format: StudioConceptFormat) {
     const variant = activeVariantForFormat(format)
 
     if (variant?.mode === 'final') {
-      return 'Final'
+      return 'Generado'
     }
 
-    if (format.isPreviewSource && !concept.approvedAt) {
-      return 'Preview'
+    if (variant?.mode === 'preview') {
+      return 'Preview legado'
     }
 
     return 'Pendiente'
@@ -615,8 +597,8 @@ export async function useStudioConceptEditor() {
     generationMessage,
     pending,
     initialLoadError,
-    isPreviewLoading,
-    isFinalLoading,
+    isVariantLoading,
+    isPendingFormatsLoading,
     promptDrafts,
     promptModalConceptId,
     modalPromptDraft,
@@ -639,7 +621,7 @@ export async function useStudioConceptEditor() {
     resetPrompt,
     selectVariant,
     regenerateVariant,
-    finalizeConcept,
+    generatePendingFormats,
     formatTimestamp,
     discardConcept,
     generateMoreConcepts,

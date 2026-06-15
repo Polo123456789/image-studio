@@ -19,9 +19,9 @@ function compareDatesDesc(left: string, right: string) {
 
 function buildCollectionKeys(mode: StudioVariantMode, ratio: string) {
   return [
-    mode === 'final' ? 'finales' : 'previews',
+    mode === 'final' ? 'artes' : 'previews-legado',
     `ratio:${ratio}`,
-    mode === 'final' ? `entrega:${ratio}` : `revision:${ratio}`
+    mode === 'final' ? `entrega:${ratio}` : `legado:${ratio}`
   ]
 }
 
@@ -30,7 +30,7 @@ function buildVersionLabel(mode: StudioVariantMode, ratio: string, index: number
     return index === 0 ? `${ratio} final actual` : `${ratio} final v${index + 1}`
   }
 
-  return index === 0 ? `${ratio} preview actual` : `${ratio} preview v${index + 1}`
+  return index === 0 ? `${ratio} preview legado actual` : `${ratio} preview legado v${index + 1}`
 }
 
 function mapProjectToLibraryImages(projectSlug: string): LibraryImageItem[] {
@@ -52,6 +52,7 @@ function mapProjectToLibraryImages(projectSlug: string): LibraryImageItem[] {
           }))
 
         const currentVersion = versions[0]
+        const activeVersion = versions.find((version) => version.id === format.activeVariantId) || currentVersion
 
         return {
           id: `${project.slug}:${concept.id}:${format.ratio}`,
@@ -62,10 +63,10 @@ function mapProjectToLibraryImages(projectSlug: string): LibraryImageItem[] {
           conceptTitle: concept.title,
           conceptSubtitle: concept.subtitle,
           ratio: format.ratio,
-          approvedAt: concept.approvedAt,
+          currentMode: activeVersion?.mode || 'preview',
           createdAt: versions[versions.length - 1]?.createdAt || project.createdAt,
           updatedAt: currentVersion?.createdAt || project.updatedAt,
-          currentVersionId: currentVersion?.id || '',
+          currentVersionId: activeVersion?.id || '',
           versions,
           collectionKeys: Array.from(new Set(versions.flatMap((version) => buildCollectionKeys(version.mode, format.ratio))))
         } satisfies LibraryImageItem

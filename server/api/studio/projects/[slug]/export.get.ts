@@ -168,28 +168,20 @@ export default defineEventHandler(async (event) => {
   const entries: ZipEntry[] = []
 
   for (const concept of project.concepts) {
-    if (!concept.approvedAt) {
-      continue
-    }
-
-    const activeFinalVariants = concept.formats.map((format) => {
+    const activeFinalVariants = concept.formats.flatMap((format) => {
       const variant = format.variants.find((item) => item.id === format.activeVariantId)
 
-      return {
+      if (!variant || variant.mode !== 'final' || !variant.imageUrl) {
+        return []
+      }
+
+      return [{
         format,
         variant
-      }
+      }]
     })
 
-    if (!activeFinalVariants.length || activeFinalVariants.some(({ variant }) => !variant || variant.mode !== 'final' || !variant.imageUrl)) {
-      continue
-    }
-
     for (const { format, variant } of activeFinalVariants) {
-      if (!variant) {
-        continue
-      }
-
       const extension = inferImageExtension(variant.imageUrl)
       const baseFileName = `${normalizeFilePart(concept.title)}-${sanitizeRatio(format.ratio)}`
       let fileName = `${baseFileName}${extension}`
@@ -211,7 +203,7 @@ export default defineEventHandler(async (event) => {
   if (!entries.length) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'No hay conceptos finales activos para exportar'
+      statusMessage: 'No hay artes activos para exportar'
     })
   }
 

@@ -7,7 +7,7 @@
           <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Estudio</p>
           <h1 class="mt-3 font-display text-3xl text-text">Proyectos</h1>
           <p class="mt-3 max-w-xl text-sm leading-6 text-text-muted">
-            Cada proyecto agrupa un brief, conceptos generados y sus versiones finales. Crea uno nuevo o retoma donde dejaste.
+            Cada proyecto agrupa un brief, conceptos y artes generados. Crea uno nuevo o retoma donde dejaste.
           </p>
         </div>
 
@@ -71,7 +71,7 @@
           <div class="flex items-center gap-2 border-t border-border px-5 py-3">
             <span
               class="rounded-full border px-2.5 py-1 text-[11px]"
-              :class="project.hasApprovedConcepts
+              :class="project.hasFinalVariants
                 ? 'border-accent/30 bg-accent/8 text-accent'
                 : project.conceptCount
                   ? 'border-[#7a5b22]/40 bg-[#2a2118]/60 text-[#ffcc73]'
@@ -126,7 +126,7 @@ function projectLink(project: StudioProjectListItem): string {
 }
 
 function projectStatusLabel(project: StudioProjectListItem): string {
-  if (project.hasApprovedConcepts) return 'Con finales'
+  if (project.hasFinalVariants) return 'Con artes'
   if (project.conceptCount) return 'En exploracion'
   return 'Solo brief'
 }

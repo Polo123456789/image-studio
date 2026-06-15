@@ -76,7 +76,7 @@
             <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Prompt base</p>
             <h3 class="mt-2 text-xl text-text">Generador de imagenes</h3>
             <p class="mt-2 max-w-2xl text-sm leading-6 text-text-muted">
-              Se usa como system prompt comun para previews e imagenes finales antes del prompt visual especifico de cada variante.
+              Se usa como system prompt comun para generar artes antes del prompt visual especifico de cada variante.
             </p>
           </div>
 

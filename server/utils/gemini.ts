@@ -8,8 +8,6 @@ import { getStyleGuidesByIds } from './style-guides'
 
 const textModel = 'gemini-3.5-flash'
 const imageModel = 'gemini-3.1-flash-image-preview'
-const previewModel = 'imagen-4.0-generate-001'
-const supportedPreviewRatios = new Set(['1:1', '3:4', '4:3', '9:16', '16:9'])
 
 function getClient() {
   const settings = getServerAppSettings()
@@ -35,22 +33,6 @@ function mapResolution(resolution: string): '1K' | '2K' | '4K' {
   }
 
   return '1K'
-}
-
-function mapPreviewAspectRatio(aspectRatio: string): string {
-  if (supportedPreviewRatios.has(aspectRatio)) {
-    return aspectRatio
-  }
-
-  if (aspectRatio === '4:5') {
-    return '3:4'
-  }
-
-  if (aspectRatio === '21:9') {
-    return '16:9'
-  }
-
-  return '1:1'
 }
 
 function shuffleArray<T>(items: T[]) {
@@ -361,31 +343,6 @@ export async function generateConceptSeeds(payload: StudioBriefPayload): Promise
   const parsed = JSON.parse(text) as StudioConceptSeed[]
 
   return parsed.map((seed) => normalizeCreativeStyleSelection(payload, seed, activeCreativeStyleIds))
-}
-
-export async function generatePreviewImage(prompt: string, aspectRatio: string, assetIds: number[] = []): Promise<string> {
-  const ai = getClient()
-
-  const response = await ai.models.generateImages({
-    model: previewModel,
-    prompt: buildImagePrompt(prompt, assetIds, false),
-    config: {
-      numberOfImages: 1,
-      outputMimeType: 'image/jpeg',
-      aspectRatio: mapPreviewAspectRatio(aspectRatio)
-    }
-  })
-
-  const imageBytes = response.generatedImages?.[0]?.image?.imageBytes
-
-  if (!imageBytes) {
-    throw createError({
-      statusCode: 502,
-      statusMessage: 'Imagen did not return preview image bytes'
-    })
-  }
-
-  return `data:image/jpeg;base64,${imageBytes}`
 }
 
 export async function generateFinalImage(prompt: string, aspectRatio: string, resolution: string, assetIds: number[] = []): Promise<string> {

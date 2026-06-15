@@ -30,7 +30,7 @@
             {{ brief.projectName || 'Proyecto sin nombre' }}
           </h1>
           <p class="mt-3 max-w-3xl text-sm leading-6 text-text-muted">
-            Gemini Flash propone {{ brief.conceptCount }} conceptos. Cada uno usa un preview de baja calidad con Imagen 4 para validar la idea antes de generar todas las versiones finales con Gemini Flash Image 3.1.
+            Gemini propone {{ brief.conceptCount }} conceptos y genera directamente el primer arte de cada uno. Puedes completar los formatos restantes cuando elijas una propuesta.
           </p>
           <div class="mt-4 flex flex-wrap gap-2 text-sm text-text-muted">
             <span class="rounded border border-border px-3 py-1.5 text-xs">{{ brief.goal }}</span>
@@ -54,7 +54,7 @@
           <span class="text-sm font-medium text-text">Generando conceptos iniciales...</span>
         </div>
         <p class="mt-3 max-w-2xl text-sm leading-6 text-text-muted">
-          {{ generationMessage || 'Gemini esta redactando conceptos y generando el preview inicial del primer formato. Esto puede tardar un poco.' }}
+          {{ generationMessage || 'Gemini esta redactando conceptos y generando el primer arte de cada propuesta. Esto puede tardar un poco.' }}
         </p>
         <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-2">
           <div class="h-full w-1/3 animate-pulse rounded-full bg-accent"></div>
@@ -76,8 +76,8 @@
           :concept="concept"
           :index="conceptIndex"
           :focused="focusedConceptId === concept.id"
-          :loading-preview="isPreviewLoading(concept.id, concept.selectedRatio)"
-          :loading-final="isFinalLoading(concept.id, concept.selectedRatio)"
+          :loading-variant="isVariantLoading(concept.id, concept.selectedRatio)"
+          :loading-pending-formats="isPendingFormatsLoading(concept.id)"
           :prompt-preview="promptPreview(concept.id)"
           :selected-format="selectedFormat(concept)"
           :active-variant="activeVariant(concept)"
@@ -87,7 +87,7 @@
           @discard="discardConcept"
           @cycle-ratio="cycleRatio"
           @ratio-selected="selectRatio"
-          @finalize="finalizeConcept"
+          @generate-pending-formats="generatePendingFormats"
           @open-prompt="openPromptModal"
           @regenerate="regenerateVariant"
           @reset-prompt="resetPrompt"
@@ -99,7 +99,7 @@
           <div class="mx-auto flex max-w-2xl flex-col items-center text-center">
             <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-text-muted">Mas opciones</p>
             <p class="mt-3 text-sm leading-6 text-text-muted">
-              Genera conceptos adicionales con el mismo brief. No modifica lo que ya aprobaste.
+              Genera conceptos adicionales con el mismo brief. No modifica los artes existentes.
             </p>
 
             <div v-if="brief.creativeStyleId" class="mt-3 inline-flex items-center gap-2 rounded-lg border border-accent/20 bg-accent/5 px-3 py-1.5">
@@ -156,8 +156,8 @@ const {
   generationMessage,
   pending,
   initialLoadError,
-  isPreviewLoading,
-  isFinalLoading,
+  isVariantLoading,
+  isPendingFormatsLoading,
   promptModalConceptId,
   modalPromptDraft,
   moreConceptCount,
@@ -178,7 +178,7 @@ const {
   resetPrompt,
   selectVariant,
   regenerateVariant,
-  finalizeConcept,
+  generatePendingFormats,
   formatTimestamp,
   discardConcept,
   generateMoreConcepts,

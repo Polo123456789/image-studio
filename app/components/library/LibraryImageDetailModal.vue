@@ -34,9 +34,9 @@
 
               <span
                 class="absolute top-4 left-4 rounded px-2 py-1 text-[10px] uppercase tracking-wider sm:top-5 sm:left-5"
-                :class="image.approvedAt ? 'bg-accent/20 text-accent' : 'bg-white/10 text-white/60'"
+                :class="image.currentMode === 'final' ? 'bg-accent/20 text-accent' : 'bg-white/10 text-white/60'"
               >
-                {{ image.approvedAt ? 'Final' : 'Preview' }}
+                {{ image.currentMode === 'final' ? 'Arte generado' : 'Preview legado' }}
               </span>
             </div>
 

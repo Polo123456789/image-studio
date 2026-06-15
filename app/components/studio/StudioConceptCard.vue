@@ -32,9 +32,9 @@
           <div class="flex items-center gap-3">
             <span
               class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em]"
-              :class="concept.approvedAt ? 'bg-accent/15 text-accent' : selectedFormat?.isPreviewSource ? 'bg-[#6d5321]/60 text-[#ffcc73]' : 'bg-surface-2 text-text-muted'"
+              :class="activeVariant?.mode === 'final' ? 'bg-accent/15 text-accent' : activeVariant?.mode === 'preview' ? 'bg-[#6d5321]/60 text-[#ffcc73]' : 'bg-surface-2 text-text-muted'"
             >
-              {{ selectedFormat?.isPreviewSource && !concept.approvedAt ? 'Preview' : concept.approvedAt ? 'Final' : 'Pendiente' }}
+              {{ activeVariant?.mode === 'final' ? 'Arte generado' : activeVariant?.mode === 'preview' ? 'Preview legado' : 'Pendiente' }}
             </span>
             <span class="font-mono text-sm text-text-muted">{{ concept.selectedRatio }}</span>
           </div>
@@ -57,7 +57,7 @@
               class="max-h-[520px] w-full object-contain"
             >
             <div v-else class="flex h-64 w-full items-center justify-center text-sm text-text-muted">
-              Sin preview disponible
+              Arte pendiente
             </div>
           </div>
         </div>
@@ -122,32 +122,25 @@
         </div>
 
         <div class="flex-1 space-y-5 overflow-y-auto px-5 py-5">
-          <section v-if="!concept.approvedAt" class="rounded-lg border border-[#7a5b22]/60 bg-[#2a2118]/80 p-4 text-sm text-[#f2d8aa]">
-            <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#ffcc73]">
-              {{ selectedFormat?.isPreviewSource ? 'Preview economico' : 'Formato final pendiente' }}
-            </p>
+          <section v-if="hasPendingFormats" class="rounded-lg border border-[#7a5b22]/60 bg-[#2a2118]/80 p-4 text-sm text-[#f2d8aa]">
+            <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#ffcc73]">Formatos pendientes</p>
             <p class="mt-2 leading-6 text-[#f2d8aa]/80">
-              <template v-if="selectedFormat?.isPreviewSource">
-                Referencia rapida para validar la idea. Si apruebas, generamos todos los formatos en HD.
-              </template>
-              <template v-else>
-                Se generara en alta calidad al aprobar el preview principal.
-              </template>
+              Genera en bloque los ratios que todavia no tienen un arte final activo. Los artes ya generados no se reemplazaran.
             </p>
             <button
               type="button"
               class="mt-3 w-full rounded-lg bg-[#ff8a00] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-              :disabled="loadingFinal"
-              @click="$emit('finalize', concept.id)"
+              :disabled="loadingPendingFormats"
+              @click="$emit('generate-pending-formats', concept.id)"
             >
-              {{ loadingFinal ? 'Generando versiones finales...' : 'Aprobar y generar HD' }}
+              {{ loadingPendingFormats ? 'Generando formatos...' : 'Generar formatos pendientes' }}
             </button>
           </section>
 
           <section v-else class="rounded-lg border border-accent/30 bg-accent/8 p-4 text-sm">
-            <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Concepto aprobado</p>
+            <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Formatos completos</p>
             <p class="mt-2 leading-6 text-text-muted">
-              Generacion final completada. Puedes revisar formatos o regenerar variantes.
+              Todos los formatos tienen un arte final activo. Puedes revisarlos o regenerar variantes.
             </p>
           </section>
 
@@ -165,9 +158,7 @@
             </div>
 
             <p class="text-xs text-text-muted">
-              {{ selectedFormat?.isPreviewSource || concept.approvedAt
-                ? 'Vinculado al historial de variantes del formato.'
-                : 'Se aplicara al aprobar el preview principal.' }}
+              Se usara al generar o regenerar este formato.
             </p>
 
             <div class="rounded-lg border border-border bg-bg/80 px-4 py-3 font-mono text-xs leading-5 text-text-muted">
@@ -177,16 +168,15 @@
             <div class="flex flex-col gap-2 sm:flex-row">
               <AppButton
                 type="button"
-                :disabled="loadingPreview || (!selectedFormat?.isPreviewSource && !concept.approvedAt)"
+                :disabled="loadingVariant || !selectedFormat?.variants.length"
                 @click="$emit('regenerate', concept.id)"
               >
-                {{ loadingPreview ? 'Regenerando...' : concept.approvedAt ? 'Regenerar' : 'Regenerar preview' }}
+                {{ loadingVariant ? 'Regenerando...' : 'Regenerar arte' }}
               </AppButton>
 
               <button
                 type="button"
                 class="rounded border border-border px-4 py-2.5 text-xs text-text-muted transition hover:border-text-muted hover:text-text disabled:opacity-40"
-                :disabled="!selectedFormat?.isPreviewSource && !concept.approvedAt"
                 @click="$emit('reset-prompt', concept.id)"
               >
                 Restaurar original
@@ -219,7 +209,7 @@
                     class="rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em]"
                     :class="variant.mode === 'final' ? 'bg-accent/15 text-accent' : 'text-text-muted'"
                   >
-                    {{ variant.mode === 'final' ? 'Final' : 'Preview' }}
+                    {{ variant.mode === 'final' ? 'Arte' : 'Preview legado' }}
                   </span>
                 </div>
               </button>
@@ -227,7 +217,7 @@
                 v-if="!selectedFormat?.variants.length"
                 class="py-3 text-center text-xs text-text-muted/60"
               >
-                Sin variantes. Se generaran al aprobar.
+                Sin variantes. Se generara al completar los formatos pendientes.
               </p>
             </div>
           </section>
@@ -242,12 +232,24 @@ import type { StudioConcept, StudioConceptFormat, StudioVariant } from '../../..
 
 import AppButton from '~/components/base/AppButton.vue'
 
-defineProps<{
+defineEmits<{
+  discard: [conceptId: string]
+  'cycle-ratio': [conceptId: string]
+  'ratio-selected': [conceptId: string, ratio: string]
+  'generate-pending-formats': [conceptId: string]
+  'open-prompt': [conceptId: string]
+  regenerate: [conceptId: string]
+  'reset-prompt': [conceptId: string]
+  'select-variant': [conceptId: string, ratio: string, variantId: string]
+  'use-style': [conceptId: string]
+}>()
+
+const props = defineProps<{
   concept: StudioConcept
   index: number
   focused: boolean
-  loadingPreview: boolean
-  loadingFinal: boolean
+  loadingVariant: boolean
+  loadingPendingFormats: boolean
   promptPreview: string
   selectedFormat: StudioConceptFormat | undefined
   activeVariant: StudioVariant | undefined
@@ -256,15 +258,9 @@ defineProps<{
   formatTimestamp: (value: string) => string
 }>()
 
-defineEmits<{
-  discard: [conceptId: string]
-  'cycle-ratio': [conceptId: string]
-  'ratio-selected': [conceptId: string, ratio: string]
-  finalize: [conceptId: string]
-  'open-prompt': [conceptId: string]
-  regenerate: [conceptId: string]
-  'reset-prompt': [conceptId: string]
-  'select-variant': [conceptId: string, ratio: string, variantId: string]
-  'use-style': [conceptId: string]
-}>()
+const hasPendingFormats = computed(() => props.concept.formats.some((format) => {
+  const activeVariant = format.variants.find((variant) => variant.id === format.activeVariantId)
+
+  return activeVariant?.mode !== 'final'
+}))
 </script>
