@@ -41,6 +41,15 @@
 
       <form v-else class="space-y-12" @submit.prevent="saveBrief">
         <StudioFieldSection
+          title="Tipo de brief"
+          description="El modo se define al crear el proyecto y no se puede cambiar despues."
+        >
+          <div class="inline-flex rounded-lg border border-border bg-surface-2/50 px-3 py-2 text-sm font-medium text-text">
+            {{ briefModeLabel }}
+          </div>
+        </StudioFieldSection>
+
+        <StudioFieldSection
           title="Marca"
           hint="Opcional"
           description="Si eliges una marca, su contexto guiara el estudio."
@@ -76,25 +85,39 @@
           </AppSelect>
         </StudioFieldSection>
 
-        <StudioFieldSection
-          title="Que queremos que la audiencia piense o haga"
-          description="Define la accion o cambio de percepcion esperado en quien vea el anuncio."
-        >
-          <AppTextarea
-            v-model="form.audienceAction"
-            :rows="4"
-            placeholder="Ej. Que perciban el producto como la opcion premium mas limpia para su rutina diaria."
-          ></AppTextarea>
-        </StudioFieldSection>
+        <template v-if="form.briefMode === 'guided'">
+          <StudioFieldSection
+            title="Que queremos que la audiencia piense o haga"
+            description="Define la accion o cambio de percepcion esperado en quien vea el anuncio."
+          >
+            <AppTextarea
+              v-model="form.audienceAction"
+              :rows="4"
+              placeholder="Ej. Que perciban el producto como la opcion premium mas limpia para su rutina diaria."
+            ></AppTextarea>
+          </StudioFieldSection>
+
+          <StudioFieldSection
+            title="Mensaje clave"
+            description="Claro, util para vender y consistente con el tono visual que generaremos."
+          >
+            <AppTextarea
+              v-model="form.keyMessage"
+              :rows="4"
+              placeholder="Ej. Energia limpia que se nota, sin sacrificar sabor ni sofisticacion."
+            ></AppTextarea>
+          </StudioFieldSection>
+        </template>
 
         <StudioFieldSection
-          title="Mensaje clave"
-          description="Claro, util para vender y consistente con el tono visual que generaremos."
+          v-else
+          title="Brief"
+          description="Edita el brief completo que se enviara a Gemini."
         >
           <AppTextarea
-            v-model="form.keyMessage"
-            :rows="4"
-            placeholder="Ej. Energia limpia que se nota, sin sacrificar sabor ni sofisticacion."
+            v-model="form.plainBrief"
+            :rows="9"
+            placeholder="Ej. Campana para lanzar una bebida energetica premium. Publico: profesionales jovenes. Queremos comunicar energia limpia, sabor sofisticado y practicidad para oficina..."
           ></AppTextarea>
         </StudioFieldSection>
 
@@ -106,6 +129,7 @@
         </StudioFieldSection>
 
         <StudioFieldSection
+          v-if="form.briefMode === 'guided'"
           title="Contexto adicional"
           hint="Opcional"
           description="Detalles del producto, promociones, tono, competidores o cualquier referencia relevante."
@@ -210,6 +234,7 @@ import {
   defaultStudioAspectRatios,
   defaultStudioMediaChannels,
   studioAspectRatios,
+  studioBriefModes,
   studioConceptCounts,
   studioGoals,
   studioMediaChannels,
@@ -233,6 +258,7 @@ const feedbackTone = ref<'success' | 'error'>('success')
 const allowBrandAutoApply = ref(false)
 
 const goals = studioGoals
+const briefModes = studioBriefModes
 const mediaChannels = studioMediaChannels
 const aspectRatios = studioAspectRatios
 const resolutions = studioResolutions
@@ -294,8 +320,12 @@ finally {
 }
 
 const canSave = computed(() => {
-  return Boolean(form.projectName.trim() && form.goal && selectedRatios.value.length && selectedMedia.value.length)
+  const hasBriefContent = form.briefMode === 'plain' ? form.plainBrief.trim() : true
+
+  return Boolean(form.projectName.trim() && form.goal && hasBriefContent && selectedRatios.value.length && selectedMedia.value.length)
 })
+
+const briefModeLabel = computed(() => briefModes.find((mode) => mode.value === form.briefMode)?.label ?? 'Guiado')
 
 const summaryText = computed(() => {
   const creativeStyleLabel = creativeStyleData.value?.styles.find((style) => style.id === form.creativeStyleId)?.name ?? ''

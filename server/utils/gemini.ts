@@ -103,6 +103,14 @@ function buildCreativePrompt(payload: StudioBriefPayload): string {
     }).join(' ')}`
     : 'Assets seleccionados: ninguno.'
   const styleGuideNotes = payload.styleGuideNotes?.trim()
+  const briefMode = payload.briefMode || 'guided'
+  const clientBriefSection = briefMode === 'plain'
+    ? `Brief del cliente: ${payload.plainBrief?.trim() || 'No definido'}.`
+    : [
+      `Accion esperada: ${payload.audienceAction || 'No definida'}.`,
+      `Mensaje clave: ${payload.keyMessage || 'No definido'}.`,
+      `Contexto adicional: ${payload.additionalContext || 'Sin contexto adicional'}.`
+    ].join(' ')
   const creativeStyleSection = selectedGuide
     ? 'Estilo creativo libre: desactivado porque ya existe una guia aplicada.'
     : selectedCreativeStyle
@@ -123,10 +131,8 @@ function buildCreativePrompt(payload: StudioBriefPayload): string {
     `Proyecto: ${payload.projectName}.`,
     `Marca: ${payload.brand || 'Sin marca especificada'}.`,
     `Objetivo: ${payload.goal}.`,
-    `Accion esperada: ${payload.audienceAction || 'No definida'}.`,
-    `Mensaje clave: ${payload.keyMessage || 'No definido'}.`,
     `Canales: ${payload.mediaChannels.join(', ') || 'No definidos'}.`,
-    `Contexto adicional: ${payload.additionalContext || 'Sin contexto adicional'}.`,
+    clientBriefSection,
     assetSection,
     styleGuideSection,
     creativeStyleSection,

@@ -20,6 +20,24 @@
 
       <form class="space-y-12" @submit.prevent="submitBrief">
         <StudioFieldSection
+          title="Tipo de brief"
+          description="El modo queda fijo despues de crear el proyecto."
+        >
+          <div class="grid gap-1 rounded-lg border border-border bg-surface-2/50 p-1 sm:grid-cols-2">
+            <button
+              v-for="mode in briefModes"
+              :key="mode.value"
+              type="button"
+              class="rounded-md px-4 py-2 text-sm font-medium transition"
+              :class="form.briefMode === mode.value ? 'bg-accent/10 text-text' : 'text-text-muted hover:bg-surface-2 hover:text-text'"
+              @click="form.briefMode = mode.value"
+            >
+              {{ mode.label }}
+            </button>
+          </div>
+        </StudioFieldSection>
+
+        <StudioFieldSection
           title="Marca"
           hint="Opcional"
           description="Si eliges una marca, su contexto guiara el estudio."
@@ -55,25 +73,39 @@
           </AppSelect>
         </StudioFieldSection>
 
-        <StudioFieldSection
-          title="Que queremos que la audiencia piense o haga"
-          description="Define la accion o cambio de percepcion esperado en quien vea el anuncio."
-        >
-          <AppTextarea
-            v-model="form.audienceAction"
-            :rows="4"
-            placeholder="Ej. Que perciban el producto como la opcion premium mas limpia para su rutina diaria."
-          />
-        </StudioFieldSection>
+        <template v-if="form.briefMode === 'guided'">
+          <StudioFieldSection
+            title="Que queremos que la audiencia piense o haga"
+            description="Define la accion o cambio de percepcion esperado en quien vea el anuncio."
+          >
+            <AppTextarea
+              v-model="form.audienceAction"
+              :rows="4"
+              placeholder="Ej. Que perciban el producto como la opcion premium mas limpia para su rutina diaria."
+            />
+          </StudioFieldSection>
+
+          <StudioFieldSection
+            title="Mensaje clave"
+            description="Claro, util para vender y consistente con el tono visual que generaremos."
+          >
+            <AppTextarea
+              v-model="form.keyMessage"
+              :rows="4"
+              placeholder="Ej. Energia limpia que se nota, sin sacrificar sabor ni sofisticacion."
+            />
+          </StudioFieldSection>
+        </template>
 
         <StudioFieldSection
-          title="Mensaje clave"
-          description="Claro, util para vender y consistente con el tono visual que generaremos."
+          v-else
+          title="Brief"
+          description="Pega o escribe el brief completo que quieres pasarle a Gemini."
         >
           <AppTextarea
-            v-model="form.keyMessage"
-            :rows="4"
-            placeholder="Ej. Energia limpia que se nota, sin sacrificar sabor ni sofisticacion."
+            v-model="form.plainBrief"
+            :rows="9"
+            placeholder="Ej. Campana para lanzar una bebida energetica premium. Publico: profesionales jovenes. Queremos comunicar energia limpia, sabor sofisticado y practicidad para oficina..."
           />
         </StudioFieldSection>
 
@@ -85,6 +117,7 @@
         </StudioFieldSection>
 
         <StudioFieldSection
+          v-if="form.briefMode === 'guided'"
           title="Contexto adicional"
           hint="Opcional"
           description="Detalles del producto, promociones, tono, competidores o cualquier referencia relevante."
@@ -194,6 +227,7 @@ import {
   createStudioBriefFormState,
   defaultStudioAspectRatios,
   defaultStudioMediaChannels,
+  studioBriefModes,
   studioAspectRatios,
   studioConceptCounts,
   studioGoals,
@@ -212,6 +246,7 @@ const { data: assetData, refresh: refreshAssets } = await useFetch<AssetsRespons
 clearProject()
 
 const goals = studioGoals
+const briefModes = studioBriefModes
 const mediaChannels = studioMediaChannels
 const aspectRatios = studioAspectRatios
 const resolutions = studioResolutions
@@ -255,7 +290,9 @@ const availableStyleGuides = computed(() => {
 })
 
 const canContinue = computed(() => {
-  return Boolean(form.projectName.trim() && form.goal && selectedRatios.value.length && selectedMedia.value.length)
+  const hasBriefContent = form.briefMode === 'plain' ? form.plainBrief.trim() : true
+
+  return Boolean(form.projectName.trim() && form.goal && hasBriefContent && selectedRatios.value.length && selectedMedia.value.length)
 })
 
 const summaryText = computed(() => {

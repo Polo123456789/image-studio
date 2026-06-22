@@ -1,4 +1,4 @@
-import type { StudioBriefPayload } from '../../shared/types/studio'
+import type { StudioBriefMode, StudioBriefPayload } from '../../shared/types/studio'
 
 export const studioGoals = [
   'Aumentar ventas',
@@ -24,11 +24,17 @@ export const studioResolutions = ['1K rapido', '2K estandar', '4K alta calidad']
 export const studioConceptCounts = [2, 3, 4, 6]
 export const defaultStudioMediaChannels = ['Google Ads', 'Instagram Stories']
 export const defaultStudioAspectRatios = ['1:1', '9:16']
+export const studioBriefModes: Array<{ value: StudioBriefMode, label: string }> = [
+  { value: 'guided', label: 'Guiado' },
+  { value: 'plain', label: 'Plano' }
+]
 
 export interface StudioBriefFormState {
+  briefMode: StudioBriefMode
   brandId: number | null
   projectName: string
   goal: string
+  plainBrief: string
   audienceAction: string
   keyMessage: string
   additionalContext: string
@@ -40,9 +46,11 @@ export interface StudioBriefFormState {
 
 export function createStudioBriefFormState(): StudioBriefFormState {
   return {
+    briefMode: 'guided',
     brandId: null,
     projectName: '',
     goal: 'Aumentar ventas',
+    plainBrief: '',
     audienceAction: '',
     keyMessage: '',
     additionalContext: '',
@@ -61,14 +69,18 @@ export function buildStudioBriefPayload(
   selectedAssetIds: number[] = [],
   brandName = ''
 ): StudioBriefPayload {
+  const briefMode = form.briefMode || 'guided'
+
   return {
+    briefMode,
     brandId: form.brandId,
     brand: brandName,
     projectName: form.projectName,
     goal: form.goal,
-    audienceAction: form.audienceAction,
-    keyMessage: form.keyMessage,
-    additionalContext: form.additionalContext,
+    plainBrief: briefMode === 'plain' ? form.plainBrief : '',
+    audienceAction: briefMode === 'guided' ? form.audienceAction : '',
+    keyMessage: briefMode === 'guided' ? form.keyMessage : '',
+    additionalContext: briefMode === 'guided' ? form.additionalContext : '',
     assetIds: [...selectedAssetIds],
     styleGuideId: selectedStyleGuideId,
     styleGuideNotes: form.styleGuideNotes,
@@ -85,14 +97,17 @@ export function applyStudioBriefToForm(
   brief: StudioBriefPayload
 ) {
   const legacyStyleGuideIds = Array.isArray(brief.styleGuideIds) ? brief.styleGuideIds : []
+  const briefMode = brief.briefMode || 'guided'
 
   Object.assign(form, {
+    briefMode,
     brandId: brief.brandId ?? null,
     projectName: brief.projectName,
     goal: brief.goal,
-    audienceAction: brief.audienceAction,
-    keyMessage: brief.keyMessage,
-    additionalContext: brief.additionalContext,
+    plainBrief: brief.plainBrief || '',
+    audienceAction: brief.audienceAction || '',
+    keyMessage: brief.keyMessage || '',
+    additionalContext: brief.additionalContext || '',
     styleGuideNotes: brief.styleGuideNotes || '',
     creativeStyleId: brief.creativeStyleId ?? null,
     resolution: brief.resolution,
@@ -124,6 +139,7 @@ export function summarizeStudioBrief(
       ? `estilo ${creativeStyleLabel.toLowerCase()}`
       : 'estilo aleatorio'
   const assets = selectedAssetCount ? `${selectedAssetCount} assets` : 'sin assets'
+  const mode = form.briefMode === 'plain' ? 'brief plano' : 'brief guiado'
 
-  return `${project} — ${form.goal.toLowerCase()} — ${channels} — ${ratios} — ${styleGuides} — ${assets} — ${form.conceptCount} ${conceptLabel}.`
+  return `${project} — ${mode} — ${form.goal.toLowerCase()} — ${channels} — ${ratios} — ${styleGuides} — ${assets} — ${form.conceptCount} ${conceptLabel}.`
 }

@@ -1,9 +1,11 @@
 import type { StudioBriefPayload, StudioConcept, StudioProject } from '../../shared/types/studio'
 
 const defaultBrief = (): StudioBriefPayload => ({
+  briefMode: 'guided',
   brand: '',
   projectName: '',
   goal: 'Aumentar ventas',
+  plainBrief: '',
   audienceAction: '',
   keyMessage: '',
   additionalContext: '',

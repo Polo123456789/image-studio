@@ -1,8 +1,12 @@
+export type StudioBriefMode = 'guided' | 'plain'
+
 export interface StudioBriefPayload {
+  briefMode?: StudioBriefMode
   brandId: number | null
   brand: string
   projectName: string
   goal: string
+  plainBrief?: string
   audienceAction: string
   keyMessage: string
   additionalContext: string
