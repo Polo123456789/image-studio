@@ -1,9 +1,10 @@
 import type { StudioProjectListResponse } from '../../../shared/types/studio'
 
-import { listStudioProjects } from '../../utils/studio-projects'
+import { listPaginatedStudioProjects } from '../../utils/studio-projects'
 
-export default defineEventHandler((): StudioProjectListResponse => {
-  return {
-    projects: listStudioProjects()
-  }
+export default defineEventHandler((event): StudioProjectListResponse => {
+  const query = getQuery(event)
+  const page = Number(query.page || 1)
+
+  return listPaginatedStudioProjects(page, 6)
 })

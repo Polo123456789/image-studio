@@ -33,12 +33,23 @@ export interface StudioProjectListItem {
   goal: string
   conceptCount: number
   hasFinalVariants: boolean
+  thumbnailUrl: string | null
   createdAt: string
   updatedAt: string
 }
 
+export interface StudioProjectListPagination {
+  page: number
+  pageSize: number
+  totalProjects: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
 export interface StudioProjectListResponse {
   projects: StudioProjectListItem[]
+  pagination: StudioProjectListPagination
 }
 
 export interface StudioProjectResponse {

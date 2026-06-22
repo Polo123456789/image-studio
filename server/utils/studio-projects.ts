@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, isNull } from 'drizzle-orm'
+import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
 
 import type {
   StudioBriefPayload,
@@ -6,6 +6,8 @@ import type {
   StudioConceptFormat,
   StudioProject,
   StudioProjectListItem,
+  StudioProjectListPagination,
+  StudioProjectListResponse,
   StudioVariant
 } from '../../shared/types/studio'
 import { db } from '../db/client'
@@ -47,7 +49,7 @@ function deserializeBrief(value: string): StudioBriefPayload {
   return JSON.parse(value) as StudioBriefPayload
 }
 
-function mapProjectListItem(project: StudioProjectRow): StudioProjectListItem {
+function mapProjectListItem(project: StudioProjectRow, options: { includeThumbnail?: boolean } = {}): StudioProjectListItem {
   const brief = deserializeBrief(project.brief)
   const projectConceptRows = db.select({ id: studioConcepts.id })
     .from(studioConcepts)
@@ -61,13 +63,22 @@ function mapProjectListItem(project: StudioProjectRow): StudioProjectListItem {
         .all()
     : []
   const formatIds = formatRows.map((format) => format.id)
-  const hasFinalVariants = formatIds.length
-    ? Boolean(db.select({ id: studioVariants.id })
+  const finalVariant = formatIds.length
+    ? db.select({ imageUrl: studioVariants.imageUrl })
         .from(studioVariants)
         .where(and(inArray(studioVariants.formatId, formatIds), eq(studioVariants.mode, 'final')))
+        .orderBy(desc(studioVariants.createdAt), desc(studioVariants.id))
         .limit(1)
-        .get())
-    : false
+        .get()
+    : null
+  const fallbackVariant = options.includeThumbnail && !finalVariant && formatIds.length
+    ? db.select({ imageUrl: studioVariants.imageUrl })
+        .from(studioVariants)
+        .where(inArray(studioVariants.formatId, formatIds))
+        .orderBy(desc(studioVariants.createdAt), desc(studioVariants.id))
+        .limit(1)
+        .get()
+    : null
 
   return {
     id: project.id,
@@ -75,7 +86,8 @@ function mapProjectListItem(project: StudioProjectRow): StudioProjectListItem {
     projectName: project.projectName,
     goal: brief.goal,
     conceptCount: projectConceptRows.length,
-    hasFinalVariants,
+    hasFinalVariants: Boolean(finalVariant),
+    thumbnailUrl: options.includeThumbnail ? finalVariant?.imageUrl || fallbackVariant?.imageUrl || null : null,
     createdAt: project.createdAt.toISOString(),
     updatedAt: project.updatedAt.toISOString()
   }
@@ -543,6 +555,38 @@ export function listStudioProjects(): StudioProjectListItem[] {
     .all()
 
   return projects.map(mapProjectListItem)
+}
+
+export function listPaginatedStudioProjects(page: number, pageSize = 6): StudioProjectListResponse {
+  const totalRow = db.select({ count: sql<number>`count(*)` })
+    .from(studioProjects)
+    .get()
+  const totalProjects = Number(totalRow?.count ?? 0)
+  const totalPages = Math.max(1, Math.ceil(totalProjects / pageSize))
+  const safePage = Number.isInteger(page) && page > 0
+    ? Math.min(page, totalPages)
+    : 1
+  const offset = (safePage - 1) * pageSize
+  const projects = db.select()
+    .from(studioProjects)
+    .orderBy(desc(studioProjects.updatedAt), desc(studioProjects.id))
+    .limit(pageSize)
+    .offset(offset)
+    .all()
+
+  const pagination: StudioProjectListPagination = {
+    page: safePage,
+    pageSize,
+    totalProjects,
+    totalPages,
+    hasPreviousPage: safePage > 1,
+    hasNextPage: safePage < totalPages
+  }
+
+  return {
+    projects: projects.map((project) => mapProjectListItem(project, { includeThumbnail: true })),
+    pagination
+  }
 }
 
 export async function createStudioProject(brief: StudioBriefPayload): Promise<StudioProject> {
