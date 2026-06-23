@@ -1,7 +1,7 @@
 import type { StudioProjectResponse, StudioUpdateProjectBriefPayload } from '../../../../../shared/types/studio'
 
 import { requireSlugParam } from '../../../../utils/http'
-import { updateStudioProjectBrief } from '../../../../utils/studio-projects'
+import { updateStudioProjectBrief } from '../../../../utils/studio/repository'
 
 export default defineEventHandler(async (event): Promise<StudioProjectResponse> => {
   const slug = requireSlugParam(event)

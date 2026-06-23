@@ -1,7 +1,7 @@
 import type { StudioConceptMutationResponse, StudioUpdateFormatPromptPayload } from '../../../../../../shared/types/studio'
 
 import { requireSlugParam } from '../../../../../utils/http'
-import { updateStudioConceptFormatPrompt } from '../../../../../utils/studio-projects'
+import { updateStudioConceptFormatPrompt } from '../../../../../utils/studio/repository'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const slug = requireSlugParam(event)

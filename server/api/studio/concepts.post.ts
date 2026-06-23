@@ -2,7 +2,7 @@ import type { StudioConceptResponse, StudioGenerateConceptsPayload } from '../..
 
 import { generateConceptSeeds } from '../../utils/gemini'
 import { createGeneratedConcept } from '../../utils/studio-generation'
-import { saveStudioConcepts, updateStudioProjectBrief } from '../../utils/studio-projects'
+import { saveStudioConcepts, updateStudioProjectBrief } from '../../utils/studio/repository'
 
 export default defineEventHandler(async (event): Promise<StudioConceptResponse> => {
   const payload = await readBody<StudioGenerateConceptsPayload>(event)

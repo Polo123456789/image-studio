@@ -3,7 +3,7 @@ import { extname } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 
 import { resolveAssetFilePath } from '../../../../utils/assets'
-import { getStudioProjectBySlug } from '../../../../utils/studio-projects'
+import { getStudioProjectBySlug } from '../../../../utils/studio/repository'
 
 interface ZipEntry {
   fileName: string

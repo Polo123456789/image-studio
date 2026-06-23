@@ -3,7 +3,7 @@ import type { StudioAppendConceptsPayload, StudioConceptResponse } from '../../.
 import { generateConceptSeeds } from '../../../../../utils/gemini'
 import { requireSlugParam } from '../../../../../utils/http'
 import { createGeneratedConcept } from '../../../../../utils/studio-generation'
-import { appendStudioConcepts, getStudioProjectBySlug } from '../../../../../utils/studio-projects'
+import { appendStudioConcepts, getStudioProjectBySlug } from '../../../../../utils/studio/repository'
 
 export default defineEventHandler(async (event): Promise<StudioConceptResponse> => {
   const slug = requireSlugParam(event)

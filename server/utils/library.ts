@@ -11,7 +11,7 @@ import { desc } from 'drizzle-orm'
 
 import { db } from '../db/client'
 import { studioProjects } from '../db/schema'
-import { listStudioProjects, getStudioProjectBySlug } from './studio-projects'
+import { listStudioProjects, getStudioProjectBySlug } from './studio/repository'
 
 function compareDatesDesc(left: string, right: string) {
   return new Date(right).getTime() - new Date(left).getTime()

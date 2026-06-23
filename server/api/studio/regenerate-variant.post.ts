@@ -1,7 +1,7 @@
 import type { StudioConceptMutationResponse, StudioRegenerateVariantPayload } from '../../../shared/types/studio'
 
 import { generateFinalImage } from '../../utils/gemini'
-import { addStudioConceptVariant, getStudioConceptById, getStudioProjectBySlug } from '../../utils/studio-projects'
+import { addStudioConceptVariant, getStudioConceptById, getStudioProjectBySlug } from '../../utils/studio/repository'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioRegenerateVariantPayload>(event)

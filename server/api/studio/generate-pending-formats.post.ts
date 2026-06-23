@@ -4,7 +4,7 @@ import type {
 } from '../../../shared/types/studio'
 
 import { generateFinalImage } from '../../utils/gemini'
-import { saveStudioConceptFinalVariants, getStudioProjectBySlug } from '../../utils/studio-projects'
+import { saveStudioConceptFinalVariants, getStudioProjectBySlug } from '../../utils/studio/repository'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioGeneratePendingFormatsPayload>(event)

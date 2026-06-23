@@ -1,6 +1,6 @@
 import type { StudioProjectListResponse } from '../../../shared/types/studio'
 
-import { listPaginatedStudioProjects } from '../../utils/studio-projects'
+import { listPaginatedStudioProjects } from '../../utils/studio/repository'
 
 export default defineEventHandler((event): StudioProjectListResponse => {
   const query = getQuery(event)
