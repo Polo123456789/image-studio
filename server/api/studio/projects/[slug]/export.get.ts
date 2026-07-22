@@ -1,8 +1,8 @@
 import { readFile } from 'node:fs/promises'
-import { extname } from 'node:path'
 import { deflateRawSync } from 'node:zlib'
 
 import { resolveAssetFilePath } from '../../../../utils/assets'
+import { getStoredImageExtension, inspectStudioImage, readStoredStudioImage } from '../../../../utils/generated-images'
 import { getStudioProjectBySlug } from '../../../../utils/studio/repository'
 
 interface ZipEntry {
@@ -20,44 +20,17 @@ function normalizeFilePart(value: string) {
 }
 
 function sanitizeRatio(ratio: string) {
-  return ratio.replace(/[^0-9:]+/g, '') || 'sin-ratio'
-}
-
-function inferImageExtension(imageUrl: string) {
-  if (imageUrl.startsWith('data:image/jpeg')) return '.jpg'
-  if (imageUrl.startsWith('data:image/png')) return '.png'
-  if (imageUrl.startsWith('data:image/webp')) return '.webp'
-  if (imageUrl.startsWith('data:image/gif')) return '.gif'
-
-  const parsedExtension = extname(imageUrl.split('?')[0] || '').toLowerCase()
-
-  return parsedExtension || '.png'
+  return ratio
+    .replace(/[^0-9]+/g, 'x')
+    .replace(/^x+|x+$/g, '') || 'sin-ratio'
 }
 
 async function readVariantImage(imageUrl: string) {
-  if (imageUrl.startsWith('data:')) {
-    const match = imageUrl.match(/^data:([^;,]+)?;base64,(.+)$/)
-
-    const base64Data = match?.[2]
-
-    if (!base64Data) {
-      throw createError({
-        statusCode: 500,
-        statusMessage: 'Invalid inline image data'
-      })
-    }
-
-    return Buffer.from(base64Data, 'base64')
+  if (imageUrl.startsWith('data:') || imageUrl.startsWith('/uploads/generated/')) {
+    return readStoredStudioImage(imageUrl)
   }
-
-  if (!imageUrl.startsWith('/')) {
-    throw createError({
-      statusCode: 500,
-      statusMessage: 'Unsupported image URL format'
-    })
-  }
-
-  return await readFile(resolveAssetFilePath(imageUrl))
+  if (imageUrl.startsWith('/uploads/assets/')) return readFile(resolveAssetFilePath(imageUrl))
+  throw createError({ statusCode: 500, statusMessage: 'Formato de imagen no soportado.' })
 }
 
 function crc32(buffer: Buffer) {
@@ -182,7 +155,11 @@ export default defineEventHandler(async (event) => {
     })
 
     for (const { format, variant } of activeFinalVariants) {
-      const extension = inferImageExtension(variant.imageUrl)
+      const data = await readVariantImage(variant.imageUrl)
+      const inspected = await inspectStudioImage(data)
+      const extension = variant.imageUrl.startsWith('/uploads/generated/')
+        ? getStoredImageExtension(variant.imageUrl)
+        : inspected.extension
       const baseFileName = `${normalizeFilePart(concept.title)}-${sanitizeRatio(format.ratio)}`
       let fileName = `${baseFileName}${extension}`
       let duplicateIndex = 2
@@ -195,7 +172,7 @@ export default defineEventHandler(async (event) => {
       usedFileNames.add(fileName)
       entries.push({
         fileName,
-        data: await readVariantImage(variant.imageUrl)
+        data
       })
     }
   }

@@ -4,7 +4,7 @@ import type { StudioBriefPayload, StudioConcept } from '../../../shared/types/st
 import { normalizeStudioBriefPayload, validateStudioConcepts } from './briefs'
 import { createGeneratedVariant, requireStudioVariantMode } from './variants'
 
-globalThis.createError = ((input: { statusCode: number, statusMessage: string }) => {
+;(globalThis as typeof globalThis & { createError: typeof createError }).createError = ((input: { statusCode: number, statusMessage: string }) => {
   const error = new Error(input.statusMessage) as Error & { statusCode: number, statusMessage: string }
 
   error.statusCode = input.statusCode
@@ -55,7 +55,13 @@ const baseConcept: StudioConcept = {
           label: 'Final',
           mode: 'final',
           prompt: 'Prompt',
-          imageUrl: '/uploads/assets/final.png',
+          imageUrl: '/uploads/generated/originals/aa/final.png',
+          thumbnailUrl: '/uploads/generated/thumbnails/aa/final-v1.webp',
+          imageMimeType: null,
+          imageFileSize: null,
+          imageWidth: null,
+          imageHeight: null,
+          imageHash: null,
           createdAt: new Date('2026-01-01T00:00:00.000Z').toISOString()
         }
       ]
@@ -113,10 +119,14 @@ describe('studio variants', () => {
   })
 
   test('creates generated variant labels consistently', () => {
-    expect(createGeneratedVariant('concept-1', '9:16', 2, 'final', 'Prompt', '/image.png', '2K')).toMatchObject({
+    expect(createGeneratedVariant('concept-1', '9:16', 2, 'final', 'Prompt', {
+      imageUrl: '/image.png',
+      thumbnailUrl: '/thumb.webp'
+    }, '2K')).toMatchObject({
       id: 'concept-1-9:16-final-2',
       label: '9:16 final 2K',
-      mode: 'final'
+      mode: 'final',
+      thumbnailUrl: '/thumb.webp'
     })
   })
 })

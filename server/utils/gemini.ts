@@ -259,7 +259,11 @@ export async function reverseEngineerStyleGuide(files: File[], description: stri
     })
   }
 
-  const parts = [
+  const parts: Array<{
+    text: string
+  } | {
+    inlineData: { data: string, mimeType: string }
+  }> = [
     {
       text: [
         settings.styleGuideReverseEngineeringPrompt,
@@ -351,7 +355,7 @@ export async function generateConceptSeeds(payload: StudioBriefPayload): Promise
   return parsed.map((seed) => normalizeCreativeStyleSelection(payload, seed, activeCreativeStyleIds))
 }
 
-export async function generateFinalImage(prompt: string, aspectRatio: string, resolution: string, assetIds: number[] = []): Promise<string> {
+export async function generateFinalImage(prompt: string, aspectRatio: string, resolution: string, assetIds: number[] = []) {
   const ai = getClient()
   const mappedResolution = mapResolution(resolution)
   const assetInlineData = await getAssetInlineDataByIds(assetIds)
@@ -404,5 +408,8 @@ export async function generateFinalImage(prompt: string, aspectRatio: string, re
     })
   }
 
-  return `data:${image.mimeType};base64,${image.data}`
+  return {
+    data: Buffer.from(image.data, 'base64'),
+    declaredMimeType: image.mimeType
+  }
 }

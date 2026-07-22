@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises'
-import { extname, resolve } from 'node:path'
+import { extname, relative, resolve, sep } from 'node:path'
 
 import { GoogleGenAI, Type } from '@google/genai'
 import { asc, eq, inArray } from 'drizzle-orm'
@@ -10,8 +10,9 @@ import { db } from '../db/client'
 import { assets, brands } from '../db/schema'
 import { getBrandOptions } from './brands'
 import { getServerAppSettings } from './settings'
+import { uploadsRootDirectory } from './storage-paths'
 
-export const assetsDirectory = resolve(process.cwd(), 'public/uploads/assets')
+export const assetsDirectory = resolve(uploadsRootDirectory, 'assets')
 const supportedImageMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
 const assetDescriptionModel = 'gemini-3.1-flash-lite'
 
@@ -20,7 +21,16 @@ export function getAssetRelativeFilePath(storedFileName: string) {
 }
 
 export function resolveAssetFilePath(fileUrl: string) {
-  return resolve(process.cwd(), 'public', fileUrl.replace(/^\//, ''))
+  const prefix = '/uploads/assets/'
+  if (!fileUrl.startsWith(prefix)) {
+    throw createError({ statusCode: 400, statusMessage: 'Ruta de asset no soportada.' })
+  }
+  const filePath = resolve(assetsDirectory, fileUrl.slice(prefix.length))
+  const pathRelativeToRoot = relative(assetsDirectory, filePath)
+  if (!pathRelativeToRoot || pathRelativeToRoot.startsWith('..') || pathRelativeToRoot.includes(`..${sep}`)) {
+    throw createError({ statusCode: 400, statusMessage: 'Ruta de asset no permitida.' })
+  }
+  return filePath
 }
 
 function toIsoString(value: Date) {

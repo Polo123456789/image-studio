@@ -3,8 +3,8 @@ import type {
   StudioGeneratePendingFormatsPayload
 } from '../../../shared/types/studio'
 
-import { generateFinalImage } from '../../utils/gemini'
 import { saveStudioConceptFinalVariants, getStudioProjectBySlug } from '../../utils/studio/repository'
+import { generateStoredFinalImage } from '../../utils/studio-generation'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioGeneratePendingFormatsPayload>(event)
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
   const generatedFormats = await Promise.all(pendingFormats.map(async (format) => ({
     ratio: format.ratio,
     promptDraft: format.promptDraft,
-    imageUrl: await generateFinalImage(
+    image: await generateStoredFinalImage(
       format.promptDraft,
       format.ratio,
       project.brief.resolution,

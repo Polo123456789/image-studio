@@ -59,6 +59,10 @@
                 v-if="project.thumbnailUrl"
                 :src="project.thumbnailUrl"
                 :alt="project.projectName"
+                loading="lazy"
+                decoding="async"
+                width="512"
+                height="384"
                 class="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]"
               >
               <div v-else class="flex h-full items-center justify-center">

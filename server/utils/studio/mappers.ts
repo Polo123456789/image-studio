@@ -32,6 +32,12 @@ export function mapConceptRows(
       mode: requireStudioVariantMode(variant.mode),
       prompt: variant.prompt,
       imageUrl: variant.imageUrl,
+      thumbnailUrl: variant.thumbnailUrl,
+      imageMimeType: variant.imageMimeType as StudioVariant['imageMimeType'],
+      imageFileSize: variant.imageFileSize,
+      imageWidth: variant.imageWidth,
+      imageHeight: variant.imageHeight,
+      imageHash: variant.imageHash,
       createdAt: variant.createdAt.toISOString()
     }
     const variants = variantsByFormatId.get(variant.formatId) || []

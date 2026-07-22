@@ -25,6 +25,7 @@
                   v-if="selectedVersion?.imageUrl"
                   :src="selectedVersion.imageUrl"
                   :alt="image.name"
+                  decoding="async"
                   class="max-h-[35vh] w-full rounded-lg object-contain sm:max-h-[78vh]"
                 >
                 <div v-else class="flex h-64 items-center justify-center text-sm text-text-muted">

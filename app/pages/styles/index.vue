@@ -271,12 +271,12 @@ watchEffect(() => {
   if (!data.value) return
 
   if (selectedGuideId.value === null && !creatingGuide.value && data.value.guides.length > 0) {
-    hydrateForm(data.value.guides[0].id)
+    hydrateForm(data.value.guides[0]!.id)
   }
 
   if (selectedGuideId.value !== null && !data.value.guides.some((guide) => guide.id === selectedGuideId.value)) {
     if (data.value.guides.length > 0) {
-      hydrateForm(data.value.guides[0].id)
+      hydrateForm(data.value.guides[0]!.id)
       return
     }
     startCreate()
@@ -401,7 +401,7 @@ async function removeGuide() {
     feedback.value = 'Guia eliminada.'
 
     if (data.value.guides.length > 0) {
-      hydrateForm(data.value.guides[0].id)
+      hydrateForm(data.value.guides[0]!.id)
     } else {
       startCreate()
       feedback.value = 'Guia eliminada.'

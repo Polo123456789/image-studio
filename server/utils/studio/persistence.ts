@@ -11,6 +11,9 @@ import {
 import type { StudioConceptFormatRow, StudioConceptRow, StudioTransaction } from './types'
 import { createGeneratedVariant } from './variants'
 
+type PersistedImage = Pick<StudioConcept['formats'][number]['variants'][number],
+  'imageUrl' | 'thumbnailUrl' | 'imageMimeType' | 'imageFileSize' | 'imageWidth' | 'imageHeight' | 'imageHash'>
+
 function toDate(value?: string | null) {
   return value ? new Date(value) : null
 }
@@ -232,6 +235,12 @@ function upsertVariantRows(
             mode: variant.mode,
             prompt: variant.prompt,
             imageUrl: variant.imageUrl,
+            thumbnailUrl: variant.thumbnailUrl,
+            imageMimeType: variant.imageMimeType ?? null,
+            imageFileSize: variant.imageFileSize ?? null,
+            imageWidth: variant.imageWidth ?? null,
+            imageHeight: variant.imageHeight ?? null,
+            imageHash: variant.imageHash ?? null,
             createdAt: new Date(variant.createdAt)
           })
           .onConflictDoUpdate({
@@ -240,7 +249,13 @@ function upsertVariantRows(
               label: variant.label,
               mode: variant.mode,
               prompt: variant.prompt,
-              imageUrl: variant.imageUrl
+              imageUrl: variant.imageUrl,
+              thumbnailUrl: variant.thumbnailUrl,
+              imageMimeType: variant.imageMimeType ?? null,
+              imageFileSize: variant.imageFileSize ?? null,
+              imageWidth: variant.imageWidth ?? null,
+              imageHeight: variant.imageHeight ?? null,
+              imageHash: variant.imageHash ?? null
             }
           })
           .run()
@@ -369,7 +384,7 @@ export function persistGeneratedVariant(
     ratio: string
     mode: StudioVariantMode
     prompt: string
-    imageUrl: string
+    image: PersistedImage
     resolution?: string
   }
 ) {
@@ -383,7 +398,7 @@ export function persistGeneratedVariant(
       versionNumber,
       input.mode,
       input.prompt,
-      input.imageUrl,
+      input.image,
       input.resolution
     )
 
@@ -395,6 +410,12 @@ export function persistGeneratedVariant(
         mode: variant.mode,
         prompt: variant.prompt,
         imageUrl: variant.imageUrl,
+        thumbnailUrl: variant.thumbnailUrl,
+        imageMimeType: variant.imageMimeType ?? null,
+        imageFileSize: variant.imageFileSize ?? null,
+        imageWidth: variant.imageWidth ?? null,
+        imageHeight: variant.imageHeight ?? null,
+        imageHash: variant.imageHash ?? null,
         createdAt: new Date(variant.createdAt)
       })
       .run()
@@ -420,7 +441,7 @@ export function persistGeneratedVariant(
 export function persistFinalVariants(
   projectId: number,
   conceptRow: StudioConceptRow,
-  generatedFormats: Array<{ ratio: string, promptDraft: string, imageUrl: string, formatRow: StudioConceptFormatRow }>,
+  generatedFormats: Array<{ ratio: string, promptDraft: string, image: PersistedImage, formatRow: StudioConceptFormatRow }>,
   resolution: string
 ) {
   const generatedAt = new Date()
@@ -435,7 +456,7 @@ export function persistFinalVariants(
         versionNumber,
         'final',
         generatedFormat.promptDraft,
-        generatedFormat.imageUrl,
+        generatedFormat.image,
         resolution
       )
 
@@ -447,6 +468,12 @@ export function persistFinalVariants(
           mode: variant.mode,
           prompt: variant.prompt,
           imageUrl: variant.imageUrl,
+          thumbnailUrl: variant.thumbnailUrl,
+          imageMimeType: variant.imageMimeType ?? null,
+          imageFileSize: variant.imageFileSize ?? null,
+          imageWidth: variant.imageWidth ?? null,
+          imageHeight: variant.imageHeight ?? null,
+          imageHash: variant.imageHash ?? null,
           createdAt: new Date(variant.createdAt)
         })
         .run()

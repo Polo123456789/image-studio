@@ -1,7 +1,7 @@
 import type { StudioConceptMutationResponse, StudioRegenerateVariantPayload } from '../../../shared/types/studio'
 
-import { generateFinalImage } from '../../utils/gemini'
 import { addStudioConceptVariant, getStudioConceptById, getStudioProjectBySlug } from '../../utils/studio/repository'
+import { generateStoredFinalImage } from '../../utils/studio-generation'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioRegenerateVariantPayload>(event)
@@ -16,14 +16,14 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
     })
   }
 
-  const imageUrl = await generateFinalImage(payload.prompt, payload.ratio, project.brief.resolution, project.brief.assetIds ?? [])
+  const image = await generateStoredFinalImage(payload.prompt, payload.ratio, project.brief.resolution, project.brief.assetIds ?? [])
   const concept = addStudioConceptVariant(
     payload.projectSlug,
     payload.conceptId,
     payload.ratio,
     'final',
     payload.prompt,
-    imageUrl,
+    image,
     project.brief.resolution
   )
 

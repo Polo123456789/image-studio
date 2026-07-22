@@ -5,7 +5,7 @@ import { drizzle } from 'drizzle-orm/better-sqlite3'
 
 import * as schema from './schema'
 
-export const sqliteFilePath = resolve(process.cwd(), 'server/db/local.db')
+export const sqliteFilePath = resolve(process.cwd(), process.env.IMAGE_STUDIO_DB_PATH || 'server/db/local.db')
 
 function createSqliteConnection() {
   return new Database(sqliteFilePath)

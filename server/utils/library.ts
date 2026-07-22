@@ -1,3 +1,5 @@
+import { and, asc, desc, eq, isNull, or, sql, type SQL } from 'drizzle-orm'
+
 import type {
   LibraryCollectionItem,
   LibraryFolderItem,
@@ -6,125 +8,301 @@ import type {
   LibraryResponse,
   StudioVariantMode
 } from '../../shared/types/studio'
-
-import { desc } from 'drizzle-orm'
-
 import { db } from '../db/client'
-import { studioProjects } from '../db/schema'
-import { listStudioProjects, getStudioProjectBySlug } from './studio/repository'
+import { studioConceptFormats, studioConcepts, studioProjects, studioVariants } from '../db/schema'
+import { requireStudioVariantMode } from './studio/variants'
 
-function compareDatesDesc(left: string, right: string) {
-  return new Date(right).getTime() - new Date(left).getTime()
+export interface LibraryQuery {
+  page?: number
+  pageSize?: number
+  folder?: string
+  collection?: string
+  query?: string
+  sort?: 'recent' | 'versions' | 'project'
 }
 
-function buildCollectionKeys(mode: StudioVariantMode, ratio: string) {
-  return [
-    mode === 'final' ? 'artes' : 'previews-legado',
-    `ratio:${ratio}`,
-    mode === 'final' ? `entrega:${ratio}` : `legado:${ratio}`
-  ]
+const versionCount = sql<number>`(
+  select count(*) from studio_variants as version
+  where version.format_id = ${studioConceptFormats.id}
+)`
+
+const latestVariantCreatedAt = sql<number>`(
+  select max(latest.created_at) from studio_variants as latest
+  where latest.format_id = ${studioConceptFormats.id}
+)`
+const hasFinalVariant = sql<number>`exists (
+  select 1 from studio_variants as final_variant
+  where final_variant.format_id = ${studioConceptFormats.id} and final_variant.mode = 'final'
+)`
+const hasPreviewVariant = sql<number>`exists (
+  select 1 from studio_variants as preview_variant
+  where preview_variant.format_id = ${studioConceptFormats.id} and preview_variant.mode = 'preview'
+)`
+
+const baseSelection = {
+  formatId: studioConceptFormats.id,
+  ratio: studioConceptFormats.ratio,
+  activeVariantKey: studioConceptFormats.activeVariantKey,
+  projectSlug: studioProjects.slug,
+  projectName: studioProjects.projectName,
+  projectUpdatedAt: studioProjects.updatedAt,
+  conceptKey: studioConcepts.conceptKey,
+  conceptTitle: studioConcepts.title,
+  conceptSubtitle: studioConcepts.subtitle,
+  imageUrl: studioVariants.imageUrl,
+  thumbnailUrl: studioVariants.thumbnailUrl,
+  variantKey: studioVariants.variantKey,
+  variantLabel: studioVariants.label,
+  variantMode: studioVariants.mode,
+  variantPrompt: studioVariants.prompt,
+  variantCreatedAt: studioVariants.createdAt,
+  versionCount,
+  latestVariantCreatedAt,
+  hasFinalVariant,
+  hasPreviewVariant
 }
 
-function buildVersionLabel(mode: StudioVariantMode, ratio: string, index: number) {
-  if (mode === 'final') {
-    return index === 0 ? `${ratio} final actual` : `${ratio} final v${index + 1}`
+function baseQuery() {
+  return db.select(baseSelection)
+    .from(studioConceptFormats)
+    .innerJoin(studioConcepts, eq(studioConcepts.id, studioConceptFormats.conceptId))
+    .innerJoin(studioProjects, eq(studioProjects.id, studioConcepts.projectId))
+    .innerJoin(studioVariants, and(
+      eq(studioVariants.formatId, studioConceptFormats.id),
+      eq(studioVariants.variantKey, studioConceptFormats.activeVariantKey)
+    ))
+}
+
+type LibraryRow = ReturnType<ReturnType<typeof baseQuery>['all']>[number]
+
+function collectionConditions(collection?: string): SQL[] {
+  if (!collection) return []
+  const hasMode = (mode: StudioVariantMode) => sql`exists (
+    select 1 from studio_variants as collection_variant
+    where collection_variant.format_id = ${studioConceptFormats.id}
+      and collection_variant.mode = ${mode}
+  )`
+  if (collection === 'artes') return [hasMode('final')]
+  if (collection === 'previews-legado') return [hasMode('preview')]
+  if (collection.startsWith('ratio:')) return [eq(studioConceptFormats.ratio, collection.slice(6))]
+  if (collection.startsWith('entrega:')) {
+    return [hasMode('final'), eq(studioConceptFormats.ratio, collection.slice(8))]
   }
-
-  return index === 0 ? `${ratio} preview legado actual` : `${ratio} preview legado v${index + 1}`
+  if (collection.startsWith('legado:')) {
+    return [hasMode('preview'), eq(studioConceptFormats.ratio, collection.slice(7))]
+  }
+  return [sql`0 = 1`]
 }
 
-function mapProjectToLibraryImages(projectSlug: string): LibraryImageItem[] {
-  const project = getStudioProjectBySlug(projectSlug)
+function buildConditions(input: LibraryQuery) {
+  const conditions: SQL[] = [isNull(studioConcepts.discardedAt)]
+  if (input.folder && input.folder !== 'all') conditions.push(eq(studioProjects.slug, input.folder))
+  conditions.push(...collectionConditions(input.collection))
 
-  return project.concepts.flatMap((concept) => {
-    return concept.formats
-      .filter((format) => format.variants.length > 0)
-      .map((format) => {
-        const versions = [...format.variants]
-          .sort((left, right) => compareDatesDesc(left.createdAt, right.createdAt))
-          .map((variant, index): LibraryImageVersion => ({
-            id: variant.id,
-            label: buildVersionLabel(variant.mode, format.ratio, index),
-            mode: variant.mode,
-            prompt: variant.prompt,
-            imageUrl: variant.imageUrl,
-            createdAt: variant.createdAt
-          }))
+  const search = input.query?.trim()
+  if (search) {
+    const pattern = `%${search.replaceAll('\\', '\\\\').replaceAll('%', '\\%').replaceAll('_', '\\_')}%`
+    conditions.push(or(
+      sql`${studioProjects.projectName} like ${pattern} escape '\\'`,
+      sql`${studioConcepts.title} like ${pattern} escape '\\'`,
+      sql`${studioConcepts.subtitle} like ${pattern} escape '\\'`,
+      sql`exists (
+        select 1 from studio_variants as search_variant
+        where search_variant.format_id = ${studioConceptFormats.id}
+          and search_variant.prompt like ${pattern} escape '\\'
+      )`
+    )!)
+  }
+  return conditions
+}
 
-        const currentVersion = versions[0]
-        const activeVersion = versions.find((version) => version.id === format.activeVariantId) || currentVersion
+function mapCurrentVersion(row: LibraryRow): LibraryImageVersion {
+  return {
+    id: row.variantKey,
+    label: row.variantLabel,
+    mode: requireStudioVariantMode(row.variantMode),
+    prompt: row.variantPrompt,
+    imageUrl: row.imageUrl,
+    thumbnailUrl: row.thumbnailUrl,
+    createdAt: row.variantCreatedAt.toISOString()
+  }
+}
 
-        return {
-          id: `${project.slug}:${concept.id}:${format.ratio}`,
-          name: `${concept.title} ${format.ratio}`,
-          projectSlug: project.slug,
-          projectName: project.brief.projectName,
-          conceptId: concept.id,
-          conceptTitle: concept.title,
-          conceptSubtitle: concept.subtitle,
-          ratio: format.ratio,
-          currentMode: activeVersion?.mode || 'preview',
-          createdAt: versions[versions.length - 1]?.createdAt || project.createdAt,
-          updatedAt: currentVersion?.createdAt || project.updatedAt,
-          currentVersionId: activeVersion?.id || '',
-          versions,
-          collectionKeys: Array.from(new Set(versions.flatMap((version) => buildCollectionKeys(version.mode, format.ratio))))
-        } satisfies LibraryImageItem
-      })
+function mapSummary(row: LibraryRow): LibraryImageItem {
+  const currentVersion = mapCurrentVersion(row)
+  const collectionKeys = [`ratio:${row.ratio}`]
+  if (row.hasFinalVariant) collectionKeys.push('artes', `entrega:${row.ratio}`)
+  if (row.hasPreviewVariant) collectionKeys.push('previews-legado', `legado:${row.ratio}`)
+  return {
+    id: String(row.formatId),
+    name: `${row.conceptTitle} ${row.ratio}`,
+    projectSlug: row.projectSlug,
+    projectName: row.projectName,
+    conceptId: row.conceptKey,
+    conceptTitle: row.conceptTitle,
+    conceptSubtitle: row.conceptSubtitle,
+    ratio: row.ratio,
+    currentMode: currentVersion.mode,
+    createdAt: currentVersion.createdAt,
+    updatedAt: currentVersion.createdAt,
+    currentVersionId: currentVersion.id,
+    versions: [currentVersion],
+    collectionKeys
+  }
+}
+
+function buildCatalog() {
+  const imageCount = sql<number>`count(distinct case when ${studioVariants.id} is not null then ${studioConceptFormats.id} end)`
+  const coverImageUrl = sql<string | null>`(
+    select coalesce(cover_variant.thumbnail_url, cover_variant.image_url)
+    from studio_variants as cover_variant
+    inner join studio_concept_formats as cover_format on cover_format.id = cover_variant.format_id
+    inner join studio_concepts as cover_concept on cover_concept.id = cover_format.concept_id
+    where cover_concept.project_id = ${studioProjects.id}
+      and cover_concept.discarded_at is null
+    order by cover_variant.created_at desc, cover_variant.id desc
+    limit 1
+  )`
+  const folderRows = db.select({
+    id: studioProjects.slug,
+    name: studioProjects.projectName,
+    projectSlug: studioProjects.slug,
+    imageCount,
+    updatedAt: studioProjects.updatedAt,
+    coverImageUrl
   })
-}
-
-export function getLibraryData(): LibraryResponse {
-  const projectRows = db.select()
     .from(studioProjects)
+    .leftJoin(studioConcepts, and(eq(studioConcepts.projectId, studioProjects.id), isNull(studioConcepts.discardedAt)))
+    .leftJoin(studioConceptFormats, eq(studioConceptFormats.conceptId, studioConcepts.id))
+    .leftJoin(studioVariants, eq(studioVariants.formatId, studioConceptFormats.id))
+    .groupBy(studioProjects.id)
     .orderBy(desc(studioProjects.updatedAt), desc(studioProjects.id))
     .all()
-  const projects = listStudioProjects()
-  const images = projectRows.flatMap((project) => mapProjectToLibraryImages(project.slug))
-    .sort((left, right) => compareDatesDesc(left.updatedAt, right.updatedAt))
-
-  const imageCountByProjectSlug = new Map<string, number>()
-  const coverByProjectSlug = new Map<string, string | null>()
-
-  images.forEach((image) => {
-    imageCountByProjectSlug.set(image.projectSlug, (imageCountByProjectSlug.get(image.projectSlug) || 0) + 1)
-
-    if (!coverByProjectSlug.has(image.projectSlug)) {
-      coverByProjectSlug.set(image.projectSlug, image.versions[0]?.imageUrl || null)
-    }
-  })
-
-  const folders: LibraryFolderItem[] = projects.map((project) => ({
-    id: project.slug,
-    name: project.projectName,
-    projectSlug: project.slug,
-    imageCount: imageCountByProjectSlug.get(project.slug) || 0,
-    updatedAt: project.updatedAt,
-    coverImageUrl: coverByProjectSlug.get(project.slug) || null
-  }))
 
   const collectionMap = new Map<string, LibraryCollectionItem>()
-
-  images.forEach((image) => {
-    image.collectionKeys.forEach((key) => {
-      const current = collectionMap.get(key)
-
-      if (current) {
-        current.imageCount += 1
-        return
-      }
-
-      collectionMap.set(key, {
-        id: key,
-        name: key,
-        imageCount: 1
-      })
-    })
+  const collectionRows = db.select({
+    mode: studioVariants.mode,
+    ratio: studioConceptFormats.ratio,
+    imageCount: sql<number>`count(distinct ${studioConceptFormats.id})`
   })
+    .from(studioVariants)
+    .innerJoin(studioConceptFormats, eq(studioConceptFormats.id, studioVariants.formatId))
+    .innerJoin(studioConcepts, eq(studioConcepts.id, studioConceptFormats.conceptId))
+    .where(isNull(studioConcepts.discardedAt))
+    .groupBy(studioVariants.mode, studioConceptFormats.ratio)
+    .all()
+
+  for (const row of collectionRows) {
+    const mode = requireStudioVariantMode(row.mode)
+    const keys = mode === 'final'
+      ? ['artes', `entrega:${row.ratio}`]
+      : ['previews-legado', `legado:${row.ratio}`]
+    for (const key of keys) {
+      const collection = collectionMap.get(key)
+      const count = Number(row.imageCount)
+      if (collection) collection.imageCount += count
+      else collectionMap.set(key, { id: key, name: key, imageCount: count })
+    }
+  }
+
+  const ratioRows = db.select({
+    ratio: studioConceptFormats.ratio,
+    imageCount: sql<number>`count(distinct ${studioConceptFormats.id})`
+  })
+    .from(studioVariants)
+    .innerJoin(studioConceptFormats, eq(studioConceptFormats.id, studioVariants.formatId))
+    .innerJoin(studioConcepts, eq(studioConcepts.id, studioConceptFormats.conceptId))
+    .where(isNull(studioConcepts.discardedAt))
+    .groupBy(studioConceptFormats.ratio)
+    .all()
+  for (const row of ratioRows) {
+    const key = `ratio:${row.ratio}`
+    collectionMap.set(key, { id: key, name: key, imageCount: Number(row.imageCount) })
+  }
+
+  const totalVersionsRow = db.select({ count: sql<number>`count(*)` })
+    .from(studioVariants)
+    .innerJoin(studioConceptFormats, eq(studioConceptFormats.id, studioVariants.formatId))
+    .innerJoin(studioConcepts, eq(studioConcepts.id, studioConceptFormats.conceptId))
+    .where(isNull(studioConcepts.discardedAt))
+    .get()
 
   return {
-    folders,
-    collections: Array.from(collectionMap.values()).sort((left, right) => right.imageCount - left.imageCount || left.name.localeCompare(right.name)),
-    images
+    folders: folderRows.map((row): LibraryFolderItem => ({
+      ...row,
+      imageCount: Number(row.imageCount),
+      updatedAt: row.updatedAt.toISOString()
+    })),
+    collections: Array.from(collectionMap.values())
+      .sort((left, right) => right.imageCount - left.imageCount || left.name.localeCompare(right.name)),
+    totalVersions: Number(totalVersionsRow?.count || 0)
   }
+}
+
+export function getLibraryData(input: LibraryQuery = {}): LibraryResponse {
+  const pageSize = Math.max(1, Math.min(100, Math.floor(input.pageSize || 40)))
+  const conditions = buildConditions(input)
+  const totalRow = db.select({ count: sql<number>`count(*)` })
+    .from(studioConceptFormats)
+    .innerJoin(studioConcepts, eq(studioConcepts.id, studioConceptFormats.conceptId))
+    .innerJoin(studioProjects, eq(studioProjects.id, studioConcepts.projectId))
+    .innerJoin(studioVariants, and(
+      eq(studioVariants.formatId, studioConceptFormats.id),
+      eq(studioVariants.variantKey, studioConceptFormats.activeVariantKey)
+    ))
+    .where(and(...conditions))
+    .get()
+  const totalImages = Number(totalRow?.count || 0)
+  const totalPages = Math.max(1, Math.ceil(totalImages / pageSize))
+  const page = Math.min(totalPages, Math.max(1, Math.floor(input.page || 1)))
+  const query = baseQuery().where(and(...conditions))
+
+  const order = input.sort === 'versions'
+    ? [desc(versionCount), desc(latestVariantCreatedAt), desc(studioVariants.id)]
+    : input.sort === 'project'
+      ? [asc(studioProjects.projectName), desc(latestVariantCreatedAt), desc(studioVariants.id)]
+      : [desc(latestVariantCreatedAt), desc(studioVariants.id)]
+  const rows = query.orderBy(...order).limit(pageSize).offset((page - 1) * pageSize).all()
+  const catalog = buildCatalog()
+
+  return {
+    ...catalog,
+    images: rows.map(mapSummary),
+    pagination: {
+      page,
+      pageSize,
+      totalImages,
+      totalPages,
+      hasPreviousPage: page > 1,
+      hasNextPage: page < totalPages
+    }
+  }
+}
+
+export function getLibraryImageDetail(formatId: number): LibraryImageItem {
+  const summary = baseQuery()
+    .where(and(eq(studioConceptFormats.id, formatId), isNull(studioConcepts.discardedAt)))
+    .get()
+
+  if (!summary) throw createError({ statusCode: 404, statusMessage: 'Imagen no encontrada.' })
+
+  const versions = db.select()
+    .from(studioVariants)
+    .where(eq(studioVariants.formatId, formatId))
+    .orderBy(desc(studioVariants.createdAt), desc(studioVariants.id))
+    .all()
+    .map((variant): LibraryImageVersion => ({
+      id: variant.variantKey,
+      label: variant.label,
+      mode: requireStudioVariantMode(variant.mode),
+      prompt: variant.prompt,
+      imageUrl: variant.imageUrl,
+      thumbnailUrl: variant.thumbnailUrl,
+      createdAt: variant.createdAt.toISOString()
+    }))
+  const image = mapSummary(summary)
+  image.versions = versions
+  image.createdAt = versions.at(-1)?.createdAt || image.createdAt
+  image.updatedAt = versions[0]?.createdAt || image.updatedAt
+  return image
 }

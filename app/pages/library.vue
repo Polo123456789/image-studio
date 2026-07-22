@@ -12,7 +12,7 @@
         </div>
 
         <div class="flex items-center gap-3 text-xs text-text-muted">
-          <span v-if="images.length">{{ images.length }} {{ images.length === 1 ? 'imagen' : 'imagenes' }}</span>
+          <span v-if="pagination.totalImages">{{ pagination.totalImages }} {{ pagination.totalImages === 1 ? 'imagen' : 'imagenes' }}</span>
           <span v-if="totalVersions" class="text-text-muted/50">/</span>
           <span v-if="totalVersions">{{ totalVersions }} versiones</span>
         </div>
@@ -122,13 +122,13 @@
         </div>
 
         <!-- Image grid -->
-        <div v-if="!filteredImages.length" class="rounded-xl border border-border bg-surface px-6 py-14 text-center text-sm text-text-muted">
+        <div v-if="!images.length" class="rounded-xl border border-border bg-surface px-6 py-14 text-center text-sm text-text-muted">
           Sin resultados para este filtro.
         </div>
 
         <div v-else class="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           <button
-            v-for="image in visibleImages"
+            v-for="image in images"
             :key="image.id"
             type="button"
             class="group overflow-hidden rounded-xl border text-left transition"
@@ -137,9 +137,13 @@
           >
             <div class="relative aspect-square overflow-hidden bg-surface-2">
               <img
-                v-if="currentVersion(image)?.imageUrl"
-                :src="currentVersion(image)?.imageUrl"
+                v-if="currentVersion(image)?.thumbnailUrl || currentVersion(image)?.imageUrl"
+                :src="currentVersion(image)?.thumbnailUrl || currentVersion(image)?.imageUrl"
                 :alt="image.name"
+                loading="lazy"
+                decoding="async"
+                width="512"
+                height="512"
                 class="h-full w-full object-cover transition duration-200 group-hover:scale-[1.03]"
               >
               <div v-else class="flex h-full items-center justify-center text-xs text-text-muted">
@@ -164,10 +168,14 @@
         </div>
 
         <div v-if="canLoadMoreImages" class="mt-8 flex justify-center">
-          <AppButton @click="loadMoreImages()">
-            Cargar mas imagenes
+          <AppButton :disabled="loadingMore" @click="loadMoreImages()">
+            {{ loadingMore ? 'Cargando...' : 'Cargar mas imagenes' }}
           </AppButton>
         </div>
+
+        <p v-if="detailErrorMessage" class="mt-4 text-center text-sm text-danger">
+          {{ detailErrorMessage }}
+        </p>
 
         <LibraryImageDetailModal
           :image="selectedImage"
@@ -183,14 +191,16 @@
 </template>
 
 <script setup lang="ts">
-import type { LibraryImageItem, LibraryImageVersion, LibraryResponse } from '../../shared/types/studio'
+import type { LibraryImageDetailResponse, LibraryImageItem, LibraryImageVersion, LibraryResponse } from '../../shared/types/studio'
 
 import AppButton from '~/components/base/AppButton.vue'
 import LibraryImageDetailModal from '~/components/library/LibraryImageDetailModal.vue'
 
 const imagePageSize = 40
 const pending = ref(true)
+const loadingMore = ref(false)
 const errorMessage = ref('')
+const detailErrorMessage = ref('')
 const folders = ref<LibraryResponse['folders']>([])
 const collections = ref<LibraryResponse['collections']>([])
 const images = ref<LibraryImageItem[]>([])
@@ -200,95 +210,74 @@ const selectedImageId = ref<string | null>(null)
 const selectedVersionId = ref<string | null>(null)
 const searchQuery = ref('')
 const sortMode = ref<'recent' | 'versions' | 'project'>('recent')
-const visibleImageCount = ref(imagePageSize)
+const totalVersions = ref(0)
+const selectedImageDetail = ref<LibraryImageItem | null>(null)
+const pagination = ref<LibraryResponse['pagination']>({
+  page: 1,
+  pageSize: imagePageSize,
+  totalImages: 0,
+  totalPages: 1,
+  hasPreviousPage: false,
+  hasNextPage: false
+})
+
+let libraryRequestSequence = 0
 
 await loadLibrary()
 
-async function loadLibrary() {
-  pending.value = true
+async function loadLibrary(page = 1, append = false) {
+  if (append && loadingMore.value) return
+  const requestId = ++libraryRequestSequence
+  if (!append) pending.value = true
+  else loadingMore.value = true
   errorMessage.value = ''
 
   try {
-    const response = await $fetch<LibraryResponse>('/api/library')
+    const response = await $fetch<LibraryResponse>('/api/library', {
+      query: {
+        page,
+        pageSize: imagePageSize,
+        folder: selectedFolderSlug.value,
+        collection: selectedCollectionId.value || undefined,
+        q: searchQuery.value.trim() || undefined,
+        sort: sortMode.value
+      }
+    })
+    if (requestId !== libraryRequestSequence) return
     folders.value = response.folders
     collections.value = response.collections
-    images.value = response.images
+    images.value = append ? [...images.value, ...response.images] : response.images
+    pagination.value = response.pagination
+    totalVersions.value = response.totalVersions
   }
   catch {
-    errorMessage.value = 'No pudimos cargar la biblioteca en este momento.'
+    if (requestId === libraryRequestSequence) errorMessage.value = 'No pudimos cargar la biblioteca en este momento.'
   }
   finally {
-    pending.value = false
-  }
-}
-
-const totalVersions = computed(() => {
-  return images.value.reduce((total, image) => total + image.versions.length, 0)
-})
-
-const filteredImages = computed(() => {
-  const query = searchQuery.value.trim().toLowerCase()
-
-  const filtered = images.value.filter((image) => {
-    const matchesFolder = selectedFolderSlug.value === 'all' || image.projectSlug === selectedFolderSlug.value
-    const matchesCollection = !selectedCollectionId.value || image.collectionKeys.includes(selectedCollectionId.value)
-    const matchesSearch = !query || [
-      image.projectName,
-      image.conceptTitle,
-      image.conceptSubtitle,
-      image.name,
-      ...image.versions.map((version) => version.prompt)
-    ].join(' ').toLowerCase().includes(query)
-
-    return matchesFolder && matchesCollection && matchesSearch
-  })
-
-  return filtered.sort((left, right) => {
-    if (sortMode.value === 'versions') {
-      return right.versions.length - left.versions.length || compareDatesDesc(left.updatedAt, right.updatedAt)
+    if (requestId === libraryRequestSequence) {
+      pending.value = false
+      loadingMore.value = false
     }
-
-    if (sortMode.value === 'project') {
-      return left.projectName.localeCompare(right.projectName) || left.name.localeCompare(right.name)
-    }
-
-    return compareDatesDesc(left.updatedAt, right.updatedAt)
-  })
-})
-
-const visibleImages = computed(() => filteredImages.value.slice(0, visibleImageCount.value))
-const canLoadMoreImages = computed(() => visibleImageCount.value < filteredImages.value.length)
-
-function resetVisibleImages() {
-  visibleImageCount.value = imagePageSize
+  }
 }
 
-function loadMoreImages() {
-  visibleImageCount.value = Math.min(
-    visibleImageCount.value + imagePageSize,
-    filteredImages.value.length
-  )
+const canLoadMoreImages = computed(() => pagination.value.hasNextPage)
+
+async function loadMoreImages() {
+  if (pagination.value.hasNextPage && !loadingMore.value) await loadLibrary(pagination.value.page + 1, true)
 }
 
-watch([selectedFolderSlug, selectedCollectionId, searchQuery, sortMode], resetVisibleImages)
-
-watch(filteredImages, (nextImages) => {
-  if (!nextImages.length) {
-    selectedImageId.value = null
-    selectedVersionId.value = null
-    return
-  }
-
-  const stillVisible = nextImages.find((image) => image.id === selectedImageId.value)
-
-  if (!stillVisible) {
-    selectedImageId.value = null
-    selectedVersionId.value = null
-  }
+let reloadTimer: ReturnType<typeof setTimeout> | undefined
+watch([selectedFolderSlug, selectedCollectionId, searchQuery, sortMode], () => {
+  clearTimeout(reloadTimer)
+  libraryRequestSequence += 1
+  loadingMore.value = false
+  closeDetail()
+  reloadTimer = setTimeout(() => void loadLibrary(), searchQuery.value ? 300 : 0)
 })
 
 const selectedImage = computed(() => {
-  return images.value.find((image) => image.id === selectedImageId.value) || null
+  return selectedImageDetail.value
 })
 
 const selectedVersion = computed(() => {
@@ -303,18 +292,25 @@ function currentVersion(image: LibraryImageItem): LibraryImageVersion | undefine
   return image.versions.find((version) => version.id === image.currentVersionId) || image.versions[0]
 }
 
-function openDetail(image: LibraryImageItem) {
+async function openDetail(image: LibraryImageItem) {
+  detailErrorMessage.value = ''
   selectedImageId.value = image.id
   selectedVersionId.value = image.currentVersionId
+  selectedImageDetail.value = image
+  try {
+    const response = await $fetch<LibraryImageDetailResponse>(`/api/library/images/${image.id}`)
+    if (selectedImageId.value === image.id) selectedImageDetail.value = response.image
+  }
+  catch {
+    if (selectedImageId.value === image.id) detailErrorMessage.value = 'No pudimos cargar el historial de esta imagen.'
+  }
 }
 
 function closeDetail() {
   selectedImageId.value = null
   selectedVersionId.value = null
-}
-
-function compareDatesDesc(left: string, right: string) {
-  return new Date(right).getTime() - new Date(left).getTime()
+  selectedImageDetail.value = null
+  detailErrorMessage.value = ''
 }
 
 function studioLink(image: LibraryImageItem) {
