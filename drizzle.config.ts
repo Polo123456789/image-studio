@@ -7,6 +7,6 @@ export default defineConfig({
   schema: './server/db/schema.ts',
   out: './server/db/migrations',
   dbCredentials: {
-    url: resolve(process.cwd(), 'server/db/local.db')
+    url: resolve(process.cwd(), process.env.IMAGE_STUDIO_DB_PATH || 'server/db/local.db')
   }
 })

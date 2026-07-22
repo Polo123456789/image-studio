@@ -233,6 +233,7 @@ function listProjectSummaries(projects: StudioProjectRow[], includeThumbnail: bo
     ? db.select({
         formatId: studioVariants.formatId,
         imageUrl: studioVariants.imageUrl,
+        thumbnailUrl: studioVariants.thumbnailUrl,
         mode: studioVariants.mode,
         createdAt: studioVariants.createdAt,
         id: studioVariants.id
@@ -259,8 +260,8 @@ function listProjectSummaries(projects: StudioProjectRow[], includeThumbnail: bo
 
     return mapProjectListItem(project, {
       conceptCount,
-      finalVariantUrl: finalVariant?.imageUrl ?? null,
-      fallbackVariantUrl: fallbackVariant?.imageUrl ?? null,
+      finalVariantUrl: finalVariant?.thumbnailUrl || finalVariant?.imageUrl || null,
+      fallbackVariantUrl: fallbackVariant?.thumbnailUrl || fallbackVariant?.imageUrl || null,
       includeThumbnail
     })
   })
@@ -409,7 +410,8 @@ export function addStudioConceptVariant(
   ratio: string,
   mode: StudioVariantMode,
   prompt: string,
-  imageUrl: string,
+  image: Pick<StudioConcept['formats'][number]['variants'][number],
+    'imageUrl' | 'thumbnailUrl' | 'imageMimeType' | 'imageFileSize' | 'imageWidth' | 'imageHeight' | 'imageHash'>,
   resolution?: string
 ): StudioConcept {
   const project = getStudioProjectRowBySlug(slug)
@@ -421,7 +423,7 @@ export function addStudioConceptVariant(
     ratio,
     mode,
     prompt,
-    imageUrl,
+    image,
     resolution
   })
 
@@ -431,7 +433,12 @@ export function addStudioConceptVariant(
 export function saveStudioConceptFinalVariants(
   slug: string,
   conceptId: string,
-  generatedFormats: Array<{ ratio: string, promptDraft: string, imageUrl: string }>,
+  generatedFormats: Array<{
+    ratio: string
+    promptDraft: string
+    image: Pick<StudioConcept['formats'][number]['variants'][number],
+      'imageUrl' | 'thumbnailUrl' | 'imageMimeType' | 'imageFileSize' | 'imageWidth' | 'imageHeight' | 'imageHash'>
+  }>,
   resolution: string
 ): StudioConcept {
   const project = getStudioProjectRowBySlug(slug)

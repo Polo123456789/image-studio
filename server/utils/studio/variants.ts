@@ -21,7 +21,7 @@ export function createGeneratedVariant(
   versionNumber: number,
   mode: StudioVariantMode,
   prompt: string,
-  imageUrl: string,
+  image: Pick<StudioVariant, 'imageUrl' | 'thumbnailUrl' | 'imageMimeType' | 'imageFileSize' | 'imageWidth' | 'imageHeight' | 'imageHash'>,
   resolution?: string
 ): StudioVariant {
   const id = `${conceptId}-${ratio}-${mode}-${versionNumber}`
@@ -34,7 +34,7 @@ export function createGeneratedVariant(
     label,
     mode,
     prompt,
-    imageUrl,
+    ...image,
     createdAt: new Date().toISOString()
   }
 }

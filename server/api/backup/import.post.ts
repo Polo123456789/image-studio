@@ -1,15 +1,18 @@
 import type { BackupImportResponse } from '../../../shared/types/backup'
 
-import { importFullBackupArchive, readBackupFileFromFormData } from '../../utils/backup'
+import { importFullBackupArchive, stageBackupFileFromRequest } from '../../utils/backup'
 import { requireSameOriginRequest } from '../../utils/http'
 
 export default defineEventHandler(async (event): Promise<BackupImportResponse> => {
   requireSameOriginRequest(event)
 
-  const formData = await readFormData(event)
-  const backup = await readBackupFileFromFormData(formData)
-
-  await importFullBackupArchive(backup)
+  const backup = await stageBackupFileFromRequest(event)
+  try {
+    await importFullBackupArchive(backup)
+  }
+  finally {
+    await backup.cleanup()
+  }
 
   return {
     restored: true

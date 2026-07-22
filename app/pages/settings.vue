@@ -117,7 +117,7 @@
             <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Respaldo</p>
             <h3 class="mt-2 text-xl text-text">Exportar e importar todo el estudio</h3>
             <p class="mt-2 max-w-2xl text-sm leading-6 text-text-muted">
-              El backup incluye base local, assets subidos y la Gemini API key. Importar un backup reemplaza por completo el estado actual del estudio.
+              El backup incluye base local, assets, referencias, imagenes generadas y la Gemini API key. Importarlo reemplaza por completo el estado actual del estudio.
             </p>
           </div>
 
@@ -213,7 +213,7 @@
               <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-danger">Accion destructiva</p>
               <h3 class="mt-2 text-lg text-text">Sobrescribir estudio completo</h3>
               <p class="mt-2 text-sm leading-6 text-text-muted">
-                Vas a reemplazar base, assets, marcas, proyectos, prompts y Gemini API key con el contenido del backup seleccionado.
+                Vas a reemplazar base, assets, referencias, imagenes generadas, marcas, proyectos, prompts y Gemini API key con el contenido del backup seleccionado.
               </p>
             </div>
 

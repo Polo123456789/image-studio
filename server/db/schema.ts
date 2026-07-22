@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
+import { index, integer, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 export const appSettings = sqliteTable('app_settings', {
   id: integer('id').primaryKey({ autoIncrement: true }),
@@ -111,9 +111,16 @@ export const studioVariants = sqliteTable('studio_variants', {
   mode: text('mode').notNull(),
   prompt: text('prompt').notNull(),
   imageUrl: text('image_url').notNull(),
+  thumbnailUrl: text('thumbnail_url'),
+  imageMimeType: text('image_mime_type'),
+  imageFileSize: integer('image_file_size'),
+  imageWidth: integer('image_width'),
+  imageHeight: integer('image_height'),
+  imageHash: text('image_hash'),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()
 }, (table) => ({
-  formatVariantUnique: uniqueIndex('studio_variants_format_id_variant_key_unique').on(table.formatId, table.variantKey)
+  formatVariantUnique: uniqueIndex('studio_variants_format_id_variant_key_unique').on(table.formatId, table.variantKey),
+  imageHashIndex: index('studio_variants_image_hash_index').on(table.imageHash)
 }))
 
 export const brandsRelations = relations(brands, ({ many, one }) => ({

@@ -8,20 +8,31 @@ import type {
   StudioVariant
 } from '../../shared/types/studio'
 import { generateFinalImage } from './gemini'
+import { storeStudioImage, type StoredStudioImage } from './generated-images'
+
+export async function generateStoredFinalImage(
+  prompt: string,
+  aspectRatio: string,
+  resolution: string,
+  assetIds: number[] = []
+) {
+  const generated = await generateFinalImage(prompt, aspectRatio, resolution, assetIds)
+  return storeStudioImage(generated.data)
+}
 
 function createFinalVariant(
   conceptId: string,
   ratio: string,
   prompt: string,
   resolution: string,
-  imageUrl: string
+  image: StoredStudioImage
 ): StudioVariant {
   return {
     id: `${conceptId}-${ratio}-final-1`,
     label: `${ratio} final ${resolution}`,
     mode: 'final',
     prompt,
-    imageUrl,
+    ...image,
     createdAt: new Date().toISOString()
   }
 }
@@ -39,7 +50,7 @@ export async function createGeneratedConcept(brief: StudioBriefPayload, seed: St
   const firstFormat = formats[0]
 
   if (firstFormat) {
-    const imageUrl = await generateFinalImage(
+    const image = await generateStoredFinalImage(
       firstFormat.promptDraft,
       firstFormat.ratio,
       brief.resolution,
@@ -50,7 +61,7 @@ export async function createGeneratedConcept(brief: StudioBriefPayload, seed: St
       firstFormat.ratio,
       firstFormat.promptDraft,
       brief.resolution,
-      imageUrl
+      image
     )
 
     firstFormat.variants = [variant]

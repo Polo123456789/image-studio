@@ -145,12 +145,22 @@ function validateVariant(variant: StudioVariant, conceptId: string, ratio: strin
     throwBadRequest('La fecha de la variante es invalida.')
   }
 
+  if (!variant.imageUrl.startsWith('/uploads/generated/') || !variant.thumbnailUrl?.startsWith('/uploads/generated/')) {
+    throwBadRequest('Las imagenes de una variante solo pueden ser creadas por el servidor.')
+  }
+
   return {
     ...variant,
     id: variant.id.trim() || `${conceptId}-${ratio}-${variant.mode}`,
     label: variant.label.trim(),
     prompt: variant.prompt.trim(),
-    imageUrl: variant.imageUrl.trim()
+    imageUrl: variant.imageUrl.trim(),
+    thumbnailUrl: variant.thumbnailUrl?.trim() || null,
+    imageMimeType: variant.imageMimeType || null,
+    imageFileSize: variant.imageFileSize ?? null,
+    imageWidth: variant.imageWidth ?? null,
+    imageHeight: variant.imageHeight ?? null,
+    imageHash: variant.imageHash?.trim() || null
   }
 }
 

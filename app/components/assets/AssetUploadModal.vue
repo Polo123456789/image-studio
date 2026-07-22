@@ -201,7 +201,7 @@ watch(selectedUploadFiles, (newFiles) => {
   }
 
   if (newFiles.length === 1) {
-    filePreviewUrl.value = URL.createObjectURL(newFiles[0])
+    filePreviewUrl.value = URL.createObjectURL(newFiles[0]!)
   }
 })
 
@@ -244,7 +244,7 @@ function setUploadFiles(files: File[]) {
   uploadModalError.value = ''
 
   if (imageFiles.length === 1 && !uploadName.value.trim()) {
-    uploadName.value = prettifyAssetFilename(imageFiles[0].name)
+    uploadName.value = prettifyAssetFilename(imageFiles[0]!.name)
   }
 
   if (imageFiles.length > 1) {
@@ -260,7 +260,7 @@ async function uploadFiles(files: File[]) {
   }
 
   if (files.length === 1) {
-    formData.append('name', uploadName.value.trim() || prettifyAssetFilename(files[0].name))
+    formData.append('name', uploadName.value.trim() || prettifyAssetFilename(files[0]!.name))
   }
 
   if (uploadBrandId.value) {

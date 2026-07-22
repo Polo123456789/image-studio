@@ -52,7 +52,9 @@
           <div class="mx-auto flex max-h-[520px] items-center justify-center overflow-hidden rounded-lg border border-white/[0.06]">
             <img
               v-if="activeVariant?.imageUrl"
-              :src="activeVariant.imageUrl"
+              :src="activeVariant.thumbnailUrl || activeVariant.imageUrl"
+              loading="lazy"
+              decoding="async"
               :alt="`${concept.title} ${concept.selectedRatio}`"
               class="max-h-[520px] w-full object-contain"
             >
@@ -75,7 +77,9 @@
               <div class="overflow-hidden rounded border border-white/[0.04] bg-[#0a0a0a]">
                 <img
                   v-if="activeVariantByRatio[format.ratio]?.imageUrl"
-                  :src="activeVariantByRatio[format.ratio]?.imageUrl"
+                  :src="activeVariantByRatio[format.ratio]?.thumbnailUrl || activeVariantByRatio[format.ratio]?.imageUrl"
+                  loading="lazy"
+                  decoding="async"
                   :alt="`${concept.title} ${format.ratio}`"
                   class="aspect-[4/3] w-full object-cover"
                 >

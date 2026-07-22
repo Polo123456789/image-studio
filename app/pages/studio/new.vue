@@ -333,7 +333,7 @@ watch(() => form.brandId, (brandId) => {
   } else if (selectedStyleGuideId.value !== null) {
     const selectedGuide = availableStyleGuides.value.find((guide) => guide.id === selectedStyleGuideId.value)
 
-    if (selectedGuide?.brandId !== null && selectedGuide.brandId !== brandId) {
+    if (selectedGuide && selectedGuide.brandId !== null && selectedGuide.brandId !== brandId) {
       selectedStyleGuideId.value = null
     }
   }

@@ -2,6 +2,7 @@ import type { StudioBriefPayload, StudioConcept, StudioProject } from '../../sha
 
 const defaultBrief = (): StudioBriefPayload => ({
   briefMode: 'guided',
+  brandId: null,
   brand: '',
   projectName: '',
   goal: 'Aumentar ventas',

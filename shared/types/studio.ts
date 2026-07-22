@@ -113,6 +113,12 @@ export interface StudioVariant {
   mode: StudioVariantMode
   prompt: string
   imageUrl: string
+  thumbnailUrl: string | null
+  imageMimeType?: 'image/jpeg' | 'image/png' | null
+  imageFileSize?: number | null
+  imageWidth?: number | null
+  imageHeight?: number | null
+  imageHash?: string | null
   createdAt: string
 }
 
@@ -178,6 +184,7 @@ export interface LibraryImageVersion {
   mode: StudioVariantMode
   prompt: string
   imageUrl: string
+  thumbnailUrl: string | null
   createdAt: string
 }
 
@@ -217,4 +224,19 @@ export interface LibraryResponse {
   folders: LibraryFolderItem[]
   collections: LibraryCollectionItem[]
   images: LibraryImageItem[]
+  pagination: LibraryPagination
+  totalVersions: number
+}
+
+export interface LibraryPagination {
+  page: number
+  pageSize: number
+  totalImages: number
+  totalPages: number
+  hasPreviousPage: boolean
+  hasNextPage: boolean
+}
+
+export interface LibraryImageDetailResponse {
+  image: LibraryImageItem
 }

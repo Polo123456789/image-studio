@@ -11,10 +11,11 @@ import type {
 } from "../../shared/types/creative-styles";
 import { db } from "../db/client";
 import { creativeStyles } from "../db/schema";
+import { uploadsRootDirectory } from "./storage-paths";
 
 const creativeStyleReferencesDirectory = resolve(
-	process.cwd(),
-	"public/uploads/creative-styles",
+	uploadsRootDirectory,
+	"creative-styles",
 );
 const supportedCreativeStyleMimeTypes = new Set([
 	"image/jpeg",

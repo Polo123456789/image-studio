@@ -349,13 +349,13 @@ watchEffect(() => {
   }
 
   if (selectedBrandId.value === null && !creatingBrand.value && data.value.brands.length > 0) {
-    hydrateForm(data.value.brands[0].id)
+    hydrateForm(data.value.brands[0]!.id)
     return
   }
 
   if (selectedBrandId.value !== null && !data.value.brands.some((brand) => brand.id === selectedBrandId.value)) {
     if (data.value.brands.length > 0) {
-      hydrateForm(data.value.brands[0].id)
+      hydrateForm(data.value.brands[0]!.id)
       return
     }
 
@@ -488,7 +488,7 @@ async function removeBrand() {
     feedback.value = 'Marca eliminada. Sus recursos quedaron disponibles como globales.'
 
     if (data.value.brands.length > 0) {
-      hydrateForm(data.value.brands[0].id)
+      hydrateForm(data.value.brands[0]!.id)
     } else {
       startCreate()
     }
