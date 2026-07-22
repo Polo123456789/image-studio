@@ -186,7 +186,9 @@ async function mergeDirectoryContents(sourcePath: string, targetPath: string) {
 }
 
 function assertSafeZipPath(entryName: string) {
-  if (!entryName || entryName.includes('..') || entryName.includes('\\') || entryName.startsWith('/')) {
+  const hasParentSegment = entryName.split('/').some(segment => segment === '..')
+
+  if (!entryName || hasParentSegment || entryName.includes('\\') || entryName.startsWith('/')) {
     throw createError({
       statusCode: 400,
       statusMessage: 'El backup contiene rutas no permitidas.'

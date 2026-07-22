@@ -11,9 +11,12 @@ import type {
 } from "../../shared/types/creative-styles";
 import { db } from "../db/client";
 import { creativeStyles } from "../db/schema";
-import { uploadsRootDirectory } from "./storage-paths";
+import {
+	resolvePathInsideDirectory,
+	uploadsRootDirectory,
+} from "./storage-paths";
 
-const creativeStyleReferencesDirectory = resolve(
+export const creativeStyleReferencesDirectory = resolve(
 	uploadsRootDirectory,
 	"creative-styles",
 );
@@ -140,8 +143,23 @@ function getCreativeStyleReferenceUrl(storedFileName: string) {
 	return `/uploads/creative-styles/${storedFileName}`;
 }
 
-function resolveCreativeStyleReferencePath(fileUrl: string) {
-	return resolve(process.cwd(), "public", fileUrl.replace(/^\//, ""));
+export function resolveCreativeStyleReferencePath(fileUrl: string) {
+	const prefix = "/uploads/creative-styles/";
+	const resolvedPath = fileUrl.startsWith(prefix)
+		? resolvePathInsideDirectory(
+			creativeStyleReferencesDirectory,
+			fileUrl.slice(prefix.length),
+		)
+		: null;
+
+	if (!resolvedPath) {
+		throw createError({
+			statusCode: 404,
+			statusMessage: "Imagen de referencia no encontrada.",
+		});
+	}
+
+	return resolvedPath;
 }
 
 function normalizeCreativeStyleRecord(

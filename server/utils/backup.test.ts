@@ -35,7 +35,7 @@ describe('backup v2', () => {
       writeFile(join(uploadsRoot, 'generated', 'originals', 'aa', 'original.png'), original),
       writeFile(join(uploadsRoot, 'generated', 'thumbnails', 'aa', 'thumb.webp'), thumbnail),
       writeFile(join(uploadsRoot, 'assets', 'asset.png'), asset),
-      writeFile(join(uploadsRoot, 'creative-styles', 'reference.jpg'), reference)
+      writeFile(join(uploadsRoot, 'creative-styles', 'reference..jpg'), reference)
     ])
 
     execFileSync('bun', ['run', 'db:migrate'], {
@@ -47,7 +47,7 @@ describe('backup v2', () => {
     sqlite.query("insert into studio_projects values (1, 'proyecto', 'Original', '{}', 1, 1)").run()
     sqlite.query("insert into assets values (1, 'Asset', 'asset.png', '/uploads/assets/asset.png', 'image/png', ?, ?, '', '[]', null, 1, 1)")
       .run(asset.length, createHash('sha256').update(asset).digest('hex'))
-    sqlite.query("insert into creative_styles values (1, 'Estilo', '', '/uploads/creative-styles/reference.jpg', 0, 1, 1, 1)").run()
+    sqlite.query("insert into creative_styles values (1, 'Estilo', '', '/uploads/creative-styles/reference..jpg', 0, 1, 1, 1)").run()
     sqlite.query(`
       insert into studio_concepts (
         id, project_id, concept_key, title, subtitle, rationale, approved_at,
