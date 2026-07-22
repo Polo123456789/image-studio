@@ -25,15 +25,13 @@ Mover los originales generados fuera de SQLite sin perder datos, conservar cada 
 5. Compactar con `VACUUM INTO`, validar la DB nueva y reemplazarla atomicamente.
 6. Arrancar, ejecutar smoke tests y conservar el backup para rollback conjunto de DB, uploads y release.
 
-Comandos de datos dentro de la ventana, ejecutados desde el release desplegado:
+Comando unico dentro de la ventana, ejecutado desde el release desplegado:
 
 ```bash
-bun run db:migrate
-bun run db:migrate-images -- --batch=10
-bun run db:verify-images
+bun run db:migrate-production
 ```
 
-La compactacion debe hacerse hacia un archivo nuevo con `VACUUM INTO`, validarlo y solo entonces intercambiarlo por `local.db` mientras el servicio sigue detenido.
+Para rutas externas se puede usar `bun run db:migrate-production -- --db=/data/image-studio/local.db --uploads=/data/image-studio/uploads --backup-root=/data/backups`. El comando pide confirmar que todas las instancias estan detenidas y luego ejecuta preflight de espacio, backup verificado de SQLite y uploads, migracion de esquema e imagenes, verificacion, compactacion con `VACUUM INTO`, reemplazo atomico y verificacion final. Si una etapa falla, se detiene y conserva la ruta del backup para rollback.
 
 ## Criterios de aceptacion
 

@@ -12,6 +12,7 @@
     "postinstall": "nuxt prepare",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:migrate-production": "node scripts/migrate-production.mjs",
     "db:migrate-images": "node scripts/migrate-studio-images.mjs",
     "db:verify-images": "node scripts/migrate-studio-images.mjs --verify",
     "db:studio": "drizzle-kit studio"
