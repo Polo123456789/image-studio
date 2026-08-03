@@ -126,6 +126,7 @@ export interface StudioConceptFormat {
   ratio: string
   isPreviewSource: boolean
   promptDraft: string
+  generationError: string | null
   variants: StudioVariant[]
   activeVariantId: string | null
 }

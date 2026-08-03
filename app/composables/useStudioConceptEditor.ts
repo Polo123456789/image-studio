@@ -406,7 +406,7 @@ export async function useStudioConceptEditor() {
 		const concept = concepts.value.find((item) => item.id === conceptId);
 		const format = concept ? selectedFormat(concept) : null;
 
-		if (!concept || !format || !format.variants.length) {
+		if (!concept || !format) {
 			return;
 		}
 
@@ -717,6 +717,10 @@ export async function useStudioConceptEditor() {
 		_concept: StudioConcept,
 		format: StudioConceptFormat,
 	) {
+		if (format.generationError) {
+			return "Error";
+		}
+
 		const variant = activeVariantForFormat(format);
 
 		if (variant?.mode === "final") {

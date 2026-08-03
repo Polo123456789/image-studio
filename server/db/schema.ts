@@ -96,6 +96,7 @@ export const studioConceptFormats = sqliteTable('studio_concept_formats', {
   ratio: text('ratio').notNull(),
   isPreviewSource: integer('is_preview_source', { mode: 'boolean' }).notNull().default(false),
   promptDraft: text('prompt_draft').notNull(),
+  generationError: text('generation_error'),
   activeVariantKey: text('active_variant_key'),
   createdAt: integer('created_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: integer('updated_at', { mode: 'timestamp' }).$defaultFn(() => new Date()).notNull()

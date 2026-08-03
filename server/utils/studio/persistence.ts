@@ -14,6 +14,13 @@ import { createGeneratedVariant } from './variants'
 type PersistedImage = Pick<StudioConcept['formats'][number]['variants'][number],
   'imageUrl' | 'thumbnailUrl' | 'imageMimeType' | 'imageFileSize' | 'imageWidth' | 'imageHeight' | 'imageHash'>
 
+export interface StudioFormatGenerationOutcome {
+  ratio: string
+  promptDraft: string
+  image: PersistedImage | null
+  generationError: string | null
+}
+
 function toDate(value?: string | null) {
   return value ? new Date(value) : null
 }
@@ -142,6 +149,7 @@ function upsertFormatRows(
           ratio: format.ratio,
           isPreviewSource: format.isPreviewSource,
           promptDraft: format.promptDraft,
+          generationError: format.generationError,
           activeVariantKey: format.activeVariantId,
           createdAt: now,
           updatedAt: now
@@ -151,6 +159,7 @@ function upsertFormatRows(
           set: {
             isPreviewSource: format.isPreviewSource,
             promptDraft: format.promptDraft,
+            generationError: format.generationError,
             activeVariantKey: format.activeVariantId,
             updatedAt: now
           }
@@ -377,7 +386,7 @@ export function persistDiscardedConcept(projectId: number, conceptRowId: number)
 
 export function persistGeneratedVariant(
   projectId: number,
-  conceptRowId: number,
+  conceptRow: StudioConceptRow,
   formatRowId: number,
   input: {
     conceptId: string
@@ -423,7 +432,39 @@ export function persistGeneratedVariant(
     tx.update(studioConceptFormats)
       .set({
         promptDraft: input.prompt,
+        generationError: null,
         activeVariantKey: variant.id,
+        updatedAt: now
+      })
+      .where(eq(studioConceptFormats.id, formatRowId))
+      .run()
+
+    tx.update(studioConcepts)
+      .set({
+        approvedAt: conceptRow.approvedAt || now,
+        updatedAt: now
+      })
+      .where(eq(studioConcepts.id, conceptRow.id))
+      .run()
+
+    touchProject(tx, projectId, now)
+  })
+}
+
+export function persistFormatGenerationError(
+  projectId: number,
+  conceptRowId: number,
+  formatRowId: number,
+  promptDraft: string,
+  generationError: string
+) {
+  const now = new Date()
+
+  db.transaction((tx) => {
+    tx.update(studioConceptFormats)
+      .set({
+        promptDraft,
+        generationError,
         updatedAt: now
       })
       .where(eq(studioConceptFormats.id, formatRowId))
@@ -441,14 +482,29 @@ export function persistGeneratedVariant(
 export function persistFinalVariants(
   projectId: number,
   conceptRow: StudioConceptRow,
-  generatedFormats: Array<{ ratio: string, promptDraft: string, image: PersistedImage, formatRow: StudioConceptFormatRow }>,
+  generatedFormats: Array<StudioFormatGenerationOutcome & { formatRow: StudioConceptFormatRow }>,
   resolution: string
 ) {
   const generatedAt = new Date()
+  const hasSuccessfulGeneration = generatedFormats.some((generatedFormat) => generatedFormat.image)
 
   db.transaction((tx) => {
     generatedFormats.forEach((generatedFormat) => {
       const formatRow = generatedFormat.formatRow
+
+      if (!generatedFormat.image) {
+        tx.update(studioConceptFormats)
+          .set({
+            promptDraft: generatedFormat.promptDraft,
+            generationError: generatedFormat.generationError || 'No se pudo generar esta imagen.',
+            updatedAt: generatedAt
+          })
+          .where(eq(studioConceptFormats.id, formatRow.id))
+          .run()
+
+        return
+      }
+
       const versionNumber = countFormatVariants(tx, formatRow.id) + 1
       const variant = createGeneratedVariant(
         conceptRow.conceptKey,
@@ -481,6 +537,7 @@ export function persistFinalVariants(
       tx.update(studioConceptFormats)
         .set({
           promptDraft: generatedFormat.promptDraft,
+          generationError: null,
           activeVariantKey: variant.id,
           updatedAt: generatedAt
         })
@@ -490,7 +547,7 @@ export function persistFinalVariants(
 
     tx.update(studioConcepts)
       .set({
-        approvedAt: conceptRow.approvedAt || generatedAt,
+        approvedAt: conceptRow.approvedAt || (hasSuccessfulGeneration ? generatedAt : null),
         updatedAt: generatedAt
       })
       .where(eq(studioConcepts.id, conceptRow.id))

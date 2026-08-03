@@ -29,7 +29,7 @@ const maxBackupUploadBytes = positiveLimit(process.env.IMAGE_STUDIO_BACKUP_MAX_B
 const maxBackupEntryCount = positiveLimit(process.env.IMAGE_STUDIO_BACKUP_MAX_ENTRIES, 100_000)
 const maxBackupExpandedBytes = positiveLimit(process.env.IMAGE_STUDIO_BACKUP_MAX_EXPANDED_BYTES, 10 * 1024 * 1024 * 1024)
 const allowedZipPrefixes = ['manifest.json', 'db/local.db', 'uploads/']
-const expectedSchemaHash = '4382c25fb2e2cdc720c50476b3ec98361f8cc547da09aba42a217a8088d85de2'
+const expectedSchemaHash = '995039db0d088039879693c6c60299c89f32e13ac230398a7ace9dd7ced656eb'
 
 interface BackupManifest {
   app: 'image-studio'
@@ -319,7 +319,7 @@ function validateExtractedSqliteFile(sqlitePath: string) {
       creative_styles: ['id', 'name', 'description', 'reference_image_path', 'position', 'is_active', 'created_at', 'updated_at'],
       studio_projects: ['id', 'slug', 'project_name', 'brief', 'created_at', 'updated_at'],
       studio_concepts: ['id', 'project_id', 'concept_key', 'title', 'subtitle', 'rationale', 'creative_style_id', 'creative_style_name', 'approved_at', 'position', 'discarded_at', 'created_at', 'updated_at'],
-      studio_concept_formats: ['id', 'concept_id', 'ratio', 'is_preview_source', 'prompt_draft', 'active_variant_key', 'created_at', 'updated_at'],
+      studio_concept_formats: ['id', 'concept_id', 'ratio', 'is_preview_source', 'prompt_draft', 'generation_error', 'active_variant_key', 'created_at', 'updated_at'],
       studio_variants: ['id', 'format_id', 'variant_key', 'label', 'mode', 'prompt', 'image_url', 'thumbnail_url', 'image_mime_type', 'image_file_size', 'image_width', 'image_height', 'image_hash', 'created_at']
     }
     const hasInvalidSchema = Object.entries(requiredSchema).some(([table, requiredColumns]) => {

@@ -1,0 +1,1 @@
+ALTER TABLE `studio_concept_formats` ADD `generation_error` text;

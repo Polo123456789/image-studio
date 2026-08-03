@@ -4,7 +4,7 @@ import type {
 } from '../../../shared/types/studio'
 
 import { saveStudioConceptFinalVariants, getStudioProjectBySlug } from '../../utils/studio/repository'
-import { generateStoredFinalImage } from '../../utils/studio-generation'
+import { generateStoredFinalImageResult } from '../../utils/studio-generation'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioGeneratePendingFormatsPayload>(event)
@@ -28,16 +28,24 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
     return { concept }
   }
 
-  const generatedFormats = await Promise.all(pendingFormats.map(async (format) => ({
-    ratio: format.ratio,
-    promptDraft: format.promptDraft,
-    image: await generateStoredFinalImage(
+  const generatedFormats = await Promise.all(pendingFormats.map(async (format) => {
+    const result = await generateStoredFinalImageResult(
       format.promptDraft,
       format.ratio,
       project.brief.resolution,
-      project.brief.assetIds ?? []
+      project.brief.assetIds ?? [],
+      {
+        conceptId: payload.conceptId,
+        operation: 'pending-format'
+      }
     )
-  })))
+
+    return {
+      ratio: format.ratio,
+      promptDraft: format.promptDraft,
+      ...result
+    }
+  }))
 
   return {
     concept: saveStudioConceptFinalVariants(

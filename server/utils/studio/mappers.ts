@@ -53,6 +53,7 @@ export function mapConceptRows(
       ratio: format.ratio,
       isPreviewSource: format.isPreviewSource,
       promptDraft: format.promptDraft,
+      generationError: format.generationError,
       variants: variantsByFormatId.get(format.id) || [],
       activeVariantId: format.activeVariantKey
     }

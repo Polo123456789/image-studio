@@ -22,6 +22,7 @@ import {
   persistDiscardedConcept,
   persistFinalVariants,
   persistFormatPrompt,
+  persistFormatGenerationError,
   persistGeneratedVariant,
   persistSelectedVariant,
   replaceProjectConcepts
@@ -418,7 +419,7 @@ export function addStudioConceptVariant(
   const conceptRow = getStudioConceptRow(project.id, conceptId)
   const formatRow = getStudioConceptFormatRow(conceptRow.id, ratio)
 
-  persistGeneratedVariant(project.id, conceptRow.id, formatRow.id, {
+  persistGeneratedVariant(project.id, conceptRow, formatRow.id, {
     conceptId,
     ratio,
     mode,
@@ -426,6 +427,28 @@ export function addStudioConceptVariant(
     image,
     resolution
   })
+
+  return getStudioConceptById(slug, conceptId)
+}
+
+export function markStudioConceptFormatGenerationFailed(
+  slug: string,
+  conceptId: string,
+  ratio: string,
+  promptDraft: string,
+  generationError: string
+): StudioConcept {
+  const project = getStudioProjectRowBySlug(slug)
+  const conceptRow = getStudioConceptRow(project.id, conceptId)
+  const formatRow = getStudioConceptFormatRow(conceptRow.id, ratio)
+
+  persistFormatGenerationError(
+    project.id,
+    conceptRow.id,
+    formatRow.id,
+    promptDraft,
+    generationError
+  )
 
   return getStudioConceptById(slug, conceptId)
 }
@@ -438,6 +461,8 @@ export function saveStudioConceptFinalVariants(
     promptDraft: string
     image: Pick<StudioConcept['formats'][number]['variants'][number],
       'imageUrl' | 'thumbnailUrl' | 'imageMimeType' | 'imageFileSize' | 'imageWidth' | 'imageHeight' | 'imageHash'>
+      | null
+    generationError: string | null
   }>,
   resolution: string
 ): StudioConcept {

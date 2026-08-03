@@ -32,9 +32,9 @@
           <div class="flex items-center gap-3">
             <span
               class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em]"
-              :class="activeVariant?.mode === 'final' ? 'bg-accent/15 text-accent' : activeVariant?.mode === 'preview' ? 'bg-[#6d5321]/60 text-[#ffcc73]' : 'bg-surface-2 text-text-muted'"
+              :class="selectedFormat?.generationError ? 'bg-danger/15 text-danger' : activeVariant?.mode === 'final' ? 'bg-accent/15 text-accent' : activeVariant?.mode === 'preview' ? 'bg-[#6d5321]/60 text-[#ffcc73]' : 'bg-surface-2 text-text-muted'"
             >
-              {{ activeVariant?.mode === 'final' ? 'Arte generado' : activeVariant?.mode === 'preview' ? 'Preview legado' : 'Pendiente' }}
+              {{ selectedFormat?.generationError ? 'Error' : activeVariant?.mode === 'final' ? 'Arte generado' : activeVariant?.mode === 'preview' ? 'Preview legado' : 'Pendiente' }}
             </span>
             <span class="font-mono text-sm text-text-muted">{{ concept.selectedRatio }}</span>
           </div>
@@ -58,9 +58,55 @@
               :alt="`${concept.title} ${concept.selectedRatio}`"
               class="max-h-[520px] w-full object-contain"
             >
+            <div
+              v-else-if="loadingVariant"
+              class="flex h-64 w-full flex-col items-center justify-center gap-3 text-sm text-text-muted"
+            >
+              <svg class="h-6 w-6 animate-spin text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
+              Regenerando imagen...
+            </div>
+            <div
+              v-else-if="selectedFormat?.generationError"
+              class="flex min-h-64 w-full flex-col items-center justify-center px-6 py-10 text-center"
+            >
+              <div class="flex h-11 w-11 items-center justify-center rounded-full border border-danger/40 bg-danger/10 text-danger">
+                <svg class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10" /><path d="M12 8v4" /><path d="M12 16h.01" /></svg>
+              </div>
+              <p class="mt-4 text-sm font-medium text-danger">No se pudo generar esta imagen</p>
+              <p class="mt-2 max-w-xl break-words text-xs leading-5 text-text-muted">
+                {{ selectedFormat.generationError }}
+              </p>
+              <button
+                type="button"
+                class="mt-5 rounded-lg border border-danger/40 bg-danger/10 px-4 py-2.5 text-xs font-medium text-danger transition hover:border-danger hover:bg-danger/20"
+                @click="$emit('regenerate', concept.id)"
+              >
+                Regenerar imagen
+              </button>
+            </div>
             <div v-else class="flex h-64 w-full items-center justify-center text-sm text-text-muted">
               Arte pendiente
             </div>
+          </div>
+
+          <div
+            v-if="activeVariant?.imageUrl && selectedFormat?.generationError"
+            class="mx-auto mt-3 flex max-w-3xl flex-col gap-3 rounded-lg border border-danger/40 bg-danger/10 px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="min-w-0">
+              <p class="text-xs font-medium text-danger">El nuevo intento de generación falló</p>
+              <p class="mt-1 break-words text-xs leading-5 text-text-muted">
+                {{ selectedFormat.generationError }}
+              </p>
+            </div>
+            <button
+              type="button"
+              class="shrink-0 rounded border border-danger/40 px-3 py-2 text-xs font-medium text-danger transition hover:border-danger hover:bg-danger/10 disabled:opacity-50"
+              :disabled="loadingVariant"
+              @click="$emit('regenerate', concept.id)"
+            >
+              {{ loadingVariant ? 'Regenerando...' : 'Regenerar imagen' }}
+            </button>
           </div>
         </div>
 
@@ -84,14 +130,16 @@
                   class="aspect-[4/3] w-full object-cover"
                 >
                 <div v-else class="flex aspect-[4/3] items-center justify-center px-3 text-center text-[11px] leading-4 text-text-muted/60">
-                  Pendiente
+                  <span :class="format.generationError ? 'text-danger' : ''">
+                    {{ format.generationError ? 'Error de generación' : 'Pendiente' }}
+                  </span>
                 </div>
               </div>
               <div class="mt-1.5 flex items-center justify-between px-0.5">
                 <span class="font-mono text-[11px]" :class="format.ratio === concept.selectedRatio ? 'text-accent' : 'text-text'">{{ format.ratio }}</span>
                 <span
                   class="text-[10px]"
-                  :class="activeVariantByRatio[format.ratio]?.mode === 'final' ? 'text-accent' : 'text-text-muted/60'"
+                  :class="format.generationError ? 'text-danger' : activeVariantByRatio[format.ratio]?.mode === 'final' ? 'text-accent' : 'text-text-muted/60'"
                 >
                   {{ formatStatusLabel(concept, format) }}
                 </span>
@@ -172,10 +220,10 @@
             <div class="flex flex-col gap-2 sm:flex-row">
               <AppButton
                 type="button"
-                :disabled="loadingVariant || !selectedFormat?.variants.length"
+                :disabled="loadingVariant || !selectedFormat"
                 @click="$emit('regenerate', concept.id)"
               >
-                {{ loadingVariant ? 'Regenerando...' : 'Regenerar arte' }}
+                {{ loadingVariant ? 'Regenerando...' : selectedFormat?.generationError ? 'Reintentar generación' : 'Regenerar arte' }}
               </AppButton>
 
               <button
@@ -221,7 +269,7 @@
                 v-if="!selectedFormat?.variants.length"
                 class="py-3 text-center text-xs text-text-muted/60"
               >
-                Sin variantes. Se generara al completar los formatos pendientes.
+                {{ selectedFormat?.generationError ? 'La generación falló. Puedes intentarlo de nuevo.' : 'Sin variantes. Se generara al completar los formatos pendientes.' }}
               </p>
             </div>
           </section>

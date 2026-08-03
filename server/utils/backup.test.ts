@@ -54,7 +54,12 @@ describe('backup v2', () => {
         position, discarded_at, created_at, updated_at, creative_style_id, creative_style_name
       ) values (1, 1, 'concepto', 'Concepto', '', '', null, 0, null, 1, 1, null, null)
     `).run()
-    sqlite.query("insert into studio_concept_formats values (1, 1, '1:1', 0, '', 'v1', 1, 1)").run()
+    sqlite.query(`
+      insert into studio_concept_formats (
+        id, concept_id, ratio, is_preview_source, prompt_draft,
+        generation_error, active_variant_key, created_at, updated_at
+      ) values (1, 1, '1:1', 0, '', null, 'v1', 1, 1)
+    `).run()
     sqlite.query(`
       insert into studio_variants (
         id, format_id, variant_key, label, mode, prompt, image_url, created_at,

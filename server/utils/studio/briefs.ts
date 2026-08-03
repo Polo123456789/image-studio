@@ -181,6 +181,7 @@ function validateFormat(format: StudioConceptFormat, conceptId: string): StudioC
     ratio: format.ratio.trim(),
     isPreviewSource: Boolean(format.isPreviewSource),
     promptDraft: format.promptDraft?.trim() || '',
+    generationError: format.generationError?.trim().slice(0, 1000) || null,
     variants,
     activeVariantId: format.activeVariantId || null
   }

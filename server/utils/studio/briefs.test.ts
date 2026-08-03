@@ -48,6 +48,7 @@ const baseConcept: StudioConcept = {
       ratio: '1:1',
       isPreviewSource: false,
       promptDraft: 'Prompt',
+      generationError: null,
       activeVariantId: 'variant-1',
       variants: [
         {
@@ -95,6 +96,18 @@ describe('studio brief normalization', () => {
 describe('studio concept validation', () => {
   test('accepts a complete concept and preserves active variants', () => {
     expect(validateStudioConcepts([baseConcept])).toEqual([baseConcept])
+  })
+
+  test('normalizes persisted format generation errors', () => {
+    const [concept] = validateStudioConcepts([{
+      ...baseConcept,
+      formats: [{
+        ...baseConcept.formats[0]!,
+        generationError: '  Gemini (503 UNAVAILABLE): High demand.  '
+      }]
+    }])
+
+    expect(concept?.formats[0]?.generationError).toBe('Gemini (503 UNAVAILABLE): High demand.')
   })
 
   test('rejects an active variant id that is not present in the format', () => {

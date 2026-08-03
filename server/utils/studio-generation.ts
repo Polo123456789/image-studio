@@ -9,6 +9,11 @@ import type {
 } from '../../shared/types/studio'
 import { generateFinalImage } from './gemini'
 import { storeStudioImage, type StoredStudioImage } from './generated-images'
+import { getStudioGenerationErrorMessage } from './studio/generation-errors'
+
+export type StoredImageGenerationResult =
+  | { image: StoredStudioImage, generationError: null }
+  | { image: null, generationError: string }
 
 export async function generateStoredFinalImage(
   prompt: string,
@@ -18,6 +23,35 @@ export async function generateStoredFinalImage(
 ) {
   const generated = await generateFinalImage(prompt, aspectRatio, resolution, assetIds)
   return storeStudioImage(generated.data)
+}
+
+export async function generateStoredFinalImageResult(
+  prompt: string,
+  aspectRatio: string,
+  resolution: string,
+  assetIds: number[] = [],
+  context: Record<string, string> = {}
+): Promise<StoredImageGenerationResult> {
+  try {
+    return {
+      image: await generateStoredFinalImage(prompt, aspectRatio, resolution, assetIds),
+      generationError: null
+    }
+  }
+  catch (error) {
+    const generationError = getStudioGenerationErrorMessage(error)
+
+    console.error('[studio.image.generation.failed]', {
+      ...context,
+      aspectRatio,
+      generationError
+    }, error)
+
+    return {
+      image: null,
+      generationError
+    }
+  }
 }
 
 function createFinalVariant(
@@ -44,28 +78,39 @@ export async function createGeneratedConcept(brief: StudioBriefPayload, seed: St
     ratio,
     isPreviewSource: false,
     promptDraft: seed.variantPrompts[ratio] || seed.variantPrompts[sourceRatio] || '',
+    generationError: null,
     variants: [],
     activeVariantId: null
   }))
   const firstFormat = formats[0]
 
+  let approvedAt: string | null = null
+
   if (firstFormat) {
-    const image = await generateStoredFinalImage(
+    const result = await generateStoredFinalImageResult(
       firstFormat.promptDraft,
       firstFormat.ratio,
       brief.resolution,
-      brief.assetIds ?? []
-    )
-    const variant = createFinalVariant(
-      conceptId,
-      firstFormat.ratio,
-      firstFormat.promptDraft,
-      brief.resolution,
-      image
+      brief.assetIds ?? [],
+      { conceptId, operation: 'initial-concept' }
     )
 
-    firstFormat.variants = [variant]
-    firstFormat.activeVariantId = variant.id
+    if (result.image) {
+      const variant = createFinalVariant(
+        conceptId,
+        firstFormat.ratio,
+        firstFormat.promptDraft,
+        brief.resolution,
+        result.image
+      )
+
+      firstFormat.variants = [variant]
+      firstFormat.activeVariantId = variant.id
+      approvedAt = new Date().toISOString()
+    }
+    else {
+      firstFormat.generationError = result.generationError
+    }
   }
 
   return {
@@ -76,7 +121,7 @@ export async function createGeneratedConcept(brief: StudioBriefPayload, seed: St
     creativeStyleId: seed.creativeStyleId ?? brief.creativeStyleId ?? null,
     creativeStyleName: seed.creativeStyleName ?? null,
     selectedRatio: sourceRatio,
-    approvedAt: new Date().toISOString(),
+    approvedAt,
     formats
   }
 }
