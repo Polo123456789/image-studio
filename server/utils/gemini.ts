@@ -114,7 +114,7 @@ function buildCreativePrompt(payload: StudioBriefPayload): string {
   const creativeStyleSection = selectedGuide
     ? 'Estilo creativo libre: desactivado porque ya existe una guia aplicada.'
     : selectedCreativeStyle
-      ? `Estilo creativo fijo: ${selectedCreativeStyle.name}. ${selectedCreativeStyle.description || 'Sin descripcion adicional.'}`
+      ? `Estilo creativo fijo: [${selectedCreativeStyle.id}] ${selectedCreativeStyle.name}. ${selectedCreativeStyle.description || 'Sin descripcion adicional.'}`
       : shuffledCreativeStyles.length
         ? [
           'Biblioteca de estilos creativos disponible para que elijas el mas adecuado por concepto:',
