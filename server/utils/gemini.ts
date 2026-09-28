@@ -4,6 +4,7 @@ import type { StudioBriefPayload, StudioConceptSeed } from '../../shared/types/s
 import { getAssetInlineDataByIds, getAssetsByIds } from './assets'
 import { getActiveCreativeStyles } from './creative-styles'
 import { getAppSettings, getServerAppSettings } from './settings'
+import { getStudioGenerationErrorMessage } from './studio/generation-errors'
 import { getStyleGuidesByIds } from './style-guides'
 
 const textModel = 'gemini-3.5-flash'
@@ -314,32 +315,42 @@ export async function generateConceptSeeds(payload: StudioBriefPayload): Promise
     description: `Prompt visual completo optimizado para ${ratio}`
   }]))
 
-  const response = await ai.models.generateContent({
-    model: textModel,
-    contents: buildCreativePrompt(payload),
-    config: {
-      responseMimeType: 'application/json',
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
-          type: Type.OBJECT,
-          properties: {
-            creativeStyleId: { type: Type.INTEGER },
-            creativeStyleName: { type: Type.STRING },
-            title: { type: Type.STRING },
-            subtitle: { type: Type.STRING },
-            rationale: { type: Type.STRING },
-            variantPrompts: {
-              type: Type.OBJECT,
-              properties: variantPromptProperties,
-              required: payload.aspectRatios
-            }
-          },
-          required: ['creativeStyleId', 'creativeStyleName', 'title', 'subtitle', 'rationale', 'variantPrompts']
+  let response
+
+  try {
+    response = await ai.models.generateContent({
+      model: textModel,
+      contents: buildCreativePrompt(payload),
+      config: {
+        responseMimeType: 'application/json',
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              creativeStyleId: { type: Type.INTEGER },
+              creativeStyleName: { type: Type.STRING },
+              title: { type: Type.STRING },
+              subtitle: { type: Type.STRING },
+              rationale: { type: Type.STRING },
+              variantPrompts: {
+                type: Type.OBJECT,
+                properties: variantPromptProperties,
+                required: payload.aspectRatios
+              }
+            },
+            required: ['creativeStyleId', 'creativeStyleName', 'title', 'subtitle', 'rationale', 'variantPrompts']
+          }
         }
       }
-    }
-  })
+    })
+  }
+  catch (error) {
+    throw createError({
+      statusCode: 502,
+      statusMessage: getStudioGenerationErrorMessage(error)
+    })
+  }
 
   const text = response.text?.trim()
 

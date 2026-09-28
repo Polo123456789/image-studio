@@ -34,6 +34,7 @@ export async function useStudioConceptEditor() {
 	const modalPromptDraft = ref("");
 	const moreConceptCount = ref(1);
 	const loadingMoreConcepts = ref(false);
+	const moreConceptError = ref("");
 	const loadingExport = ref(false);
 	const extraConceptCounts = [1, 2, 3, 4];
 	const focusedConceptId = ref<string | null>(null);
@@ -500,6 +501,7 @@ export async function useStudioConceptEditor() {
 		}
 
 		loadingMoreConcepts.value = true;
+		moreConceptError.value = "";
 
 		try {
 			const response = await $fetch<StudioConceptResponse>(
@@ -513,6 +515,11 @@ export async function useStudioConceptEditor() {
 			);
 
 			concepts.value = [...concepts.value, ...response.concepts];
+		} catch (error) {
+			moreConceptError.value = getRequestErrorMessage(
+				error,
+				"Could not generate more concepts.",
+			);
 		} finally {
 			loadingMoreConcepts.value = false;
 		}
@@ -747,6 +754,7 @@ export async function useStudioConceptEditor() {
 		modalPromptDraft,
 		moreConceptCount,
 		loadingMoreConcepts,
+		moreConceptError,
 		loadingExport,
 		extraConceptCounts,
 		routeProjectSlug,

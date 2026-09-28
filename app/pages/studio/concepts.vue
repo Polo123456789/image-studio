@@ -125,6 +125,13 @@
                 {{ loadingMoreConcepts ? 'Generando...' : 'Generar mas conceptos' }}
               </AppButton>
             </div>
+            <p
+              v-if="moreConceptError"
+              class="mt-3 text-sm leading-6 text-danger"
+              role="alert"
+            >
+              {{ moreConceptError }}
+            </p>
           </div>
         </section>
       </div>
@@ -162,6 +169,7 @@ const {
   modalPromptDraft,
   moreConceptCount,
   loadingMoreConcepts,
+  moreConceptError,
   loadingExport,
   extraConceptCounts,
   routeProjectSlug,
