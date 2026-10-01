@@ -48,12 +48,12 @@
       <!-- Project cards grid -->
       <template v-else>
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <NuxtLink
+          <article
             v-for="project in projects"
             :key="project.slug"
             class="group overflow-hidden rounded-xl border border-border bg-surface transition hover:border-accent/40 hover:shadow-md"
-            :to="projectLink(project)"
           >
+            <NuxtLink :to="projectLink(project)" class="block">
             <div class="relative aspect-[4/3] overflow-hidden bg-surface-2">
               <img
                 v-if="project.thumbnailUrl"
@@ -97,15 +97,20 @@
               </p>
             </div>
 
+            </NuxtLink>
             <div class="flex items-center justify-between gap-2 border-t border-border px-5 py-3">
               <span class="text-[11px] text-text-muted">
                 {{ project.conceptCount ? `${project.conceptCount} ${project.conceptCount === 1 ? 'concepto' : 'conceptos'}` : 'Sin conceptos' }}
               </span>
-              <span class="font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted/80">
-                Abrir
-              </span>
+              <NuxtLink
+                :to="{ path: '/studio/new', query: { from: project.slug } }"
+                class="text-xs font-medium text-accent transition hover:underline"
+                :aria-label="`Copiar brief de ${project.projectName}`"
+              >
+                Copiar brief
+              </NuxtLink>
             </div>
-          </NuxtLink>
+          </article>
         </div>
 
         <nav

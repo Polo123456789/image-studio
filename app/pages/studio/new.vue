@@ -18,7 +18,15 @@
         </p>
       </header>
 
-      <form class="space-y-12" @submit.prevent="submitBrief">
+      <div v-if="sourceError" role="alert" class="rounded-lg border border-danger/40 bg-danger/10 px-6 py-8 text-sm text-danger">
+        No se pudo cargar el brief original. Vuelve a proyectos e intenta copiarlo de nuevo.
+      </div>
+
+      <p v-if="sourceName" class="mb-8 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-text-muted">
+        Brief copiado de {{ sourceName }}. Revisa el nombre y ajusta los detalles para la nueva campaña.
+      </p>
+
+      <form v-if="!sourceError" class="space-y-12" @submit.prevent="submitBrief">
         <StudioFieldSection
           title="Tipo de brief"
           description="El modo queda fijo despues de crear el proyecto."
@@ -223,6 +231,7 @@ import StudioCreativeStyleSection from '~/components/studio/StudioCreativeStyleS
 import StudioFieldSection from '~/components/studio/StudioFieldSection.vue'
 import StudioStyleGuideSection from '~/components/studio/StudioStyleGuideSection.vue'
 import {
+  applyStudioBriefToForm,
   buildStudioBriefPayload,
   createStudioBriefFormState,
   defaultStudioAspectRatios,
@@ -237,6 +246,8 @@ import {
 } from '~/utils/studio-brief'
 
 const router = useRouter()
+const route = useRoute()
+definePageMeta({ key: route => route.fullPath })
 const { brief, concepts, isGeneratingConcepts, generationMessage, setProject, clearProject } = useStudioSession()
 const { data: styleGuideData } = await useFetch<StyleGuidesResponse>('/api/style-guides')
 const { data: creativeStyleData } = await useFetch<CreativeStylesResponse>('/api/creative-styles')
@@ -259,6 +270,27 @@ const selectedRatios = ref<string[]>([...defaultStudioAspectRatios])
 const selectedStyleGuideId = ref<number | null>(null)
 const selectedAssetIds = ref<number[]>([])
 const isSubmitting = ref(false)
+const sourceName = ref('')
+const sourceError = ref(false)
+
+// Populate before registering brand/style watchers so saved selections survive.
+if (typeof route.query.from === 'string' && route.query.from) {
+  const { data: source, error } = await useFetch<StudioProjectResponse>(
+    `/api/studio/projects/${encodeURIComponent(route.query.from)}`
+  )
+  if (error.value || !source.value) {
+    sourceError.value = true
+  } else {
+    const sourceBrief = source.value.project.brief
+    const selection = applyStudioBriefToForm(form, sourceBrief)
+    sourceName.value = sourceBrief.projectName
+    form.projectName = `${sourceBrief.projectName} (copia)`
+    selectedMedia.value = selection.selectedMedia
+    selectedRatios.value = selection.selectedRatios
+    selectedStyleGuideId.value = selection.selectedStyleGuideId
+    selectedAssetIds.value = [...(sourceBrief.assetIds ?? [])]
+  }
+}
 
 const assets = computed<AssetRecord[]>(() => assetData.value?.assets ?? [])
 const brandOptions = computed<BrandOption[]>(() => styleGuideData.value?.brands ?? [])
@@ -350,7 +382,7 @@ function buildBriefPayload(): StudioBriefPayload {
 }
 
 async function submitBrief() {
-  if (!canContinue.value) return
+  if (isSubmitting.value || sourceError.value || !canContinue.value) return
 
   isSubmitting.value = true
   const payload = buildBriefPayload()
