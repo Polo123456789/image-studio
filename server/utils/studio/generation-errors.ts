@@ -39,7 +39,7 @@ function truncate(value: string) {
   return value.trim().slice(0, maxGenerationErrorLength)
 }
 
-export function getStudioGenerationErrorMessage(error: unknown) {
+export function getStudioGenerationErrorMessage(error: unknown, fallback = fallbackGenerationError) {
   const candidate = toRecord(error)
   const parsedProviderError = parseProviderErrorMessage(candidate?.message)
 
@@ -61,5 +61,5 @@ export function getStudioGenerationErrorMessage(error: unknown) {
     return truncate(`Gemini${code}: ${candidate.message}`)
   }
 
-  return fallbackGenerationError
+  return fallback
 }

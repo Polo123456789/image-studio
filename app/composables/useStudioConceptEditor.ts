@@ -33,6 +33,7 @@ export async function useStudioConceptEditor() {
 	const generationErrors = ref<Record<string, string>>({});
 	const pending = ref(isGeneratingConcepts.value && !concepts.value.length);
 	const initialLoadError = ref("");
+	const sessionError = ref("");
 	const variantLoadingKeys = ref<Record<string, boolean>>({});
 	const pendingFormatsLoading = ref<Record<string, boolean>>({});
 	const conceptMutationQueue = ref<Record<string, Promise<void>>>({});
@@ -57,11 +58,17 @@ export async function useStudioConceptEditor() {
 	}
 
 	if (routeParamSlug.value) {
-		const response = await $fetch<StudioProjectResponse>(
-			`/api/studio/projects/${routeParamSlug.value}`,
-		);
-
-		setProject(response.project);
+		try {
+			const response = await $fetch<StudioProjectResponse>(
+				`/api/studio/projects/${routeProjectSlug.value}`,
+			);
+			setProject(response.project);
+		} catch (error) {
+			initialLoadError.value = getRequestErrorMessage(error, "No se pudo cargar el proyecto.");
+			pending.value = false;
+			isGeneratingConcepts.value = false;
+			generationMessage.value = "";
+		}
 	}
 
 	if (concepts.value.length) {
@@ -132,6 +139,7 @@ export async function useStudioConceptEditor() {
 
 	async function ensureInitialConcepts() {
 		if (
+			initialLoadError.value ||
 			concepts.value.length ||
 			!brief.value.projectName ||
 			!routeProjectSlug.value
@@ -162,9 +170,11 @@ export async function useStudioConceptEditor() {
 			concepts.value = response.concepts;
 			generationMessage.value = "";
 			isGeneratingConcepts.value = false;
-		} catch {
-			initialLoadError.value =
-				"No pudimos generar los conceptos iniciales. Revisa la configuracion de Gemini e intentalo de nuevo.";
+		} catch (error) {
+			initialLoadError.value = getRequestErrorMessage(
+				error,
+				"No pudimos generar los conceptos iniciales. Intenta nuevamente.",
+			);
 			generationMessage.value = "";
 			isGeneratingConcepts.value = false;
 		} finally {
@@ -324,6 +334,13 @@ export async function useStudioConceptEditor() {
 		});
 	}
 
+	function enqueueBackgroundMutation(conceptId: string, task: () => Promise<void>) {
+		sessionError.value = "";
+		void enqueueConceptMutation(conceptId, task).catch((error) => {
+			sessionError.value = getRequestErrorMessage(error, "No se pudo guardar el cambio.");
+		});
+	}
+
 	function isVariantLoading(conceptId: string, ratio: string) {
 		return Boolean(variantLoadingKeys.value[createFormatKey(conceptId, ratio)]);
 	}
@@ -404,7 +421,7 @@ export async function useStudioConceptEditor() {
 		}));
 
 		if (options.persist !== false) {
-			void enqueueConceptMutation(conceptId, () =>
+			enqueueBackgroundMutation(conceptId, () =>
 				persistSelectedVariant(conceptId, ratio, variantId),
 			);
 		}
@@ -451,18 +468,13 @@ export async function useStudioConceptEditor() {
 				replaceConcept(response.concept);
 			});
 		} catch (error) {
-			generationErrors.value[loadingKey] = getGenerationRequestError(error);
+			generationErrors.value[loadingKey] = getRequestErrorMessage(error, "No se pudo completar la generacion. Intenta nuevamente.");
 		} finally {
 			setLoadingKey(variantLoadingKeys, loadingKey, false);
 			setLoadingKey(finalizingKeys, loadingKey, false);
 		}
 	}
 
-
-	function getGenerationRequestError(error: unknown) {
-		const details = error as { data?: { statusMessage?: string } };
-		return details?.data?.statusMessage || 'No se pudo completar la generacion. Intenta nuevamente.';
-	}
 
 	async function regenerateVariant(conceptId: string) {
 		const concept = concepts.value.find((item) => item.id === conceptId);
@@ -497,7 +509,7 @@ export async function useStudioConceptEditor() {
 				replaceConcept(response.concept);
 			});
 		} catch (error) {
-			generationErrors.value[loadingKey] = getGenerationRequestError(error);
+			generationErrors.value[loadingKey] = getRequestErrorMessage(error, "No se pudo completar la generacion. Intenta nuevamente.");
 		} finally {
 			setLoadingKey(variantLoadingKeys, loadingKey, false);
 		}
@@ -533,7 +545,7 @@ export async function useStudioConceptEditor() {
 				replaceConcept(response.concept);
 			});
 		} catch (error) {
-			generationErrors.value[loadingKey] = getGenerationRequestError(error);
+			generationErrors.value[loadingKey] = getRequestErrorMessage(error, "No se pudo completar la generacion. Intenta nuevamente.");
 		} finally {
 			pendingFormatsLoading.value = Object.fromEntries(
 				Object.entries(pendingFormatsLoading.value).filter(
@@ -563,7 +575,7 @@ export async function useStudioConceptEditor() {
 
 		delete promptDrafts.value[conceptId];
 
-		void enqueueConceptMutation(conceptId, () =>
+		enqueueBackgroundMutation(conceptId, () =>
 			persistDiscardedConcept(conceptId),
 		);
 	}
@@ -615,17 +627,22 @@ export async function useStudioConceptEditor() {
 			creativeStyleId: concept.creativeStyleId,
 		};
 
-		const response = await $fetch<StudioProjectResponse>(
-			`/api/studio/projects/${routeProjectSlug.value}/brief`,
-			{
-				method: "PUT",
-				body: {
-					brief: nextBrief,
+		sessionError.value = "";
+		try {
+			const response = await $fetch<StudioProjectResponse>(
+				`/api/studio/projects/${routeProjectSlug.value}/brief`,
+				{
+					method: "PUT",
+					body: {
+						brief: nextBrief,
+					},
 				},
-			},
-		);
+			);
 
-		setProject(response.project);
+			setProject(response.project);
+		} catch (error) {
+			sessionError.value = getRequestErrorMessage(error, "No se pudo guardar el estilo para las siguientes generaciones.");
+		}
 	}
 
 	async function exportConcepts() {
@@ -637,6 +654,7 @@ export async function useStudioConceptEditor() {
 			return;
 		}
 
+		sessionError.value = "";
 		loadingExport.value = true;
 
 		try {
@@ -667,8 +685,7 @@ export async function useStudioConceptEditor() {
 			link.remove();
 			URL.revokeObjectURL(objectUrl);
 		} catch (error) {
-			console.error(error);
-			alert("No pudimos exportar las imagenes activas del studio.");
+			sessionError.value = await getDownloadErrorMessage(error, "No pudimos exportar las imagenes activas del studio.");
 		} finally {
 			loadingExport.value = false;
 		}
@@ -713,7 +730,7 @@ export async function useStudioConceptEditor() {
 		closePromptModal();
 
 		if (ratio) {
-			void enqueueConceptMutation(conceptId, () =>
+			enqueueBackgroundMutation(conceptId, () =>
 				persistPromptDraft(conceptId, ratio, promptDraft),
 			);
 		}
@@ -827,6 +844,7 @@ export async function useStudioConceptEditor() {
 		generationMessage,
 		pending,
 		initialLoadError,
+		sessionError,
 		isVariantLoading,
 		isPendingFormatsLoading,
 		promptDrafts,

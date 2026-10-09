@@ -250,8 +250,8 @@ async function loadLibrary(page = 1, append = false) {
     pagination.value = response.pagination
     totalVersions.value = response.totalVersions
   }
-  catch {
-    if (requestId === libraryRequestSequence) errorMessage.value = 'No pudimos cargar la biblioteca en este momento.'
+  catch (error) {
+    if (requestId === libraryRequestSequence) errorMessage.value = getRequestErrorMessage(error, 'No pudimos cargar la biblioteca en este momento.')
   }
   finally {
     if (requestId === libraryRequestSequence) {
@@ -301,8 +301,8 @@ async function openDetail(image: LibraryImageItem) {
     const response = await $fetch<LibraryImageDetailResponse>(`/api/library/images/${image.id}`)
     if (selectedImageId.value === image.id) selectedImageDetail.value = response.image
   }
-  catch {
-    if (selectedImageId.value === image.id) detailErrorMessage.value = 'No pudimos cargar el historial de esta imagen.'
+  catch (error) {
+    if (selectedImageId.value === image.id) detailErrorMessage.value = getRequestErrorMessage(error, 'No pudimos cargar el historial de esta imagen.')
   }
 }
 

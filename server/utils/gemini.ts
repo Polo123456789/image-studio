@@ -7,6 +7,7 @@ import { getAssetInlineDataByIds, getAssetsByIds, resolveAssetFilePath } from '.
 import { inspectStudioImage, readStoredStudioImage } from './generated-images'
 import { getActiveCreativeStyles } from './creative-styles'
 import { getAppSettings, getServerAppSettings } from './settings'
+import { logServerError } from './error-logging'
 import { getStudioGenerationErrorMessage } from './studio/generation-errors'
 import { getStyleGuidesByIds } from './style-guides'
 
@@ -310,18 +311,16 @@ export async function reverseEngineerStyleGuide(files: File[], description: stri
 }
 
 export async function generateConceptSeeds(payload: StudioBriefPayload): Promise<StudioConceptSeed[]> {
-  const ai = getClient()
-  const activeCreativeStyleIds = new Set(getActiveCreativeStyles().map((style) => style.id))
-
-  const variantPromptProperties = Object.fromEntries(payload.aspectRatios.map((ratio) => [ratio, {
-    type: Type.STRING,
-    description: `Prompt visual completo optimizado para ${ratio}`
-  }]))
-
-  let response
-
   try {
-    response = await ai.models.generateContent({
+    const ai = getClient()
+    const activeCreativeStyleIds = new Set(getActiveCreativeStyles().map((style) => style.id))
+
+    const variantPromptProperties = Object.fromEntries(payload.aspectRatios.map((ratio) => [ratio, {
+      type: Type.STRING,
+      description: `Prompt visual completo optimizado para ${ratio}`
+    }]))
+
+    const response = await ai.models.generateContent({
       model: textModel,
       contents: buildCreativePrompt(payload),
       config: {
@@ -347,26 +346,44 @@ export async function generateConceptSeeds(payload: StudioBriefPayload): Promise
         }
       }
     })
+
+    const text = response.text?.trim()
+
+    if (!text) {
+      throw createError({
+        statusCode: 502,
+        statusMessage: 'Gemini did not return concept data'
+      })
+    }
+
+    let parsed: StudioConceptSeed[]
+    try {
+      parsed = JSON.parse(text) as StudioConceptSeed[]
+    }
+    catch (error) {
+      logServerError('[gemini.concepts.invalid-json]', error, { model: textModel })
+      throw createError({ statusCode: 502, statusMessage: 'Gemini devolvio una respuesta de conceptos con JSON invalido.' })
+    }
+    if (!Array.isArray(parsed)) {
+      throw createError({ statusCode: 502, statusMessage: 'Gemini devolvio una respuesta de conceptos invalida.' })
+    }
+
+    return parsed.map((seed) => normalizeCreativeStyleSelection(payload, seed, activeCreativeStyleIds))
   }
   catch (error) {
+    logServerError('[gemini.concepts.failed]', error, {
+      model: textModel,
+      conceptCount: payload.conceptCount,
+      aspectRatios: payload.aspectRatios.join(', ')
+    })
+    const statusCode = typeof error === 'object' && error !== null && 'statusCode' in error && typeof error.statusCode === 'number'
+      ? error.statusCode
+      : 502
     throw createError({
-      statusCode: 502,
-      statusMessage: getStudioGenerationErrorMessage(error)
+      statusCode,
+      statusMessage: getStudioGenerationErrorMessage(error, 'No se pudieron generar los conceptos. Intenta nuevamente.')
     })
   }
-
-  const text = response.text?.trim()
-
-  if (!text) {
-    throw createError({
-      statusCode: 502,
-      statusMessage: 'Gemini did not return concept data'
-    })
-  }
-
-  const parsed = JSON.parse(text) as StudioConceptSeed[]
-
-  return parsed.map((seed) => normalizeCreativeStyleSelection(payload, seed, activeCreativeStyleIds))
 }
 
 export async function generateFinalImage(prompt: string, aspectRatio: string, resolution: string, assetIds: number[] = [], referenceImageUrl?: string) {

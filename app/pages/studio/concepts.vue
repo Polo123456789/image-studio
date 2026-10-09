@@ -48,6 +48,10 @@
         </AppButton>
       </header>
 
+      <p v-if="sessionError" role="alert" class="mb-6 break-words rounded-lg border border-danger/40 bg-danger/10 px-6 py-4 text-sm text-danger">
+        {{ sessionError }}
+      </p>
+
       <div v-if="pending" class="rounded-lg border border-border bg-surface px-6 py-8">
         <div class="flex items-center gap-3">
           <svg class="h-5 w-5 animate-spin text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
@@ -61,7 +65,7 @@
         </div>
       </div>
 
-      <div v-else-if="initialLoadError" class="rounded-lg border border-danger/40 bg-danger/10 px-6 py-8 text-sm text-danger">
+      <div v-else-if="initialLoadError" role="alert" class="rounded-lg border border-danger/40 bg-danger/10 px-6 py-8 text-sm text-danger">
         {{ initialLoadError }}
       </div>
 
@@ -178,6 +182,7 @@ const {
   generationMessage,
   pending,
   initialLoadError,
+  sessionError,
   isVariantLoading,
   isPendingFormatsLoading,
   promptDrafts,

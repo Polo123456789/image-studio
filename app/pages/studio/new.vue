@@ -19,11 +19,15 @@
       </header>
 
       <div v-if="sourceError" role="alert" class="rounded-lg border border-danger/40 bg-danger/10 px-6 py-8 text-sm text-danger">
-        No se pudo cargar el brief original. Vuelve a proyectos e intenta copiarlo de nuevo.
+        {{ sourceError }}
       </div>
 
       <p v-if="sourceName" class="mb-8 rounded-lg border border-border bg-surface px-4 py-3 text-sm text-text-muted">
         Brief copiado de {{ sourceName }}. Revisa el nombre y ajusta los detalles para la nueva campaña.
+      </p>
+
+      <p v-if="submitError" role="alert" class="mb-6 break-words rounded-lg border border-danger/40 bg-danger/10 px-6 py-4 text-sm text-danger">
+        {{ submitError }}
       </p>
 
       <form v-if="!sourceError" class="space-y-12" @submit.prevent="submitBrief">
@@ -274,7 +278,8 @@ const selectedStyleGuideId = ref<number | null>(null)
 const selectedAssetIds = ref<number[]>([])
 const isSubmitting = ref(false)
 const sourceName = ref('')
-const sourceError = ref(false)
+const sourceError = ref('')
+const submitError = ref('')
 
 // Populate before registering brand/style watchers so saved selections survive.
 if (typeof route.query.from === 'string' && route.query.from) {
@@ -282,7 +287,7 @@ if (typeof route.query.from === 'string' && route.query.from) {
     `/api/studio/projects/${encodeURIComponent(route.query.from)}`
   )
   if (error.value || !source.value) {
-    sourceError.value = true
+    sourceError.value = getRequestErrorMessage(error.value, 'No se pudo cargar el brief original. Vuelve a proyectos e intenta copiarlo de nuevo.')
   } else {
     const sourceBrief = source.value.project.brief
     const selection = applyStudioBriefToForm(form, sourceBrief)
@@ -388,6 +393,7 @@ async function submitBrief() {
   if (isSubmitting.value || sourceError.value || !canContinue.value) return
 
   isSubmitting.value = true
+  submitError.value = ''
   const payload = buildBriefPayload()
   brief.value = payload
 
@@ -406,6 +412,9 @@ async function submitBrief() {
     }
 
     await router.push(`/studio/${response.project.slug}/concepts`)
+  }
+  catch (error) {
+    submitError.value = getRequestErrorMessage(error, 'No se pudo crear el proyecto.')
   }
   finally {
     isSubmitting.value = false

@@ -10,6 +10,7 @@ import { getStudioExplorationSettings } from '../../shared/utils/studio-generati
 import { createGeneratedVariant } from './studio/variants'
 import { generateFinalImage } from './gemini'
 import { storeStudioImage, type StoredStudioImage } from './generated-images'
+import { logServerError } from './error-logging'
 import { getStudioGenerationErrorMessage } from './studio/generation-errors'
 
 export type StoredImageGenerationResult =
@@ -44,11 +45,11 @@ export async function generateStoredFinalImageResult(
   catch (error) {
     const generationError = getStudioGenerationErrorMessage(error)
 
-    console.error('[studio.image.generation.failed]', {
+    logServerError('[studio.image.generation.failed]', error, {
       ...context,
       aspectRatio,
       generationError
-    }, error)
+    })
 
     return {
       image: null,

@@ -314,8 +314,8 @@ try {
   selectedRatios.value = nextSelection.selectedRatios
   selectedAssetIds.value = [...(response.project.brief.assetIds ?? [])]
 }
-catch {
-  loadError.value = 'No se pudo cargar el proyecto. Verifica que el slug sea correcto.'
+catch (error) {
+  loadError.value = getRequestErrorMessage(error, 'No se pudo cargar el proyecto. Verifica que el slug sea correcto.')
 }
 finally {
   loading.value = false
@@ -406,8 +406,8 @@ async function saveBrief() {
     feedback.value = 'Brief guardado correctamente.'
     feedbackTone.value = 'success'
   }
-  catch {
-    feedback.value = 'No se pudo guardar el brief. Intentalo de nuevo.'
+  catch (error) {
+    feedback.value = getRequestErrorMessage(error, 'No se pudo guardar el brief. Intentalo de nuevo.')
     feedbackTone.value = 'error'
   }
   finally {

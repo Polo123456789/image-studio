@@ -426,7 +426,7 @@ async function exportBackup() {
     backupFeedbackTone.value = 'success'
   }
   catch (error) {
-    backupFeedback.value = error instanceof Error ? error.message : 'No se pudo exportar el backup completo.'
+    backupFeedback.value = await getDownloadErrorMessage(error, 'No se pudo exportar el backup completo.')
     backupFeedbackTone.value = 'error'
   }
   finally {
@@ -460,7 +460,7 @@ async function importBackup() {
     window.location.reload()
   }
   catch (error) {
-    backupFeedback.value = error instanceof Error ? error.message : 'No se pudo importar el backup.'
+    backupFeedback.value = getRequestErrorMessage(error, 'No se pudo importar el backup.')
     backupFeedbackTone.value = 'error'
     await refreshRestoreStatus()
   }
@@ -507,7 +507,7 @@ async function saveSettings() {
     feedbackTone.value = 'success'
   }
   catch (error) {
-    feedback.value = error instanceof Error ? error.message : 'No se pudo guardar la configuracion.'
+    feedback.value = getRequestErrorMessage(error, 'No se pudo guardar la configuracion.')
     feedbackTone.value = 'error'
   }
   finally {
