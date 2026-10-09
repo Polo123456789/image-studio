@@ -1,7 +1,10 @@
+import { readFile } from 'node:fs/promises'
+
 import { GoogleGenAI, Type } from '@google/genai'
 
 import type { StudioBriefPayload, StudioConceptSeed } from '../../shared/types/studio'
-import { getAssetInlineDataByIds, getAssetsByIds } from './assets'
+import { getAssetInlineDataByIds, getAssetsByIds, resolveAssetFilePath } from './assets'
+import { inspectStudioImage, readStoredStudioImage } from './generated-images'
 import { getActiveCreativeStyles } from './creative-styles'
 import { getAppSettings, getServerAppSettings } from './settings'
 import { getStudioGenerationErrorMessage } from './studio/generation-errors'
@@ -366,7 +369,7 @@ export async function generateConceptSeeds(payload: StudioBriefPayload): Promise
   return parsed.map((seed) => normalizeCreativeStyleSelection(payload, seed, activeCreativeStyleIds))
 }
 
-export async function generateFinalImage(prompt: string, aspectRatio: string, resolution: string, assetIds: number[] = []) {
+export async function generateFinalImage(prompt: string, aspectRatio: string, resolution: string, assetIds: number[] = [], referenceImageUrl?: string) {
   const ai = getClient()
   const mappedResolution = mapResolution(resolution)
   const assetInlineData = await getAssetInlineDataByIds(assetIds)
@@ -380,11 +383,24 @@ export async function generateFinalImage(prompt: string, aspectRatio: string, re
     promptPreview: prompt.slice(0, 200)
   })
 
+  const referenceParts: Array<{ text: string } | { inlineData: { data: string, mimeType: string } }> = []
+  if (referenceImageUrl) {
+    const data = referenceImageUrl.startsWith('/uploads/assets/')
+      ? await readFile(resolveAssetFilePath(referenceImageUrl))
+      : await readStoredStudioImage(referenceImageUrl)
+    const inspected = await inspectStudioImage(data)
+    referenceParts.push(
+      { text: 'Preview aprobado de este formato. Regenera este diseno en 4K conservando su composicion, textos, colores y elementos. Los assets adicionales son referencias de producto y marca.' },
+      { inlineData: { data: data.toString('base64'), mimeType: inspected.mimeType } }
+    )
+  }
+
   async function requestImage(promptText: string) {
     return ai.models.generateContent({
       model: imageModel,
       contents: {
         parts: [
+          ...referenceParts,
           ...assetInlineData.map(({ asset, inlineData }) => ({
             text: `Asset de referencia: ${asset.name}.`
           })),

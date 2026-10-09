@@ -4,9 +4,10 @@ import type {
   StudioBriefPayload,
   StudioConcept,
   StudioConceptFormat,
-  StudioConceptSeed,
-  StudioVariant
+  StudioConceptSeed
 } from '../../shared/types/studio'
+import { getStudioExplorationSettings } from '../../shared/utils/studio-generation'
+import { createGeneratedVariant } from './studio/variants'
 import { generateFinalImage } from './gemini'
 import { storeStudioImage, type StoredStudioImage } from './generated-images'
 import { getStudioGenerationErrorMessage } from './studio/generation-errors'
@@ -19,9 +20,10 @@ export async function generateStoredFinalImage(
   prompt: string,
   aspectRatio: string,
   resolution: string,
-  assetIds: number[] = []
+  assetIds: number[] = [],
+  referenceImageUrl?: string
 ) {
-  const generated = await generateFinalImage(prompt, aspectRatio, resolution, assetIds)
+  const generated = await generateFinalImage(prompt, aspectRatio, resolution, assetIds, referenceImageUrl)
   return storeStudioImage(generated.data)
 }
 
@@ -30,11 +32,12 @@ export async function generateStoredFinalImageResult(
   aspectRatio: string,
   resolution: string,
   assetIds: number[] = [],
-  context: Record<string, string> = {}
+  context: Record<string, string> = {},
+  referenceImageUrl?: string
 ): Promise<StoredImageGenerationResult> {
   try {
     return {
-      image: await generateStoredFinalImage(prompt, aspectRatio, resolution, assetIds),
+      image: await generateStoredFinalImage(prompt, aspectRatio, resolution, assetIds, referenceImageUrl),
       generationError: null
     }
   }
@@ -54,24 +57,8 @@ export async function generateStoredFinalImageResult(
   }
 }
 
-function createFinalVariant(
-  conceptId: string,
-  ratio: string,
-  prompt: string,
-  resolution: string,
-  image: StoredStudioImage
-): StudioVariant {
-  return {
-    id: `${conceptId}-${ratio}-final-1`,
-    label: `${ratio} final ${resolution}`,
-    mode: 'final',
-    prompt,
-    ...image,
-    createdAt: new Date().toISOString()
-  }
-}
-
 export async function createGeneratedConcept(brief: StudioBriefPayload, seed: StudioConceptSeed): Promise<StudioConcept> {
+  const generation = getStudioExplorationSettings(brief.resolution)
   const conceptId = `concept-${randomUUID()}`
   const sourceRatio = brief.aspectRatios[0] || '1:1'
   const formats: StudioConceptFormat[] = brief.aspectRatios.map((ratio) => ({
@@ -90,23 +77,25 @@ export async function createGeneratedConcept(brief: StudioBriefPayload, seed: St
     const result = await generateStoredFinalImageResult(
       firstFormat.promptDraft,
       firstFormat.ratio,
-      brief.resolution,
+      generation.resolution,
       brief.assetIds ?? [],
       { conceptId, operation: 'initial-concept' }
     )
 
     if (result.image) {
-      const variant = createFinalVariant(
+      const variant = createGeneratedVariant(
         conceptId,
         firstFormat.ratio,
+        1,
+        generation.mode,
         firstFormat.promptDraft,
-        brief.resolution,
-        result.image
+        result.image,
+        generation.resolution
       )
 
       firstFormat.variants = [variant]
       firstFormat.activeVariantId = variant.id
-      approvedAt = new Date().toISOString()
+      if (generation.mode === 'final') approvedAt = new Date().toISOString()
     }
     else {
       firstFormat.generationError = result.generationError

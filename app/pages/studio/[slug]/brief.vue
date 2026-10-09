@@ -177,6 +177,9 @@
                 {{ resolution }}
               </option>
             </AppSelect>
+            <p v-if="form.resolution.includes('4K')" class="mt-2 text-xs leading-5 text-text-muted">
+              Primero se generan previews en 1K. Aprueba cada formato para generar su final 4K.
+            </p>
           </StudioFieldSection>
 
           <StudioFieldSection title="Conceptos a proponer">

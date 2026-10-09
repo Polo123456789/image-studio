@@ -20,7 +20,7 @@ import { mapConceptRows, mapProject, mapProjectListItem } from './mappers'
 import {
   appendProjectConcepts,
   persistDiscardedConcept,
-  persistFinalVariants,
+  persistGeneratedFormats,
   persistFormatPrompt,
   persistFormatGenerationError,
   persistGeneratedVariant,
@@ -453,7 +453,7 @@ export function markStudioConceptFormatGenerationFailed(
   return getStudioConceptById(slug, conceptId)
 }
 
-export function saveStudioConceptFinalVariants(
+export function saveStudioConceptGeneratedVariants(
   slug: string,
   conceptId: string,
   generatedFormats: Array<{
@@ -464,7 +464,8 @@ export function saveStudioConceptFinalVariants(
       | null
     generationError: string | null
   }>,
-  resolution: string
+  resolution: string,
+  mode: StudioVariantMode = 'final'
 ): StudioConcept {
   const project = getStudioProjectRowBySlug(slug)
   const conceptRow = getStudioConceptRow(project.id, conceptId)
@@ -473,7 +474,7 @@ export function saveStudioConceptFinalVariants(
     formatRow: getStudioConceptFormatRow(conceptRow.id, generatedFormat.ratio)
   }))
 
-  persistFinalVariants(project.id, conceptRow, generatedFormatsWithRows, resolution)
+  persistGeneratedFormats(project.id, conceptRow, generatedFormatsWithRows, resolution, mode)
 
   return getStudioConceptById(slug, conceptId)
 }

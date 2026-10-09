@@ -159,7 +159,7 @@
                     class="rounded px-1 py-0.5 text-[9px] uppercase tracking-wider"
                     :class="image.currentMode === 'final' ? 'bg-accent/30 text-white/90' : 'bg-white/10'"
                   >
-                    {{ image.currentMode === 'final' ? 'arte' : 'preview legado' }}
+                    {{ image.currentMode === 'final' ? 'arte' : 'preview' }}
                   </span>
                 </div>
               </div>

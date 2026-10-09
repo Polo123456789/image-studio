@@ -154,6 +154,16 @@ export interface StudioRegenerateVariantPayload {
   prompt: string
 }
 
+export type StudioFinalizationStrategy = 'reference' | 'prompt'
+
+export interface StudioFinalizeVariantPayload {
+  projectSlug: string
+  conceptId: string
+  ratio: string
+  previewVariantId: string
+  strategy: StudioFinalizationStrategy
+}
+
 export interface StudioConceptSeed {
   creativeStyleId?: number | null
   creativeStyleName?: string | null

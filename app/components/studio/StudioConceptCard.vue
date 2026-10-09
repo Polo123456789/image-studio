@@ -20,6 +20,7 @@
       <button
         type="button"
         class="rounded border border-danger/40 bg-danger/10 px-3 py-1.5 text-xs font-medium text-danger transition hover:border-danger hover:bg-danger/20"
+        :disabled="generationBusy"
         @click="$emit('discard', concept.id)"
       >
         Descartar concepto
@@ -34,7 +35,7 @@
               class="rounded px-2 py-1 font-mono text-[10px] uppercase tracking-[0.2em]"
               :class="selectedFormat?.generationError ? 'bg-danger/15 text-danger' : activeVariant?.mode === 'final' ? 'bg-accent/15 text-accent' : activeVariant?.mode === 'preview' ? 'bg-[#6d5321]/60 text-[#ffcc73]' : 'bg-surface-2 text-text-muted'"
             >
-              {{ selectedFormat?.generationError ? 'Error' : activeVariant?.mode === 'final' ? 'Arte generado' : activeVariant?.mode === 'preview' ? 'Preview legado' : 'Pendiente' }}
+              {{ generationStatusLabel }}
             </span>
             <span class="font-mono text-sm text-text-muted">{{ concept.selectedRatio }}</span>
           </div>
@@ -63,7 +64,7 @@
               class="flex h-64 w-full flex-col items-center justify-center gap-3 text-sm text-text-muted"
             >
               <svg class="h-6 w-6 animate-spin text-accent" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" /><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" /></svg>
-              Regenerando imagen...
+              {{ finalizing ? 'Generando arte final 4K...' : usesPreview ? 'Generando preview 1K...' : 'Regenerando imagen...' }}
             </div>
             <div
               v-else-if="selectedFormat?.generationError"
@@ -79,9 +80,10 @@
               <button
                 type="button"
                 class="mt-5 rounded-lg border border-danger/40 bg-danger/10 px-4 py-2.5 text-xs font-medium text-danger transition hover:border-danger hover:bg-danger/20"
+                :disabled="generationBusy"
                 @click="$emit('regenerate', concept.id)"
               >
-                Regenerar imagen
+                {{ usesPreview ? 'Generar preview 1K' : 'Regenerar imagen' }}
               </button>
             </div>
             <div v-else class="flex h-64 w-full items-center justify-center text-sm text-text-muted">
@@ -102,10 +104,10 @@
             <button
               type="button"
               class="shrink-0 rounded border border-danger/40 px-3 py-2 text-xs font-medium text-danger transition hover:border-danger hover:bg-danger/10 disabled:opacity-50"
-              :disabled="loadingVariant"
+              :disabled="generationBusy"
               @click="$emit('regenerate', concept.id)"
             >
-              {{ loadingVariant ? 'Regenerando...' : 'Regenerar imagen' }}
+              {{ finalizing ? 'Generando 4K...' : loadingVariant ? 'Regenerando...' : usesPreview ? 'Regenerar preview 1K' : 'Regenerar imagen' }}
             </button>
           </div>
         </div>
@@ -177,23 +179,50 @@
           <section v-if="hasPendingFormats" class="rounded-lg border border-[#7a5b22]/60 bg-[#2a2118]/80 p-4 text-sm text-[#f2d8aa]">
             <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-[#ffcc73]">Formatos pendientes</p>
             <p class="mt-2 leading-6 text-[#f2d8aa]/80">
-              Genera en bloque los ratios que todavia no tienen un arte final activo. Los artes ya generados no se reemplazaran.
+              {{ usesPreview ? 'Genera previews 1K de los formatos que todavia no tienen imagen. Luego aprueba cada formato para generar su final 4K.' : 'Genera en bloque los ratios que todavia no tienen un arte final activo. Los artes ya generados no se reemplazaran.' }}
             </p>
             <button
               type="button"
               class="mt-3 w-full rounded-lg bg-[#ff8a00] px-4 py-3 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
-              :disabled="loadingPendingFormats"
+              :disabled="generationBusy"
               @click="$emit('generate-pending-formats', concept.id)"
             >
-              {{ loadingPendingFormats ? 'Generando formatos...' : 'Generar formatos pendientes' }}
+              {{ loadingPendingFormats ? 'Generando formatos...' : usesPreview ? 'Generar previews pendientes' : 'Generar formatos pendientes' }}
             </button>
           </section>
 
           <section v-else class="rounded-lg border border-accent/30 bg-accent/8 p-4 text-sm">
-            <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">Formatos completos</p>
+            <p class="font-mono text-[10px] uppercase tracking-[0.2em] text-accent">{{ hasPreviewFormats ? 'Previews listos' : 'Formatos completos' }}</p>
             <p class="mt-2 leading-6 text-text-muted">
-              Todos los formatos tienen un arte final activo. Puedes revisarlos o regenerar variantes.
+              {{ hasPreviewFormats ? 'Los previews estan listos. Selecciona cada formato y apruebalo para generar su final 4K.' : 'Todos los formatos tienen un arte final activo. Puedes revisarlos o regenerar variantes.' }}
             </p>
+          </section>
+
+          <p v-if="requestError" role="alert" class="break-words text-sm text-danger">{{ requestError }}</p>
+
+          <section v-if="usesPreview && activeVariant?.mode === 'preview'" class="space-y-3 rounded-lg border border-accent/30 bg-accent/8 p-4">
+            <p class="text-sm font-medium text-text">Aprobar este formato</p>
+            <label class="block text-xs text-text-muted">
+              Como generar el arte final
+              <select
+                :value="finalizationStrategy"
+                :disabled="generationBusy"
+                class="mt-2 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text"
+                @change="$emit('finalization-strategy', concept.id, concept.selectedRatio, ($event.target as HTMLSelectElement).value as StudioFinalizationStrategy)"
+              >
+                <option value="reference">Usar preview como referencia</option>
+                <option value="prompt">Repetir el mismo prompt</option>
+              </select>
+            </label>
+            <p class="text-xs leading-5 text-text-muted">
+              {{ finalizationStrategy === 'reference' ? 'Usa este preview y su prompt para conservar el diseno en 4K. El resultado puede variar.' : 'Genera otra imagen en 4K usando el mismo prompt y los assets del brief.' }}
+            </p>
+            <p v-if="previewNeedsRegeneration" class="text-xs leading-5 text-text-muted">
+              El prompt cambio. Genera un nuevo preview antes de aprobarlo.
+            </p>
+            <AppButton type="button" :disabled="generationBusy || previewNeedsRegeneration" @click="$emit('finalize', concept.id)">
+              {{ finalizing ? 'Generando 4K...' : 'Aprobar y generar 4K' }}
+            </AppButton>
           </section>
 
           <section class="space-y-3">
@@ -202,7 +231,8 @@
 
               <button
                 type="button"
-                class="rounded border border-accent/30 bg-accent/8 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-accent hover:bg-accent/15"
+                class="rounded border border-accent/30 bg-accent/8 px-3 py-1.5 text-xs font-medium text-accent transition hover:border-accent hover:bg-accent/15 disabled:opacity-50"
+                :disabled="generationBusy"
                 @click="$emit('open-prompt', concept.id)"
               >
                 Editar prompt
@@ -220,15 +250,16 @@
             <div class="flex flex-col gap-2 sm:flex-row">
               <AppButton
                 type="button"
-                :disabled="loadingVariant || !selectedFormat"
+                :disabled="generationBusy || !selectedFormat"
                 @click="$emit('regenerate', concept.id)"
               >
-                {{ loadingVariant ? 'Regenerando...' : selectedFormat?.generationError ? 'Reintentar generación' : 'Regenerar arte' }}
+                {{ regenerationLabel }}
               </AppButton>
 
               <button
                 type="button"
                 class="rounded border border-border px-4 py-2.5 text-xs text-text-muted transition hover:border-text-muted hover:text-text disabled:opacity-40"
+                :disabled="generationBusy"
                 @click="$emit('reset-prompt', concept.id)"
               >
                 Restaurar original
@@ -248,6 +279,7 @@
                 type="button"
                 class="w-full rounded-lg border px-3 py-2.5 text-left transition"
                 :class="variant.id === selectedFormat?.activeVariantId ? 'border-accent/50 bg-accent/8' : 'border-border hover:border-accent/25'"
+                :disabled="generationBusy"
                 @click="$emit('select-variant', concept.id, concept.selectedRatio, variant.id)"
               >
                 <div class="flex items-center justify-between gap-3">
@@ -261,7 +293,7 @@
                     class="rounded px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-[0.15em]"
                     :class="variant.mode === 'final' ? 'bg-accent/15 text-accent' : 'text-text-muted'"
                   >
-                    {{ variant.mode === 'final' ? 'Arte' : 'Preview legado' }}
+                    {{ variant.mode === 'final' ? 'Arte' : usesPreview ? 'Preview 1K' : 'Preview' }}
                   </span>
                 </div>
               </button>
@@ -269,7 +301,7 @@
                 v-if="!selectedFormat?.variants.length"
                 class="py-3 text-center text-xs text-text-muted/60"
               >
-                {{ selectedFormat?.generationError ? 'La generación falló. Puedes intentarlo de nuevo.' : 'Sin variantes. Se generara al completar los formatos pendientes.' }}
+                {{ selectedFormat?.generationError ? 'La generación falló. Puedes intentarlo de nuevo.' : usesPreview ? 'Sin preview. Genera este formato en 1K.' : 'Sin variantes. Se generara al completar los formatos pendientes.' }}
               </p>
             </div>
           </section>
@@ -280,7 +312,7 @@
 </template>
 
 <script setup lang="ts">
-import type { StudioConcept, StudioConceptFormat, StudioVariant } from '../../../shared/types/studio'
+import type { StudioConcept, StudioConceptFormat, StudioVariant, StudioFinalizationStrategy } from '../../../shared/types/studio'
 
 import AppButton from '~/components/base/AppButton.vue'
 
@@ -290,6 +322,8 @@ defineEmits<{
   'ratio-selected': [conceptId: string, ratio: string]
   'generate-pending-formats': [conceptId: string]
   'open-prompt': [conceptId: string]
+  finalize: [conceptId: string]
+  'finalization-strategy': [conceptId: string, ratio: string, strategy: StudioFinalizationStrategy]
   regenerate: [conceptId: string]
   'reset-prompt': [conceptId: string]
   'select-variant': [conceptId: string, ratio: string, variantId: string]
@@ -297,12 +331,18 @@ defineEmits<{
 }>()
 
 const props = defineProps<{
+  usesPreview: boolean
+  finalizationStrategy: StudioFinalizationStrategy
+  finalizing: boolean
+  generationBusy: boolean
+  requestError: string
   concept: StudioConcept
   index: number
   focused: boolean
   loadingVariant: boolean
   loadingPendingFormats: boolean
   promptPreview: string
+  promptDraft: string
   selectedFormat: StudioConceptFormat | undefined
   activeVariant: StudioVariant | undefined
   activeVariantByRatio: Record<string, StudioVariant | undefined>
@@ -310,9 +350,27 @@ const props = defineProps<{
   formatTimestamp: (value: string) => string
 }>()
 
+const previewNeedsRegeneration = computed(() => props.activeVariant?.mode === 'preview' && props.promptDraft !== props.activeVariant.prompt)
+
+const hasPreviewFormats = computed(() => props.usesPreview && props.concept.formats.some(format => props.activeVariantByRatio[format.ratio]?.mode === 'preview'))
+
+const generationStatusLabel = computed(() => {
+  if (props.selectedFormat?.generationError) return 'Error'
+  if (props.activeVariant?.mode === 'final') return props.usesPreview ? 'Arte final 4K' : 'Arte generado'
+  if (props.activeVariant?.mode === 'preview') return props.usesPreview ? 'Preview 1K' : 'Preview'
+  return 'Pendiente'
+})
+
+const regenerationLabel = computed(() => {
+  if (props.finalizing) return 'Generando 4K...'
+  if (props.loadingVariant) return 'Regenerando...'
+  if (props.usesPreview) return props.activeVariant ? 'Regenerar preview 1K' : 'Generar preview 1K'
+  return props.selectedFormat?.generationError ? 'Reintentar generación' : 'Regenerar arte'
+})
+
 const hasPendingFormats = computed(() => props.concept.formats.some((format) => {
   const activeVariant = format.variants.find((variant) => variant.id === format.activeVariantId)
 
-  return activeVariant?.mode !== 'final'
+  return props.usesPreview ? !activeVariant : activeVariant?.mode !== 'final'
 }))
 </script>

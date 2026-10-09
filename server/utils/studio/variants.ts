@@ -27,7 +27,7 @@ export function createGeneratedVariant(
   const id = `${conceptId}-${ratio}-${mode}-${versionNumber}`
   const label = mode === 'final'
     ? `${ratio} final ${resolution || '1K rapido'}`
-    : `Preview ${ratio} v${versionNumber}`
+    : `Preview${resolution ? ` ${resolution}` : ''} ${ratio} v${versionNumber}`
 
   return {
     id,

@@ -6,11 +6,13 @@ import {
   getStudioProjectBySlug,
   markStudioConceptFormatGenerationFailed
 } from '../../utils/studio/repository'
+import { getStudioExplorationSettings } from '../../../shared/utils/studio-generation'
 import { generateStoredFinalImageResult } from '../../utils/studio-generation'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioRegenerateVariantPayload>(event)
   const project = getStudioProjectBySlug(payload.projectSlug)
+  const generation = getStudioExplorationSettings(project.brief.resolution)
   const storedConcept = getStudioConceptById(payload.projectSlug, payload.conceptId)
   const storedFormat = storedConcept.formats.find((format) => format.ratio === payload.ratio)
 
@@ -24,7 +26,7 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
   const result = await generateStoredFinalImageResult(
     payload.prompt,
     payload.ratio,
-    project.brief.resolution,
+    generation.resolution,
     project.brief.assetIds ?? [],
     {
       conceptId: payload.conceptId,
@@ -37,10 +39,10 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
         payload.projectSlug,
         payload.conceptId,
         payload.ratio,
-        'final',
+        generation.mode,
         payload.prompt,
         result.image,
-        project.brief.resolution
+        generation.resolution
       )
     : markStudioConceptFormatGenerationFailed(
         payload.projectSlug,

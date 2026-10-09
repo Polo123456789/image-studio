@@ -30,7 +30,7 @@
             {{ brief.projectName || 'Proyecto sin nombre' }}
           </h1>
           <p class="mt-3 max-w-3xl text-sm leading-6 text-text-muted">
-            Gemini propone {{ brief.conceptCount }} conceptos y genera directamente el primer arte de cada uno. Puedes completar los formatos restantes cuando elijas una propuesta.
+            {{ usesPreview ? `Gemini propone ${brief.conceptCount} conceptos con previews en 1K. Aprueba cada formato para generar su arte final en 4K.` : `Gemini propone ${brief.conceptCount} conceptos y genera directamente el primer arte de cada uno. Puedes completar los formatos restantes cuando elijas una propuesta.` }}
           </p>
           <div class="mt-4 flex flex-wrap gap-2 text-sm text-text-muted">
             <span class="rounded border border-border px-3 py-1.5 text-xs">{{ brief.goal }}</span>
@@ -54,7 +54,7 @@
           <span class="text-sm font-medium text-text">Generando conceptos iniciales...</span>
         </div>
         <p class="mt-3 max-w-2xl text-sm leading-6 text-text-muted">
-          {{ generationMessage || 'Gemini esta redactando conceptos y generando el primer arte de cada propuesta. Esto puede tardar un poco.' }}
+          {{ generationMessage || (usesPreview ? 'Gemini esta redactando conceptos y generando el primer preview en 1K de cada propuesta.' : 'Gemini esta redactando conceptos y generando el primer arte de cada propuesta. Esto puede tardar un poco.') }}
         </p>
         <div class="mt-4 h-1.5 overflow-hidden rounded-full bg-surface-2">
           <div class="h-full w-1/3 animate-pulse rounded-full bg-accent"></div>
@@ -74,11 +74,17 @@
           v-for="(concept, conceptIndex) in concepts"
           :key="concept.id"
           :concept="concept"
+          :uses-preview="usesPreview"
+          :finalization-strategy="finalizationStrategy(concept.id, concept.selectedRatio)"
+          :finalizing="isFinalizing(concept.id, concept.selectedRatio)"
+          :generation-busy="isConceptGenerating(concept.id)"
+          :request-error="generationError(concept.id, concept.selectedRatio)"
           :index="conceptIndex"
           :focused="focusedConceptId === concept.id"
           :loading-variant="isVariantLoading(concept.id, concept.selectedRatio)"
           :loading-pending-formats="isPendingFormatsLoading(concept.id)"
           :prompt-preview="promptPreview(concept.id)"
+          :prompt-draft="promptDrafts[concept.id] || ''"
           :selected-format="selectedFormat(concept)"
           :active-variant="activeVariant(concept)"
           :active-variant-by-ratio="activeVariantsByRatio(concept)"
@@ -90,6 +96,8 @@
           @generate-pending-formats="generatePendingFormats"
           @open-prompt="openPromptModal"
           @regenerate="regenerateVariant"
+          @finalize="finalizeVariant"
+          @finalization-strategy="setFinalizationStrategy"
           @reset-prompt="resetPrompt"
           @select-variant="selectVariant"
           @use-style="useConceptStyleForNextGenerations"
@@ -159,12 +167,20 @@ import StudioConceptPromptModal from '~/components/studio/StudioConceptPromptMod
 
 const {
   brief,
+  usesPreview,
+  finalizationStrategy,
+  setFinalizationStrategy,
+  isFinalizing,
+  isConceptGenerating,
+  generationError,
+  finalizeVariant,
   concepts,
   generationMessage,
   pending,
   initialLoadError,
   isVariantLoading,
   isPendingFormatsLoading,
+  promptDrafts,
   promptModalConceptId,
   modalPromptDraft,
   moreConceptCount,

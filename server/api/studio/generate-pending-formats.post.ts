@@ -3,12 +3,14 @@ import type {
   StudioGeneratePendingFormatsPayload
 } from '../../../shared/types/studio'
 
-import { saveStudioConceptFinalVariants, getStudioProjectBySlug } from '../../utils/studio/repository'
+import { saveStudioConceptGeneratedVariants, getStudioProjectBySlug } from '../../utils/studio/repository'
+import { getStudioExplorationSettings } from '../../../shared/utils/studio-generation'
 import { generateStoredFinalImageResult } from '../../utils/studio-generation'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioGeneratePendingFormatsPayload>(event)
   const project = getStudioProjectBySlug(payload.projectSlug)
+  const generation = getStudioExplorationSettings(project.brief.resolution)
   const concept = project.concepts.find((item) => item.id === payload.conceptId)
 
   if (!concept) {
@@ -21,7 +23,7 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
   const pendingFormats = concept.formats.filter((format) => {
     const activeVariant = format.variants.find((variant) => variant.id === format.activeVariantId)
 
-    return activeVariant?.mode !== 'final'
+    return generation.mode === 'preview' ? !activeVariant : activeVariant?.mode !== 'final'
   })
 
   if (!pendingFormats.length) {
@@ -32,7 +34,7 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
     const result = await generateStoredFinalImageResult(
       format.promptDraft,
       format.ratio,
-      project.brief.resolution,
+      generation.resolution,
       project.brief.assetIds ?? [],
       {
         conceptId: payload.conceptId,
@@ -48,11 +50,12 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
   }))
 
   return {
-    concept: saveStudioConceptFinalVariants(
+    concept: saveStudioConceptGeneratedVariants(
       payload.projectSlug,
       payload.conceptId,
       generatedFormats,
-      project.brief.resolution
+      generation.resolution,
+      generation.mode
     )
   }
 })

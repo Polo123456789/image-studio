@@ -441,7 +441,7 @@ export function persistGeneratedVariant(
 
     tx.update(studioConcepts)
       .set({
-        approvedAt: conceptRow.approvedAt || now,
+        approvedAt: conceptRow.approvedAt || (input.mode === 'final' ? now : null),
         updatedAt: now
       })
       .where(eq(studioConcepts.id, conceptRow.id))
@@ -479,11 +479,12 @@ export function persistFormatGenerationError(
   })
 }
 
-export function persistFinalVariants(
+export function persistGeneratedFormats(
   projectId: number,
   conceptRow: StudioConceptRow,
   generatedFormats: Array<StudioFormatGenerationOutcome & { formatRow: StudioConceptFormatRow }>,
-  resolution: string
+  resolution: string,
+  mode: StudioVariantMode = 'final'
 ) {
   const generatedAt = new Date()
   const hasSuccessfulGeneration = generatedFormats.some((generatedFormat) => generatedFormat.image)
@@ -510,7 +511,7 @@ export function persistFinalVariants(
         conceptRow.conceptKey,
         generatedFormat.ratio,
         versionNumber,
-        'final',
+        mode,
         generatedFormat.promptDraft,
         generatedFormat.image,
         resolution
@@ -547,7 +548,7 @@ export function persistFinalVariants(
 
     tx.update(studioConcepts)
       .set({
-        approvedAt: conceptRow.approvedAt || (hasSuccessfulGeneration ? generatedAt : null),
+        approvedAt: conceptRow.approvedAt || (mode === 'final' && hasSuccessfulGeneration ? generatedAt : null),
         updatedAt: generatedAt
       })
       .where(eq(studioConcepts.id, conceptRow.id))

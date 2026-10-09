@@ -201,7 +201,7 @@ function buildCatalog() {
       const collection = collectionMap.get(key)
       const count = Number(row.imageCount)
       if (collection) collection.imageCount += count
-      else collectionMap.set(key, { id: key, name: key, imageCount: count })
+      else collectionMap.set(key, { id: key, name: key === 'previews-legado' ? 'Previews' : key.startsWith('legado:') ? `Previews ${row.ratio}` : key, imageCount: count })
     }
   }
 

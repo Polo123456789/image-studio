@@ -173,6 +173,9 @@
                 {{ resolution }}
               </option>
             </AppSelect>
+            <p v-if="form.resolution.includes('4K')" class="mt-2 text-xs leading-5 text-text-muted">
+              Primero se generan previews en 1K. Aprueba cada formato para generar su final 4K.
+            </p>
           </StudioFieldSection>
 
           <StudioFieldSection title="Conceptos a proponer">
@@ -192,7 +195,7 @@
             <p class="max-w-xl text-sm leading-6 text-text-muted">
               {{ isSubmitting
                 ? 'Estamos creando el proyecto y generando conceptos iniciales...'
-                : `Siguiente paso: Gemini redacta ${form.conceptCount} conceptos y genera directamente el primer arte de cada propuesta.` }}
+                : form.resolution.includes('4K') ? `Siguiente paso: Gemini redacta ${form.conceptCount} conceptos y genera previews en 1K para aprobarlos antes de generar en 4K.` : `Siguiente paso: Gemini redacta ${form.conceptCount} conceptos y genera directamente el primer arte de cada propuesta.` }}
             </p>
 
             <AppButton type="submit" :disabled="isSubmitting || !canContinue" :aria-busy="isSubmitting">

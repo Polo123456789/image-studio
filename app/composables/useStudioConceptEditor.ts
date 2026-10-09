@@ -6,7 +6,10 @@ import type {
 	StudioConceptResponse,
 	StudioProjectResponse,
 	StudioVariant,
+	StudioFinalizationStrategy,
 } from "../../shared/types/studio";
+
+import { usesStudioPreview } from "#shared/utils/studio-generation";
 
 interface ConceptMutationOptions {
 	persist?: boolean;
@@ -24,6 +27,10 @@ export async function useStudioConceptEditor() {
 		setProject,
 	} = useStudioSession();
 
+	const usesPreview = computed(() => usesStudioPreview(brief.value.resolution));
+	const finalizationStrategies = ref<Record<string, StudioFinalizationStrategy>>({});
+	const finalizingKeys = ref<Record<string, boolean>>({});
+	const generationErrors = ref<Record<string, string>>({});
 	const pending = ref(isGeneratingConcepts.value && !concepts.value.length);
 	const initialLoadError = ref("");
 	const variantLoadingKeys = ref<Record<string, boolean>>({});
@@ -403,34 +410,94 @@ export async function useStudioConceptEditor() {
 		}
 	}
 
+	function finalizationStrategy(conceptId: string, ratio: string) {
+		return finalizationStrategies.value[createFormatKey(conceptId, ratio)] || 'reference';
+	}
+
+	function setFinalizationStrategy(conceptId: string, ratio: string, strategy: StudioFinalizationStrategy) {
+		finalizationStrategies.value[createFormatKey(conceptId, ratio)] = strategy;
+	}
+
+	function isFinalizing(conceptId: string, ratio: string) {
+		return Boolean(finalizingKeys.value[createFormatKey(conceptId, ratio)]);
+	}
+
+	function generationError(conceptId: string, ratio: string) {
+		return generationErrors.value[createFormatKey(conceptId, ratio)] || '';
+	}
+
+	function isConceptGenerating(conceptId: string) {
+		return isPendingFormatsLoading(conceptId) || concepts.value.find(item => item.id === conceptId)?.formats.some(format => isVariantLoading(conceptId, format.ratio)) || false;
+	}
+
+	async function finalizeVariant(conceptId: string) {
+		const concept = concepts.value.find(item => item.id === conceptId);
+		const format = concept ? selectedFormat(concept) : undefined;
+		const preview = format ? activeVariantForFormat(format) : undefined;
+		if (!format || preview?.mode !== 'preview' || promptDrafts.value[conceptId] !== preview.prompt || isConceptGenerating(conceptId)) return;
+
+		const ratio = format.ratio;
+		const loadingKey = createFormatKey(conceptId, ratio);
+		const strategy = finalizationStrategy(conceptId, ratio);
+		generationErrors.value[loadingKey] = '';
+		setLoadingKey(variantLoadingKeys, loadingKey, true);
+		setLoadingKey(finalizingKeys, loadingKey, true);
+		try {
+			await enqueueConceptMutation(conceptId, async () => {
+				const response = await $fetch<StudioConceptMutationResponse>('/api/studio/finalize-variant', {
+					method: 'POST',
+					body: { projectSlug: routeProjectSlug.value, conceptId, ratio, previewVariantId: preview.id, strategy }
+				});
+				replaceConcept(response.concept);
+			});
+		} catch (error) {
+			generationErrors.value[loadingKey] = getGenerationRequestError(error);
+		} finally {
+			setLoadingKey(variantLoadingKeys, loadingKey, false);
+			setLoadingKey(finalizingKeys, loadingKey, false);
+		}
+	}
+
+
+	function getGenerationRequestError(error: unknown) {
+		const details = error as { data?: { statusMessage?: string } };
+		return details?.data?.statusMessage || 'No se pudo completar la generacion. Intenta nuevamente.';
+	}
+
 	async function regenerateVariant(conceptId: string) {
 		const concept = concepts.value.find((item) => item.id === conceptId);
 		const format = concept ? selectedFormat(concept) : null;
 
-		if (!concept || !format) {
+		if (!concept || !format || isConceptGenerating(conceptId)) {
 			return;
 		}
 
 		const loadingKey = createFormatKey(conceptId, concept.selectedRatio);
 
+		generationErrors.value[loadingKey] = "";
 		setLoadingKey(variantLoadingKeys, loadingKey, true);
 
+		const prompt = promptDrafts.value[conceptId];
+		const ratio = concept.selectedRatio;
 		try {
-			const prompt = promptDrafts.value[conceptId];
-			const response = await $fetch<StudioConceptMutationResponse>(
-				"/api/studio/regenerate-variant",
-				{
-					method: "POST",
-					body: {
-						projectSlug: routeProjectSlug.value,
-						conceptId,
-						ratio: concept.selectedRatio,
-						prompt,
+			await enqueueConceptMutation(conceptId, async () => {
+				const response = await $fetch<StudioConceptMutationResponse>(
+					"/api/studio/regenerate-variant",
+					{
+						method: "POST",
+						body: {
+							projectSlug: routeProjectSlug.value,
+							conceptId,
+							ratio,
+							prompt,
+						},
 					},
-				},
-			);
+				);
 
-			replaceConcept(response.concept);
+				replaceConcept(response.concept);
+			});
+		} catch (error) {
+			generationErrors.value[loadingKey] = getGenerationRequestError(error);
 		} finally {
 			setLoadingKey(variantLoadingKeys, loadingKey, false);
 		}
@@ -439,7 +506,7 @@ export async function useStudioConceptEditor() {
 	async function generatePendingFormats(conceptId: string) {
 		const concept = concepts.value.find((item) => item.id === conceptId);
 
-		if (!concept) {
+		if (!concept || isConceptGenerating(conceptId)) {
 			return;
 		}
 
@@ -448,19 +515,25 @@ export async function useStudioConceptEditor() {
 			[conceptId]: true,
 		};
 
+		const loadingKey = createFormatKey(conceptId, concept.selectedRatio);
+		generationErrors.value[loadingKey] = '';
 		try {
-			const response = await $fetch<StudioConceptMutationResponse>(
-				"/api/studio/generate-pending-formats",
-				{
-					method: "POST",
-					body: {
-						projectSlug: routeProjectSlug.value,
-						conceptId,
+			await enqueueConceptMutation(conceptId, async () => {
+				const response = await $fetch<StudioConceptMutationResponse>(
+					"/api/studio/generate-pending-formats",
+					{
+						method: "POST",
+						body: {
+							projectSlug: routeProjectSlug.value,
+							conceptId,
+						},
 					},
-				},
-			);
+				);
 
-			replaceConcept(response.concept);
+				replaceConcept(response.concept);
+			});
+		} catch (error) {
+			generationErrors.value[loadingKey] = getGenerationRequestError(error);
 		} finally {
 			pendingFormatsLoading.value = Object.fromEntries(
 				Object.entries(pendingFormatsLoading.value).filter(
@@ -735,7 +808,7 @@ export async function useStudioConceptEditor() {
 		}
 
 		if (variant?.mode === "preview") {
-			return "Preview legado";
+			return usesPreview.value ? "Preview 1K" : "Preview";
 		}
 
 		return "Pendiente";
@@ -743,6 +816,13 @@ export async function useStudioConceptEditor() {
 
 	return {
 		brief,
+		usesPreview,
+		finalizationStrategy,
+		setFinalizationStrategy,
+		isFinalizing,
+		generationError,
+		isConceptGenerating,
+		finalizeVariant,
 		concepts,
 		generationMessage,
 		pending,
