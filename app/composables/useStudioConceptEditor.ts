@@ -18,6 +18,7 @@ interface ConceptMutationOptions {
 export async function useStudioConceptEditor() {
 	const route = useRoute();
 	const router = useRouter();
+	const { notify, requestPermission } = useNotifications();
 	const {
 		projectSlug,
 		brief,
@@ -168,6 +169,7 @@ export async function useStudioConceptEditor() {
 			);
 
 			concepts.value = response.concepts;
+			notifyGeneratedBatch(response.concepts);
 			generationMessage.value = "";
 			isGeneratingConcepts.value = false;
 		} catch (error) {
@@ -180,6 +182,17 @@ export async function useStudioConceptEditor() {
 		} finally {
 			pending.value = false;
 		}
+	}
+
+	function notifyGeneratedBatch(generatedConcepts: StudioConcept[]) {
+		const count = generatedConcepts.filter(concept =>
+			concept.formats.some(format => format.variants.some(variant => Boolean(variant.imageUrl))),
+		).length;
+		const failed = generatedConcepts.length - count;
+		void notify(
+			`${brief.value.projectName || "Proyecto"}: tanda terminada. ${count} ${count === 1 ? "imagen generada" : "imágenes generadas"}.${failed ? ` ${failed} ${failed === 1 ? "imagen no se pudo generar" : "imágenes no se pudieron generar"}.` : ""}`,
+			`/studio/${routeProjectSlug.value}/concepts`,
+		);
 	}
 
 	function syncPromptDrafts(nextConcepts: StudioConcept[]) {
@@ -453,6 +466,7 @@ export async function useStudioConceptEditor() {
 		const preview = format ? activeVariantForFormat(format) : undefined;
 		if (!format || preview?.mode !== 'preview' || promptDrafts.value[conceptId] !== preview.prompt || isConceptGenerating(conceptId)) return;
 
+		void requestPermission();
 		const ratio = format.ratio;
 		const loadingKey = createFormatKey(conceptId, ratio);
 		const strategy = finalizationStrategy(conceptId, ratio);
@@ -466,6 +480,10 @@ export async function useStudioConceptEditor() {
 					body: { projectSlug: routeProjectSlug.value, conceptId, ratio, previewVariantId: preview.id, strategy }
 				});
 				replaceConcept(response.concept);
+				const resultFormat = response.concept.formats.find(item => item.ratio === ratio);
+				if (resultFormat?.variants.some(item => item.mode === 'final' && item.imageUrl && !format.variants.some(previous => previous.id === item.id))) {
+					void notify(`Arte final 4K listo: ${response.concept.title} (${ratio}).`, `/studio/${routeProjectSlug.value}/concepts?concept=${conceptId}&ratio=${encodeURIComponent(ratio)}`);
+				}
 			});
 		} catch (error) {
 			generationErrors.value[loadingKey] = getRequestErrorMessage(error, "No se pudo completar la generacion. Intenta nuevamente.");
@@ -484,6 +502,7 @@ export async function useStudioConceptEditor() {
 			return;
 		}
 
+		void requestPermission();
 		const loadingKey = createFormatKey(conceptId, concept.selectedRatio);
 
 		generationErrors.value[loadingKey] = "";
@@ -507,6 +526,13 @@ export async function useStudioConceptEditor() {
 				);
 
 				replaceConcept(response.concept);
+				const generatedFormat = response.concept.formats.find(item => item.ratio === ratio);
+				const newVariant = generatedFormat?.variants.find(item =>
+					item.imageUrl && !format.variants.some(previous => previous.id === item.id),
+				);
+				if (newVariant) {
+					void notify(`Imagen regenerada: ${concept.title} (${ratio}).`, `/studio/${routeProjectSlug.value}/concepts?concept=${conceptId}&ratio=${encodeURIComponent(ratio)}`);
+				}
 			});
 		} catch (error) {
 			generationErrors.value[loadingKey] = getRequestErrorMessage(error, "No se pudo completar la generacion. Intenta nuevamente.");
@@ -522,6 +548,7 @@ export async function useStudioConceptEditor() {
 			return;
 		}
 
+		void requestPermission();
 		pendingFormatsLoading.value = {
 			...pendingFormatsLoading.value,
 			[conceptId]: true,
@@ -543,6 +570,13 @@ export async function useStudioConceptEditor() {
 				);
 
 				replaceConcept(response.concept);
+				const generatedCount = response.concept.formats.filter(format => format.variants.some(variant =>
+					variant.imageUrl && !concept.formats.find(previous => previous.ratio === format.ratio)?.variants.some(previous => previous.id === variant.id),
+				)).length;
+				const failedCount = response.concept.formats.filter(format => Boolean(format.generationError)).length;
+				if (generatedCount || failedCount) {
+					void notify(`Formatos de ${concept.title}: ${generatedCount} ${generatedCount === 1 ? 'formato generado' : 'formatos generados'}.${failedCount ? ` ${failedCount} con errores.` : ''}`, `/studio/${routeProjectSlug.value}/concepts?concept=${conceptId}`);
+				}
 			});
 		} catch (error) {
 			generationErrors.value[loadingKey] = getRequestErrorMessage(error, "No se pudo completar la generacion. Intenta nuevamente.");
@@ -585,6 +619,7 @@ export async function useStudioConceptEditor() {
 			return;
 		}
 
+		void requestPermission();
 		loadingMoreConcepts.value = true;
 		moreConceptError.value = "";
 
@@ -600,6 +635,7 @@ export async function useStudioConceptEditor() {
 			);
 
 			concepts.value = [...concepts.value, ...response.concepts];
+			notifyGeneratedBatch(response.concepts);
 		} catch (error) {
 			moreConceptError.value = getRequestErrorMessage(
 				error,

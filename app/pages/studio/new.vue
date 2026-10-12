@@ -392,6 +392,7 @@ function buildBriefPayload(): StudioBriefPayload {
 async function submitBrief() {
   if (isSubmitting.value || sourceError.value || !canContinue.value) return
 
+  void useNotifications().requestPermission()
   isSubmitting.value = true
   submitError.value = ''
   const payload = buildBriefPayload()
