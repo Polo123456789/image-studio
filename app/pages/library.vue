@@ -51,27 +51,31 @@
       <div v-else>
         <!-- Toolbar -->
         <div class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div class="flex flex-1 flex-wrap items-center gap-2">
-            <button
-              type="button"
-              class="rounded-lg border px-3 py-2 text-sm transition"
-              :class="selectedFolderSlug === 'all' ? 'border-accent/40 bg-accent/10 text-text' : 'border-border text-text-muted hover:border-accent/20 hover:text-text'"
-              @click="selectedFolderSlug = 'all'"
-            >
-              Todas
-            </button>
+          <div class="flex min-w-0 flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+            <div class="w-full sm:w-72 sm:shrink-0">
+              <span id="library-project-label" class="sr-only">Proyecto</span>
+              <AppCombobox
+                v-model="projectSelection"
+                :options="projectOptions"
+                aria-labelledby="library-project-label"
+                placeholder="Todos los proyectos"
+                search-placeholder="Buscar proyecto..."
+                no-results-text="No hay proyectos con ese nombre"
+              />
+            </div>
 
-            <button
-              v-for="folder in folders"
-              :key="folder.id"
-              type="button"
-              class="rounded-lg border px-3 py-2 text-sm transition"
-              :class="selectedFolderSlug === folder.projectSlug ? 'border-accent/40 bg-accent/10 text-text' : 'border-border text-text-muted hover:border-accent/20 hover:text-text'"
-              @click="selectedFolderSlug = folder.projectSlug"
-            >
-              {{ folder.name }}
-              <span class="ml-1 text-text-muted">{{ folder.imageCount }}</span>
-            </button>
+            <label v-if="collections.length" class="flex min-w-0 items-center gap-2 text-sm text-text-muted">
+              <span>Filtro</span>
+              <select
+                v-model="selectedCollectionId"
+                class="min-w-0 flex-1 rounded-lg border border-border bg-bg px-3 py-2.5 text-sm text-text outline-none transition focus:border-accent sm:max-w-48"
+              >
+                <option :value="null">Todas las colecciones</option>
+                <option v-for="collection in collections" :key="collection.id" :value="collection.id">
+                  {{ collection.name }}
+                </option>
+              </select>
+            </label>
           </div>
 
           <div class="flex items-center gap-2">
@@ -95,30 +99,6 @@
               <option value="project">Proyecto</option>
             </select>
           </div>
-        </div>
-
-        <!-- Collection chips -->
-        <div v-if="collections.length" class="mb-6 flex flex-wrap items-center gap-2">
-          <span class="text-xs text-text-muted">Filtrar:</span>
-          <button
-            v-for="collection in collections"
-            :key="collection.id"
-            type="button"
-            class="rounded-full border px-2.5 py-1 text-[11px] transition"
-            :class="selectedCollectionId === collection.id ? 'border-accent/40 bg-accent/10 text-accent' : 'border-border text-text-muted hover:border-accent/20 hover:text-text'"
-            @click="selectedCollectionId = selectedCollectionId === collection.id ? null : collection.id"
-          >
-            {{ collection.name }}
-          </button>
-
-          <button
-            v-if="selectedCollectionId"
-            type="button"
-            class="text-[11px] text-text-muted transition hover:text-text"
-            @click="selectedCollectionId = null"
-          >
-            Limpiar
-          </button>
         </div>
 
         <!-- Image grid -->
@@ -194,6 +174,7 @@
 import type { LibraryImageDetailResponse, LibraryImageItem, LibraryImageVersion, LibraryResponse } from '../../shared/types/studio'
 
 import AppButton from '~/components/base/AppButton.vue'
+import AppCombobox from '~/components/base/AppCombobox.vue'
 import LibraryImageDetailModal from '~/components/library/LibraryImageDetailModal.vue'
 
 const imagePageSize = 40
@@ -206,6 +187,18 @@ const collections = ref<LibraryResponse['collections']>([])
 const images = ref<LibraryImageItem[]>([])
 const selectedFolderSlug = ref<string>('all')
 const selectedCollectionId = ref<string | null>(null)
+const projectSelection = computed<string | number | null>({
+  get: () => selectedFolderSlug.value,
+  set: (value) => { selectedFolderSlug.value = typeof value === 'string' ? value : 'all' }
+})
+const projectOptions = computed(() => [
+  { value: 'all', label: 'Todos los proyectos' },
+  ...folders.value.map((folder) => ({
+    value: folder.projectSlug,
+    label: folder.name,
+    hint: String(folder.imageCount)
+  }))
+])
 const selectedImageId = ref<string | null>(null)
 const selectedVersionId = ref<string | null>(null)
 const searchQuery = ref('')
