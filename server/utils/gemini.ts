@@ -11,8 +11,8 @@ import { logServerError } from './error-logging'
 import { getStudioGenerationErrorMessage } from './studio/generation-errors'
 import { getStyleGuidesByIds } from './style-guides'
 
-const textModel = 'gemini-3.5-flash'
-const imageModel = 'gemini-3.1-flash-image-preview'
+const textModel = 'gemini-3.8-flash'
+const imageModel = 'gemini-nano-banana-2.1'
 
 function getClient() {
   const settings = getServerAppSettings()

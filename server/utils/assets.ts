@@ -14,7 +14,7 @@ import { uploadsRootDirectory } from './storage-paths'
 
 export const assetsDirectory = resolve(uploadsRootDirectory, 'assets')
 const supportedImageMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
-const assetDescriptionModel = 'gemini-3.1-flash-lite'
+const assetDescriptionModel = 'gemini-3.5-flash-lite'
 
 export function getAssetRelativeFilePath(storedFileName: string) {
   return `/uploads/assets/${storedFileName}`
