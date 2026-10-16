@@ -30,82 +30,62 @@ const defaultCreativeStyles = [
 	{
 		name: "Packshot",
 		description:
-			"Producto protagonista, fondo limpio, lectura comercial inmediata y foco total en forma, material y branding.",
+			"Fotografía de producto sobre fondo limpio, luz suave y empaque legible. Ideal para mostrar fórmulas, presentaciones, disponibilidad y surtido; el producto lleva el peso visual.",
 	},
 	{
 		name: "Estilo de vida",
 		description:
-			"Producto integrado en una escena cotidiana aspiracional, con contexto humano o ambiental y atmosfera natural.",
+			"Fotografía natural de mascotas en casa, paseo o actividad, con sus personas cuando aporte al mensaje. La interacción y el entorno comunican bienestar, cuidado o uso cotidiano; integra el producto con escala y presencia creíbles.",
 	},
 	{
-		name: "Macro y detalle",
+		name: "Promoción tipográfica",
 		description:
-			"Encuadres cerrados para destacar textura, acabado, materialidad, gotas, brillos o pequeños rasgos diferenciales.",
-	},
-	{
-		name: "Flat Design",
-		description:
-			"Lenguaje grafico plano, formas limpias, sombras minimas y composicion clara con lectura simple y moderna.",
-	},
-	{
-		name: "Ilustracion isometrica",
-		description:
-			"Escena ilustrada en perspectiva isometrica, ordenada, tecnica y util para explicar producto, sistema o servicio.",
+			"El precio, porcentaje o mecánica de la oferta domina mediante tipografía grande y alto contraste. Productos en segundo nivel, marca reconocible y condiciones legibles. Ideal para descuentos, combos, regalos y cierres de promoción; utiliza únicamente los datos del brief.",
 	},
 	{
 		name: "Pop Art",
 		description:
-			"Color vibrante, alto contraste, energia grafica, irreverencia visual y recursos expresivos muy notorios.",
-	},
-	{
-		name: "Minimalismo",
-		description:
-			"Pocos elementos, mucho aire, composicion contenida, jerarquia clara y una direccion elegante y sobria.",
-	},
-	{
-		name: "Brutalismo",
-		description:
-			"Impacto visual crudo, contrastes duros, composicion desafiante, tension grafica y presencia frontal.",
-	},
-	{
-		name: "Editorial",
-		description:
-			"Direccion de arte inspirada en revistas premium, composicion refinada, ritmo visual y sensibilidad de moda.",
+			"Gráfica comercial enérgica con colores vivos de la marca, formas planas y tipografía contundente. Combina producto o mascota con recursos pop que refuercen el mensaje y una jerarquía clara; adecuado para promociones y campañas lúdicas.",
 	},
 	{
 		name: "Hero shot",
 		description:
-			"Producto heroico y dominante, angulo dramatico, iluminacion protagonista y sensacion de lanzamiento o hito.",
+			"Fotografía publicitaria de producto a gran escala, perspectiva marcada e iluminación que define volumen y empaque. Ideal para lanzamientos o destacar una presentación; pocos elementos de apoyo y espacio para un titular breve.",
+	},
+	{
+		name: "Minimalismo",
+		description:
+			"Una imagen o producto principal, fondo despejado, pocos colores de marca y texto breve con jerarquía clara. Adecuado para comunicar un beneficio, disponibilidad o un recordatorio con lectura inmediata.",
 	},
 	{
 		name: "Flat lay",
 		description:
-			"Vista cenital cuidadosamente ordenada, ideal para storytelling de accesorios, ingredientes o kits.",
+			"Fotografía cenital de productos y accesorios organizados con separación clara. Ideal para combos, kits, regalos y variedad de presentaciones; mantiene legibles los empaques y la relación entre los elementos de la oferta.",
 	},
 	{
 		name: "Bodegon contemporaneo",
 		description:
-			"Naturaleza muerta publicitaria con props, balance escultorico y sensacion curada de estudio actual.",
+			"Fotografía de producto en una composición de estudio con bases, superficies y elementos de apoyo vinculados al mensaje. Luz suave, sombras naturales y color de marca; útil para aromas, cuidado e higiene sin saturar la escena.",
 	},
 	{
-		name: "High key",
+		name: "Retrato de mascota",
 		description:
-			"Escena luminosa, clara y optimista, con sombras suaves y predominio de blancos o tonos muy livianos.",
+			"Fotografía expresiva de perro o gato como protagonista, con encuadre cercano o de cuerpo completo y fondo sencillo. La mirada, postura y pelaje transmiten cercanía; adecuada para adopción, comunidad y mensajes de cuidado, con espacio para texto y marca.",
 	},
 	{
-		name: "Low key cinematografico",
+		name: "Infografía editorial",
 		description:
-			"Luz dramatica, fondos oscuros, profundidad atmosferica y una sensacion mas intensa o sofisticada.",
+			"Composición informativa con titular, bloques breves e iconos o ilustraciones planas que ordenan pasos, fechas, comparaciones o consejos. Fondo claro, paleta acotada y lectura cómoda en móvil; utiliza solo la información aportada, sin inventar recomendaciones de salud.",
+	},
+	{
+		name: "Flat Design",
+		description:
+			"Ilustración plana de mascotas, objetos y escenas con formas simples, contornos definidos y sombras mínimas. Una idea visual central para explicar situaciones de cuidado o servicios; paleta de marca y texto breve.",
 	},
 	{
 		name: "Collage mixed media",
 		description:
-			"Mezcla de fotografia, ilustracion, recortes y capas graficas para una pieza expresiva y menos literal.",
-	},
-	{
-		name: "Futurista 3D",
-		description:
-			"Materiales digitales, volumen sintético, iluminacion artificial pulida y lenguaje visual de innovacion.",
+			"Fotografías recortadas de mascotas y productos combinadas con formas gráficas y tipografía de marca. Capas ordenadas, foco reconocible y energía lúdica; adecuado para tiendas de mascotas, novedades y promociones.",
 	},
 ] as const;
 

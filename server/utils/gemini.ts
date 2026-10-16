@@ -124,7 +124,7 @@ function buildCreativePrompt(payload: StudioBriefPayload): string {
         ? [
           'Biblioteca de estilos creativos disponible para que elijas el mas adecuado por concepto:',
           ...shuffledCreativeStyles.map((style, index) => `${index + 1}. [${style.id}] ${style.name}. ${style.description || 'Sin descripcion adicional.'}`),
-          'Debes escoger el estilo mas apropiado para cada concepto segun la idea, el texto y la composicion. No fuerces siempre el mismo estilo ni repitas el mismo estilo en todos los conceptos si existen alternativas viables.'
+          'Escoge entre los estilos disponibles segun el objetivo, el mensaje y los recursos del brief. Prioriza la lectura comercial, la identidad de marca y la fidelidad de los productos y mascotas de referencia. Puedes repetir un estilo cuando sea el mas adecuado; diferencia los conceptos por su idea visual, escena o forma de comunicar, no por cambiar de estilo. Las descripciones orientan la ejecucion: no agregues ofertas, beneficios ni datos que el brief no proporcione.'
         ].join(' ')
         : 'No hay estilos creativos configurados. Decide libremente el lenguaje visual de cada concepto.'
 
