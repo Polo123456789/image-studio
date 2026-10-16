@@ -494,7 +494,7 @@ export async function useStudioConceptEditor() {
 	}
 
 
-	async function regenerateVariant(conceptId: string) {
+	async function regenerateVariant(conceptId: string, targetSize?: '1K' | '2K' | '4K') {
 		const concept = concepts.value.find((item) => item.id === conceptId);
 		const format = concept ? selectedFormat(concept) : null;
 
@@ -508,6 +508,7 @@ export async function useStudioConceptEditor() {
 		generationErrors.value[loadingKey] = "";
 		setLoadingKey(variantLoadingKeys, loadingKey, true);
 
+		const sourceVariantId = activeVariantForFormat(format)?.id;
 		const prompt = promptDrafts.value[conceptId];
 		const ratio = concept.selectedRatio;
 		try {
@@ -521,6 +522,8 @@ export async function useStudioConceptEditor() {
 							conceptId,
 							ratio,
 							prompt,
+							targetSize,
+							sourceVariantId,
 						},
 					},
 				);

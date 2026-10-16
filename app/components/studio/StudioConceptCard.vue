@@ -247,18 +247,55 @@
               {{ promptPreview }}
             </div>
 
-            <div class="flex flex-col gap-2 sm:flex-row">
-              <AppButton
-                type="button"
-                :disabled="generationBusy || !selectedFormat"
-                @click="$emit('regenerate', concept.id)"
-              >
-                {{ regenerationLabel }}
-              </AppButton>
-
+            <div class="flex flex-wrap items-center gap-3">
+              <div ref="sizeControl" class="relative" @keydown.esc.stop.prevent="closeSizeMenu(true)">
+                <div class="inline-flex">
+                  <button
+                    type="button"
+                    class="rounded-l bg-accent px-4 py-2.5 text-sm font-medium text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    :disabled="generationBusy || !selectedFormat"
+                    @click="$emit('regenerate', concept.id)"
+                  >
+                    {{ regenerationLabel }}
+                  </button>
+                  <button
+                    ref="sizeToggle"
+                    type="button"
+                    class="flex items-center justify-center rounded-r border-l border-bg/20 bg-accent px-3 text-bg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                    aria-label="Generar en otro tamaño"
+                    :aria-expanded="sizeMenuOpen"
+                    :aria-controls="`size-options-${concept.id}`"
+                    :disabled="generationBusy || !activeVariant?.imageUrl"
+                    @click="sizeMenuOpen = !sizeMenuOpen"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+                      <path d="m5 8 5 5 5-5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                  </button>
+                </div>
+                <div
+                  v-if="sizeMenuOpen"
+                  :id="`size-options-${concept.id}`"
+                  class="absolute left-0 top-full z-20 mt-2 w-64 rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg"
+                >
+                  <p class="mx-2 mb-1 border-b border-border pb-2 pt-1 text-[11px] leading-4 text-text-muted">
+                    Usar imagen actual como referencia
+                  </p>
+                  <button
+                    v-for="size in availableSizes"
+                    :key="size"
+                    type="button"
+                    class="flex w-full items-center justify-between rounded px-3 py-2.5 text-left text-sm text-text transition hover:bg-surface focus-visible:bg-surface"
+                    @click="regenerateAtSize(size)"
+                  >
+                    <span>Generar en {{ size }}</span>
+                    <span class="font-mono text-xs text-text-muted">{{ size }}</span>
+                  </button>
+                </div>
+              </div>
               <button
                 type="button"
-                class="rounded border border-border px-4 py-2.5 text-xs text-text-muted transition hover:border-text-muted hover:text-text disabled:opacity-40"
+                class="text-xs text-text-muted transition hover:text-text disabled:opacity-40"
                 :disabled="generationBusy"
                 @click="$emit('reset-prompt', concept.id)"
               >
@@ -316,7 +353,7 @@ import type { StudioConcept, StudioConceptFormat, StudioVariant, StudioFinalizat
 
 import AppButton from '~/components/base/AppButton.vue'
 
-defineEmits<{
+const emit = defineEmits<{
   discard: [conceptId: string]
   'cycle-ratio': [conceptId: string]
   'ratio-selected': [conceptId: string, ratio: string]
@@ -324,7 +361,7 @@ defineEmits<{
   'open-prompt': [conceptId: string]
   finalize: [conceptId: string]
   'finalization-strategy': [conceptId: string, ratio: string, strategy: StudioFinalizationStrategy]
-  regenerate: [conceptId: string]
+  regenerate: [conceptId: string, targetSize?: '1K' | '2K' | '4K']
   'reset-prompt': [conceptId: string]
   'select-variant': [conceptId: string, ratio: string, variantId: string]
   'use-style': [conceptId: string]
@@ -350,6 +387,40 @@ const props = defineProps<{
   formatTimestamp: (value: string) => string
 }>()
 
+const sizeMenuOpen = ref(false)
+const sizeControl = ref<HTMLElement | null>(null)
+const sizeToggle = ref<HTMLButtonElement | null>(null)
+const availableSizes = computed(() => {
+  const currentSize = props.activeVariant?.label.match(/\b(1K|2K|4K)\b/)?.[1]
+    || (props.activeVariant?.mode === 'preview' ? '1K' : undefined)
+  return (['1K', '2K', '4K'] as const).filter(size => size !== currentSize)
+})
+
+function closeSizeMenu(restoreFocus = false) {
+  sizeMenuOpen.value = false
+  if (restoreFocus) sizeToggle.value?.focus()
+}
+
+function regenerateAtSize(size: '1K' | '2K' | '4K') {
+  if (props.generationBusy || !availableSizes.value.includes(size)) return
+  closeSizeMenu(true)
+  emit('regenerate', props.concept.id, size)
+}
+
+function onOutsideInteraction(event: Event) {
+  if (event.target instanceof Node && !sizeControl.value?.contains(event.target)) closeSizeMenu()
+}
+
+watch(() => [props.concept.id, props.concept.selectedRatio, props.activeVariant?.id, props.generationBusy], () => closeSizeMenu())
+onMounted(() => {
+  document.addEventListener('pointerdown', onOutsideInteraction)
+  document.addEventListener('focusin', onOutsideInteraction)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('pointerdown', onOutsideInteraction)
+  document.removeEventListener('focusin', onOutsideInteraction)
+})
+
 const previewNeedsRegeneration = computed(() => props.activeVariant?.mode === 'preview' && props.promptDraft !== props.activeVariant.prompt)
 
 const hasPreviewFormats = computed(() => props.usesPreview && props.concept.formats.some(format => props.activeVariantByRatio[format.ratio]?.mode === 'preview'))
@@ -364,7 +435,8 @@ const generationStatusLabel = computed(() => {
 const regenerationLabel = computed(() => {
   if (props.finalizing) return 'Generando 4K...'
   if (props.loadingVariant) return 'Regenerando...'
-  if (props.usesPreview) return props.activeVariant ? 'Regenerar preview 1K' : 'Generar preview 1K'
+  if (props.activeVariant) return 'Regenerar imagen'
+  if (props.usesPreview) return 'Generar preview 1K'
   return props.selectedFormat?.generationError ? 'Reintentar generación' : 'Regenerar arte'
 })
 

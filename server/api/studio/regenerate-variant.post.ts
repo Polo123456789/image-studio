@@ -23,15 +23,29 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
     })
   }
 
+  if (payload.targetSize !== undefined && !['1K', '2K', '4K'].includes(payload.targetSize)) {
+    throw createError({ statusCode: 400, statusMessage: 'Selecciona un tamaño valido: 1K, 2K o 4K.' })
+  }
+  const source = payload.sourceVariantId
+    ? storedFormat.variants.find(variant => variant.id === payload.sourceVariantId)
+    : storedFormat.variants.find(variant => variant.id === storedFormat.activeVariantId)
+  if ((payload.sourceVariantId && !source) || (payload.targetSize && !source?.imageUrl)) {
+    throw createError({ statusCode: 400, statusMessage: 'Selecciona una imagen de este formato como referencia.' })
+  }
+  const currentSize = source?.label.match(/\b(1K|2K|4K)\b/)?.[1]
+  const resolution = payload.targetSize || currentSize || generation.resolution
+  const mode = payload.targetSize ? 'final' : source?.mode || generation.mode
+
   const result = await generateStoredFinalImageResult(
-    payload.prompt,
+    payload.targetSize ? source!.prompt : payload.prompt,
     payload.ratio,
-    generation.resolution,
+    resolution,
     project.brief.assetIds ?? [],
     {
       conceptId: payload.conceptId,
       operation: 'regenerate-variant'
-    }
+    },
+    payload.targetSize ? source!.imageUrl : undefined
   )
 
   const concept = result.image
@@ -39,10 +53,10 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
         payload.projectSlug,
         payload.conceptId,
         payload.ratio,
-        generation.mode,
-        payload.prompt,
+        mode,
+        payload.targetSize ? source!.prompt : payload.prompt,
         result.image,
-        generation.resolution
+        resolution
       )
     : markStudioConceptFormatGenerationFailed(
         payload.projectSlug,

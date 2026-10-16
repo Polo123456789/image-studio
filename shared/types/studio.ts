@@ -147,7 +147,11 @@ export interface StudioConceptResponse {
   concepts: StudioConcept[]
 }
 
+export type StudioImageSize = '1K' | '2K' | '4K'
+
 export interface StudioRegenerateVariantPayload {
+  targetSize?: StudioImageSize
+  sourceVariantId?: string
   projectSlug: string
   conceptId: string
   ratio: string

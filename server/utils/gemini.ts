@@ -407,7 +407,7 @@ export async function generateFinalImage(prompt: string, aspectRatio: string, re
       : await readStoredStudioImage(referenceImageUrl)
     const inspected = await inspectStudioImage(data)
     referenceParts.push(
-      { text: 'Preview aprobado de este formato. Regenera este diseno en 4K conservando su composicion, textos, colores y elementos. Los assets adicionales son referencias de producto y marca.' },
+      { text: `Imagen de referencia de este formato. Regenera este diseno en ${mappedResolution} conservando su composicion, textos, colores y elementos. Los assets adicionales son referencias de producto y marca.` },
       { inlineData: { data: data.toString('base64'), mimeType: inspected.mimeType } }
     )
   }
