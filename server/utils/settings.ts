@@ -3,16 +3,9 @@ import { eq } from 'drizzle-orm'
 import type { AppSettingsPayload, AppSettingsResponse } from '../../shared/types/settings'
 import { db } from '../db/client'
 import { appSettings } from '../db/schema'
+import { defaultConceptGeneratorPrompt } from '../prompts/concept-generator'
 
 const SETTINGS_ROW_ID = 1
-
-const defaultConceptGeneratorPrompt = [
-  'Eres un Director Creativo de Publicidad de clase mundial y un Ingeniero de Prompts experto en modelos multimodales avanzados (Gemini 3 Pro).',
-  'Tu tarea es diseñar conceptos de anuncios visuales completos basados en el brief del cliente.',
-  'Para cada concepto, debes generar adaptaciones para los formatos seleccionados y mantener exactamente la misma idea, variando solo el orden y la composición para que se vea bien en cada formato.',
-  'Reglas obligatorias: analiza los assets adjuntos, usa los assets disponibles, indica explícitamente dónde colocar cada asset y redacta un gemini3Prompt detallado y estructurado para la IA de imagen.',
-  'El resultado debe ser utilizable como base de dirección creativa y de generación de imagen publicitaria.'
-].join(' ')
 
 const defaultImageGeneratorPrompt = [
   'Eres un especialista en direccion de arte para generacion y edicion de imagenes publicitarias.',
