@@ -1,5 +1,5 @@
 <template>
-  <div class="px-6 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
+  <div class="px-6 py-8 pb-28 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
     <div class="mx-auto max-w-[1240px]">
       <!-- Breadcrumb -->
       <nav class="mb-6 flex items-center gap-1.5 text-xs text-text-muted">
@@ -78,6 +78,7 @@
           v-for="(concept, conceptIndex) in concepts"
           :key="concept.id"
           :concept="concept"
+          :review-saving="reviewSaving"
           :uses-preview="usesPreview"
           :finalization-strategy="finalizationStrategy(concept.id, concept.selectedRatio)"
           :finalizing="isFinalizing(concept.id, concept.selectedRatio)"
@@ -94,6 +95,7 @@
           :active-variant-by-ratio="activeVariantsByRatio(concept)"
           :format-status-label="formatStatusLabel"
           :format-timestamp="formatTimestamp"
+          @review="reviewInline"
           @discard="discardConcept"
           @cycle-ratio="cycleRatio"
           @ratio-selected="selectRatio"
@@ -148,6 +150,36 @@
         </section>
       </div>
 
+      <div v-if="reviewError && !reviewOpen" role="alert" class="fixed bottom-24 right-8 z-40 max-w-md rounded-xl border border-danger/40 bg-surface px-5 py-4 text-sm text-danger shadow-lg">{{ reviewError }}</div>
+      <p v-if="!reviewOpen" role="status" aria-live="polite" class="sr-only">{{ reviewSaving ? 'Guardando evaluación' : reviewMessage }}</p>
+      <button
+        v-if="reviewPending.length && !reviewOpen && !pending && !initialLoadError"
+        type="button"
+        class="fixed bottom-7 right-8 z-40 flex items-center gap-4 rounded-full border border-accent/40 bg-surface px-6 py-4 text-sm font-medium text-text shadow-lg transition hover:border-accent hover:bg-surface-2"
+        @click="openReview"
+      >
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent" aria-hidden="true">✓</span>
+        Revisar pendientes
+        <span class="rounded-full bg-accent/20 px-2.5 py-1 font-mono text-xs text-accent">{{ reviewPending.length }}</span>
+      </button>
+      <StudioReviewQueue
+        v-if="reviewOpen"
+        :project-name="brief.projectName"
+        :entries="reviewEntries"
+        :pending="reviewPending"
+        :available="reviewAvailable"
+        :current="reviewCurrent"
+        :saving="reviewSaving"
+        :error="reviewError"
+        :message="reviewMessage"
+        :can-undo="reviewCanUndo"
+        @close="closeReview"
+        @resume="openReview"
+        @rate="reviewRate"
+        @skip="reviewSkip"
+        @undo="reviewUndo"
+      />
+
       <StudioConceptPromptModal
         :open="Boolean(promptModalConceptId)"
         :concept="promptModalConcept"
@@ -168,8 +200,12 @@ import AppButton from '~/components/base/AppButton.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
 import StudioConceptCard from '~/components/studio/StudioConceptCard.vue'
 import StudioConceptPromptModal from '~/components/studio/StudioConceptPromptModal.vue'
+import StudioReviewQueue from '~/components/studio/StudioReviewQueue.vue'
 
 const {
+  reviewOpen, reviewSaving, reviewError, reviewMessage,
+  reviewEntries, reviewPending, reviewAvailable, reviewCurrent, reviewCanUndo,
+  reviewInline, reviewRate, reviewUndo, reviewSkip, openReview, closeReview,
   brief,
   usesPreview,
   finalizationStrategy,

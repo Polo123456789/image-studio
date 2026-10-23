@@ -50,7 +50,7 @@
         </div>
 
         <div class="bg-[#0a0a0a] px-5 py-6">
-          <div class="mx-auto flex max-h-[520px] items-center justify-center overflow-hidden rounded-lg border border-white/[0.06]">
+          <div class="relative mx-auto flex max-h-[520px] items-center justify-center overflow-hidden rounded-lg border border-white/[0.06]">
             <img
               v-if="activeVariant?.imageUrl"
               :src="activeVariant.imageUrl"
@@ -88,6 +88,10 @@
             </div>
             <div v-else class="flex h-64 w-full items-center justify-center text-sm text-text-muted">
               Arte pendiente
+            </div>
+            <div v-if="activeVariant?.imageUrl" class="absolute bottom-3 right-3 flex items-center gap-3 rounded-xl border border-border bg-surface/95 p-2 shadow-lg">
+              <span v-if="activeVariant.reviewRating" class="pl-2 text-xs" :class="activeVariant.reviewRating === 'good' ? 'text-accent' : 'text-danger'">{{ activeVariant.reviewRating === 'good' ? 'Buena' : 'Mala' }}</span>
+              <StudioReviewControls :rating="activeVariant.reviewRating" :disabled="reviewSaving" :labels="false" @rate="emit('review', concept.id, concept.selectedRatio, activeVariant!.id, $event)" />
             </div>
           </div>
 
@@ -349,11 +353,13 @@
 </template>
 
 <script setup lang="ts">
-import type { StudioConcept, StudioConceptFormat, StudioVariant, StudioFinalizationStrategy } from '../../../shared/types/studio'
+import type { StudioConcept, StudioConceptFormat, StudioVariant, StudioFinalizationStrategy, StudioReviewRating } from '../../../shared/types/studio'
 
 import AppButton from '~/components/base/AppButton.vue'
+import StudioReviewControls from './StudioReviewControls.vue'
 
 const emit = defineEmits<{
+  review: [conceptId: string, ratio: string, variantId: string, rating: Exclude<StudioReviewRating, null>]
   discard: [conceptId: string]
   'cycle-ratio': [conceptId: string]
   'ratio-selected': [conceptId: string, ratio: string]
@@ -368,6 +374,7 @@ const emit = defineEmits<{
 }>()
 
 const props = defineProps<{
+  reviewSaving: boolean
   usesPreview: boolean
   finalizationStrategy: StudioFinalizationStrategy
   finalizing: boolean

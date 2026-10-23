@@ -105,9 +105,24 @@ export interface StudioAppendConceptsPayload {
   count: number
 }
 
+export type StudioReviewRating = 'good' | 'bad' | null
+
+export interface StudioReviewPayload {
+  conceptId: string
+  ratio: string
+  variantId: string
+  rating: StudioReviewRating
+}
+
+export interface StudioReviewResponse {
+  rating: StudioReviewRating
+}
+
 export type StudioVariantMode = 'preview' | 'final'
 
 export interface StudioVariant {
+  /** Missing on older backups; treated as unreviewed. */
+  reviewRating?: StudioReviewRating
   id: string
   label: string
   mode: StudioVariantMode

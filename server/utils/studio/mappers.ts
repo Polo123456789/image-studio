@@ -28,6 +28,7 @@ export function mapConceptRows(
   variantRows.forEach((variant) => {
     const nextVariant: StudioVariant = {
       id: variant.variantKey,
+      reviewRating: variant.reviewRating,
       label: variant.label,
       mode: requireStudioVariantMode(variant.mode),
       prompt: variant.prompt,

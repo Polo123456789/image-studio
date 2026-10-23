@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process'
 import { readFile, rename, rm, stat } from 'node:fs/promises'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -51,14 +52,19 @@ const rootInodeBefore = (await stat(uploadsRoot)).ino
 
 await backup.importFullBackupArchive(new File([archiveBuffer], archive.fileName, { type: 'application/zip' }))
 
+// A restored legacy backup must not try to add review_rating again on the next deployment.
+execFileSync('bun', ['run', 'db:migrate'], { env: process.env, stdio: 'pipe' })
+
 const restoredSqlite = new Database(databasePath, { readonly: true })
 const projectName = restoredSqlite.prepare('select project_name from studio_projects where id = 1').pluck().get()
+const reviewRating = restoredSqlite.prepare('select review_rating from studio_variants where id = 1').pluck().get()
 restoredSqlite.close()
 
 const result = JSON.stringify({
   missingFileRejected,
   corruptImportRejected,
   projectName,
+  reviewRating,
   rootMountPointPreserved: (await stat(uploadsRoot)).ino === rootInodeBefore,
   originalRestored: Boolean(await stat(join(uploadsRoot, 'generated', 'originals', 'aa', 'original.png'))),
   maintenanceReleased: backup.getBackupRestoreState().restoreInProgress === false

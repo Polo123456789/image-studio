@@ -6,7 +6,9 @@ import type {
   StudioProjectListItem,
   StudioProjectListPagination,
   StudioProjectListResponse,
-  StudioVariantMode
+  StudioVariantMode,
+  StudioReviewPayload,
+  StudioReviewResponse
 } from '../../../shared/types/studio'
 import { db } from '../../db/client'
 import {
@@ -481,4 +483,23 @@ export function saveStudioConceptGeneratedVariants(
 
 export function getStudioConceptById(slug: string, conceptId: string): StudioConcept {
   return ensureConcept(getStudioProjectBySlug(slug).concepts.find((concept) => concept.id === conceptId))
+}
+
+/** Scope the review to an existing image, including historical versions. */
+export function reviewStudioVariant(slug: string, payload: StudioReviewPayload): StudioReviewResponse {
+  const project = getStudioProjectRowBySlug(slug)
+  const concept = getStudioConceptRow(project.id, payload.conceptId)
+  const format = getStudioConceptFormatRow(concept.id, payload.ratio)
+  const variant = getStudioVariantRow(format.id, payload.variantId)
+
+  if (!variant.imageUrl.trim()) {
+    throw createError({ statusCode: 400, statusMessage: 'No hay una imagen para revisar.' })
+  }
+
+  db.update(studioVariants)
+    .set({ reviewRating: payload.rating })
+    .where(eq(studioVariants.id, variant.id))
+    .run()
+
+  return { rating: payload.rating }
 }

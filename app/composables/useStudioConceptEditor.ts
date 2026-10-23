@@ -77,6 +77,8 @@ export async function useStudioConceptEditor() {
 		generationMessage.value = "";
 	}
 
+	const review = useStudioReview(concepts, routeProjectSlug);
+
 	void ensureInitialConcepts();
 	syncPromptDrafts(concepts.value);
 
@@ -315,7 +317,7 @@ export async function useStudioConceptEditor() {
 				: nextConcept.selectedRatio;
 
 			return {
-				...nextConcept,
+				...review.mergeReviewConcept(nextConcept),
 				selectedRatio,
 			};
 		});
@@ -678,7 +680,7 @@ export async function useStudioConceptEditor() {
 				},
 			);
 
-			setProject(response.project);
+			setProject({ ...response.project, concepts: response.project.concepts.map(review.mergeReviewConcept) });
 		} catch (error) {
 			sessionError.value = getRequestErrorMessage(error, "No se pudo guardar el estilo para las siguientes generaciones.");
 		}
@@ -836,7 +838,7 @@ export async function useStudioConceptEditor() {
 			return;
 		}
 
-		const response = await $fetch<StudioConceptListMutationResponse>(
+		await $fetch<StudioConceptListMutationResponse>(
 			`/api/studio/projects/${routeProjectSlug.value}/concepts/discard`,
 			{
 				method: "PUT",
@@ -846,7 +848,8 @@ export async function useStudioConceptEditor() {
 			},
 		);
 
-		concepts.value = response.concepts;
+		// The concept was removed optimistically. Do not replace other concepts
+		// with a response that may predate their generation or review updates.
 	}
 
 	function formatStatusLabel(
@@ -871,6 +874,7 @@ export async function useStudioConceptEditor() {
 	}
 
 	return {
+		...review,
 		brief,
 		usesPreview,
 		finalizationStrategy,
