@@ -19,7 +19,7 @@
             </div>
           </div>
           <div class="flex items-center gap-6">
-            <p class="text-sm text-text-muted">{{ entries.length - pending.length }} de {{ entries.length }} revisadas · {{ pending.length }} pendientes</p>
+            <p class="text-sm text-text-muted">{{ entries.length - pending.length }} de {{ entries.length }} revisadas · {{ pending.length }} pendientes<span v-if="regeneratingCount" class="ml-3 text-accent">· {{ regeneratingCount }} regenerando</span></p>
             <button type="button" :disabled="saving" class="rounded-lg border border-border px-4 py-2.5 text-sm transition hover:border-accent disabled:opacity-50" @click="emit('close')">Guardar y salir</button>
           </div>
         </header>
@@ -54,7 +54,7 @@
             </dl>
             <div class="mt-7 border-t border-border pt-5 text-xs leading-6 text-text-muted">
               <p>Al evaluar, aparece la siguiente imagen pendiente.</p>
-              <p class="mt-3">¿Necesitas más tiempo? Déjala para después.</p>
+              <p class="mt-3">Si el diseño funciona pero tiene errores, regenera y sigue revisando. La nueva versión irá al final cuando esté lista.</p>
             </div>
             <p v-if="imageFailed" role="alert" class="mt-4 text-xs leading-5 text-danger">No se pudo cargar la imagen. Puedes dejarla para después o salir e intentarlo de nuevo.</p>
           </aside>
@@ -70,6 +70,7 @@
                 <p class="font-display text-4xl" :class="stat.color">{{ stat.count }}</p><p class="mt-2 text-sm text-text-muted">{{ stat.label }}</p>
               </div>
             </div>
+            <p v-if="regeneratingCount" role="status" class="mt-6 text-sm text-accent">{{ regeneratingCount }} {{ regeneratingCount === 1 ? 'imagen sigue regenerándose' : 'imágenes siguen regenerándose' }}. Las nuevas versiones quedarán en pendientes cuando estén listas.</p>
             <div class="mt-8 flex justify-center gap-3">
               <button v-if="pending.length" type="button" class="rounded-lg border border-accent bg-accent/10 px-5 py-3 text-sm text-accent" @click="emit('resume')">Retomar pendientes</button>
               <button type="button" class="rounded-lg border border-border px-5 py-3 text-sm transition hover:border-accent" @click="emit('close')">Volver al estudio</button>
@@ -82,11 +83,11 @@
         <footer class="flex min-h-24 shrink-0 items-center justify-between gap-5 border-t border-border bg-surface px-8 py-5">
           <div class="flex items-center gap-5">
             <button type="button" :disabled="saving || !canUndo" class="rounded-lg border border-border px-4 py-2.5 text-sm transition hover:border-accent disabled:opacity-40" @click="emit('undo')">↶ Deshacer</button>
-            <p role="status" aria-live="polite" class="max-w-sm text-xs text-text-muted">{{ saving ? 'Guardando evaluación…' : message || 'Se guarda al evaluar · Ctrl / ⌘ Z para deshacer' }}</p>
+            <p role="status" aria-live="polite" class="max-w-[240px] text-xs text-text-muted">{{ saving ? 'Guardando evaluación…' : message || 'Se guarda al evaluar · Ctrl / ⌘ Z para deshacer' }}</p>
           </div>
           <div v-if="current" class="flex items-center gap-4">
             <button type="button" :disabled="saving" class="rounded-lg border border-border px-4 py-2.5 text-sm text-text-muted transition hover:text-text disabled:opacity-40" @click="emit('skip')">Después <kbd class="ml-4 text-[10px]">ESPACIO</kbd></button>
-            <StudioReviewControls :disabled="saving || !imageReady" shortcuts @rate="emit('rate', $event)" />
+            <StudioReviewControls :disabled="saving || !imageReady" shortcuts regenerate :regenerate-disabled="!canRegenerate" @regenerate="emit('regenerate')" @rate="emit('rate', $event)" />
           </div>
         </footer>
       </div>
@@ -108,6 +109,8 @@ const props = defineProps<{
   error: string
   message: string
   canUndo: boolean
+  regeneratingCount: number
+  canRegenerate: boolean
 }>()
 const emit = defineEmits<{
   close: []
@@ -115,6 +118,7 @@ const emit = defineEmits<{
   rate: [rating: Exclude<StudioReviewRating, null>]
   skip: []
   undo: []
+  regenerate: []
 }>()
 const dialog = ref<HTMLDialogElement | null>(null)
 const imageFailed = ref(false)
@@ -152,7 +156,10 @@ function onKeydown(event: KeyboardEvent) {
     return
   }
   if (event.ctrlKey || event.metaKey || event.altKey || !props.current) return
-  if (['ArrowLeft', 'ArrowRight'].includes(event.key) && imageReady.value) {
+  if (event.key.toLowerCase() === 'r' && props.canRegenerate && imageReady.value) {
+    event.preventDefault()
+    emit('regenerate')
+  } else if (['ArrowLeft', 'ArrowRight'].includes(event.key) && imageReady.value) {
     event.preventDefault()
     emit('rate', event.key === 'ArrowRight' ? 'good' : 'bad')
   } else if (event.code === 'Space' && !target.closest('button, a')) {

@@ -57,6 +57,7 @@ execFileSync('bun', ['run', 'db:migrate'], { env: process.env, stdio: 'pipe' })
 
 const restoredSqlite = new Database(databasePath, { readonly: true })
 const projectName = restoredSqlite.prepare('select project_name from studio_projects where id = 1').pluck().get()
+const reviewExcluded = restoredSqlite.prepare('select review_excluded from studio_variants where id = 1').pluck().get()
 const reviewRating = restoredSqlite.prepare('select review_rating from studio_variants where id = 1').pluck().get()
 restoredSqlite.close()
 
@@ -65,6 +66,7 @@ const result = JSON.stringify({
   corruptImportRejected,
   projectName,
   reviewRating,
+  reviewExcluded,
   rootMountPointPreserved: (await stat(uploadsRoot)).ino === rootInodeBefore,
   originalRestored: Boolean(await stat(join(uploadsRoot, 'generated', 'originals', 'aa', 'original.png'))),
   maintenanceReleased: backup.getBackupRestoreState().restoreInProgress === false

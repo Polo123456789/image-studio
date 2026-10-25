@@ -1,6 +1,6 @@
-import { computed, ref, type Ref } from 'vue'
+import { computed, ref, watch, type Ref } from 'vue'
 import { getRequestErrorMessage } from '../utils/http-errors'
-import type { StudioConcept, StudioReviewRating, StudioReviewResponse } from '../../shared/types/studio'
+import type { StudioConcept, StudioReviewRating, StudioReviewResponse, StudioVariant } from '../../shared/types/studio'
 import { studioReviewEntries, studioReviewKey, type StudioReviewEntry } from '../utils/studio-review'
 
 interface ReviewChange {
@@ -10,7 +10,9 @@ interface ReviewChange {
 
 export function useStudioReview(
   concepts: Ref<StudioConcept[]>,
-  projectSlug: Ref<string>
+  projectSlug: Ref<string>,
+  regenerate?: (entry: StudioReviewEntry) => Promise<void>,
+  canRegenerate: (entry: StudioReviewEntry) => boolean = () => true
 ) {
   const reviewOpen = ref(false)
   const reviewSaving = ref(false)
@@ -20,11 +22,32 @@ export function useStudioReview(
   const currentKey = ref<string | null>(null)
   const history = ref<ReviewChange[]>([])
   const confirmedRatings = new Map<string, StudioReviewRating>()
-  const reviewEntries = computed(() => studioReviewEntries(concepts.value))
+  const confirmedExclusions = new Set<string>()
+  const regeneratingKeys = ref<string[]>([])
+  const regenerationErrors = ref<Record<string, string>>({})
+  const sessionActive = ref(false)
+  const queueOrder = ref<string[]>([])
+  const allEntries = computed(() => studioReviewEntries(concepts.value))
+  // Regeneration is not a rating. Keep replaced, unreviewed versions out of review totals.
+  const reviewEntries = computed(() => allEntries.value.filter(entry => entry.variant.reviewRating
+    || (!entry.variant.reviewExcluded && !regeneratingKeys.value.includes(entry.key))))
   const reviewPending = computed(() => reviewEntries.value.filter(entry => !entry.variant.reviewRating))
-  const reviewAvailable = computed(() => reviewPending.value.filter(entry => !deferredKeys.value.includes(entry.key)))
+  const reviewAvailable = computed(() => sessionActive.value
+    ? reviewPending.value.filter(entry => !deferredKeys.value.includes(entry.key))
+      .sort((a, b) => queueOrder.value.indexOf(a.key) - queueOrder.value.indexOf(b.key))
+    : [])
   const reviewCurrent = computed(() => reviewAvailable.value.find(entry => entry.key === currentKey.value) || reviewAvailable.value[0])
-  const reviewCanUndo = computed(() => history.value.some(change => reviewEntries.value.some(entry => entry.key === change.key)))
+  const reviewCanUndo = computed(() => history.value.some(change => allEntries.value.some(entry => entry.key === change.key)))
+  const reviewRegeneratingCount = computed(() => regeneratingKeys.value.length)
+  const reviewRegenerationError = computed(() => Object.values(regenerationErrors.value).join(' '))
+  const reviewCanRegenerate = computed(() => Boolean(regenerate && reviewCurrent.value && !reviewSaving.value && canRegenerate(reviewCurrent.value)))
+
+  watch(reviewPending, pending => {
+    if (!sessionActive.value) return
+    const known = new Set(queueOrder.value)
+    queueOrder.value = [...queueOrder.value, ...pending.filter(entry => !known.has(entry.key)).map(entry => entry.key)]
+    if (!pending.some(entry => !deferredKeys.value.includes(entry.key))) sessionActive.value = false
+  }, { flush: 'sync' })
 
   // A generation response can have been serialized before a review was saved.
   function mergeReviewConcept(concept: StudioConcept): StudioConcept {
@@ -34,20 +57,24 @@ export function useStudioReview(
         ...format,
         variants: format.variants.map(variant => {
           const key = studioReviewKey(concept.id, format.ratio, variant.id)
-          return confirmedRatings.has(key) ? { ...variant, reviewRating: confirmedRatings.get(key)! } : variant
+          return {
+            ...variant,
+            ...(confirmedRatings.has(key) ? { reviewRating: confirmedRatings.get(key)! } : {}),
+            ...(confirmedExclusions.has(key) ? { reviewExcluded: true } : {})
+          }
         })
       }))
     }
   }
 
-  function applyRating(key: string, rating: StudioReviewRating) {
+  function updateVariant(key: string, patch: Partial<StudioVariant>) {
     // Patch only the evaluated version, preserving selections and generation results.
     concepts.value = concepts.value.map(concept => ({
       ...concept,
       formats: concept.formats.map(format => ({
         ...format,
         variants: format.variants.map(variant => studioReviewKey(concept.id, format.ratio, variant.id) === key
-          ? { ...variant, reviewRating: rating }
+          ? { ...variant, ...patch }
           : variant)
       }))
     }))
@@ -60,7 +87,7 @@ export function useStudioReview(
     reviewError.value = ''
     reviewMessage.value = ''
     try {
-      const current = reviewEntries.value.find(item => item.key === entry.key)
+      const current = allEntries.value.find(item => item.key === entry.key)
       if (!current) throw new Error('La imagen ya no está disponible en este proyecto.')
       const previousRating = current.variant.reviewRating ?? null
       const response = await $fetch<StudioReviewResponse>(`/api/studio/projects/${encodeURIComponent(slug)}/review`, {
@@ -70,7 +97,7 @@ export function useStudioReview(
       })
       if (projectSlug.value !== slug) return false
       confirmedRatings.set(entry.key, response.rating)
-      applyRating(entry.key, response.rating)
+      updateVariant(entry.key, { reviewRating: response.rating })
       if (recordHistory) history.value.push({ key: entry.key, rating: previousRating })
       reviewMessage.value = rating === null ? 'Evaluación retirada. La imagen vuelve a pendientes.' : 'Evaluación guardada.'
       return true
@@ -83,7 +110,7 @@ export function useStudioReview(
   }
 
   function reviewInline(conceptId: string, ratio: string, variantId: string, rating: Exclude<StudioReviewRating, null>) {
-    const entry = reviewEntries.value.find(item => item.key === studioReviewKey(conceptId, ratio, variantId))
+    const entry = allEntries.value.find(item => item.key === studioReviewKey(conceptId, ratio, variantId))
     if (!entry) return
     return saveReview(entry, entry.variant.reviewRating === rating ? null : rating)
   }
@@ -96,12 +123,14 @@ export function useStudioReview(
 
   async function reviewUndo() {
     if (reviewSaving.value) return
-    const change = [...history.value].reverse().find(item => reviewEntries.value.some(entry => entry.key === item.key))
-    const entry = reviewEntries.value.find(item => item.key === change?.key)
+    const change = [...history.value].reverse().find(item => allEntries.value.some(entry => entry.key === item.key))
+    const entry = allEntries.value.find(item => item.key === change?.key)
     if (!change || !entry) return
     if (await saveReview(entry, change.rating, false)) {
       history.value.splice(history.value.lastIndexOf(change), 1)
       deferredKeys.value = deferredKeys.value.filter(key => key !== change.key)
+      if (!queueOrder.value.includes(change.key)) queueOrder.value.push(change.key)
+      sessionActive.value = reviewPending.value.some(item => !deferredKeys.value.includes(item.key))
       currentKey.value = change.key
       reviewMessage.value = 'Última evaluación deshecha.'
     }
@@ -111,6 +140,7 @@ export function useStudioReview(
     if (reviewSaving.value || !reviewCurrent.value) return
     deferredKeys.value.push(reviewCurrent.value.key)
     currentKey.value = null
+    if (!reviewAvailable.value.length) sessionActive.value = false
     reviewMessage.value = 'La imagen sigue pendiente para después.'
   }
 
@@ -118,15 +148,50 @@ export function useStudioReview(
     deferredKeys.value = []
     reviewError.value = ''
     reviewMessage.value = ''
+    queueOrder.value = reviewPending.value.map(entry => entry.key)
+    sessionActive.value = Boolean(queueOrder.value.length)
     reviewOpen.value = true
   }
 
   function closeReview() {
-    if (!reviewSaving.value) reviewOpen.value = false
+    if (!reviewSaving.value) {
+      sessionActive.value = false
+      reviewOpen.value = false
+    }
+  }
+
+  function reviewRegenerate(entry = reviewCurrent.value) {
+    if (!entry || !regenerate || reviewSaving.value || regeneratingKeys.value.includes(entry.key) || !canRegenerate(entry)) return
+    const slug = projectSlug.value
+    regenerationErrors.value = Object.fromEntries(Object.entries(regenerationErrors.value).filter(([key]) => key !== entry.key))
+    queueOrder.value = queueOrder.value.filter(key => key !== entry.key)
+    currentKey.value = null
+    regeneratingKeys.value = [...regeneratingKeys.value, entry.key]
+    reviewMessage.value = 'Regenerando en segundo plano. Puedes seguir revisando.'
+    void regenerate(entry).then(() => {
+      if (projectSlug.value !== slug) return
+      confirmedExclusions.add(entry.key)
+      updateVariant(entry.key, { reviewExcluded: true })
+      reviewMessage.value = sessionActive.value ? 'Nueva versión añadida al final de la cola.' : 'Nueva versión lista en pendientes.'
+    }).catch(error => {
+      if (projectSlug.value !== slug) return
+      regenerationErrors.value = {
+        ...regenerationErrors.value,
+        [entry.key]: `${entry.conceptTitle} (${entry.ratio}): ${getRequestErrorMessage(error, 'No se pudo regenerar. La imagen sigue pendiente.')}`
+      }
+    }).finally(() => {
+      regeneratingKeys.value = regeneratingKeys.value.filter(key => key !== entry.key)
+    })
+  }
+
+  function reviewRegenerateInline(conceptId: string, ratio: string, variantId: string) {
+    const entry = allEntries.value.find(entry => entry.key === studioReviewKey(conceptId, ratio, variantId))
+    if (entry) reviewRegenerate(entry)
   }
 
   return {
     reviewOpen, reviewSaving, reviewError, reviewMessage,
+    reviewRegeneratingCount, reviewRegenerationError, reviewCanRegenerate, reviewRegenerate, reviewRegenerateInline,
     reviewEntries, reviewPending, reviewAvailable, reviewCurrent, reviewCanUndo,
     reviewInline, reviewRate, reviewUndo, reviewSkip, openReview, closeReview, mergeReviewConcept
   }

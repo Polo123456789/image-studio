@@ -395,6 +395,7 @@ export function persistGeneratedVariant(
     prompt: string
     image: PersistedImage
     resolution?: string
+    reviewSourceVariantId?: string
   }
 ) {
   const now = new Date()
@@ -410,6 +411,13 @@ export function persistGeneratedVariant(
       input.image,
       input.resolution
     )
+
+    if (input.reviewSourceVariantId) {
+      tx.update(studioVariants)
+        .set({ reviewExcluded: true })
+        .where(and(eq(studioVariants.formatId, formatRowId), eq(studioVariants.variantKey, input.reviewSourceVariantId)))
+        .run()
+    }
 
     tx.insert(studioVariants)
       .values({

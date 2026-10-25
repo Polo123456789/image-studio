@@ -9,6 +9,8 @@ import type {
 	StudioFinalizationStrategy,
 } from "../../shared/types/studio";
 
+import type { StudioReviewEntry } from "../utils/studio-review";
+
 import { usesStudioPreview } from "#shared/utils/studio-generation";
 
 interface ConceptMutationOptions {
@@ -77,7 +79,7 @@ export async function useStudioConceptEditor() {
 		generationMessage.value = "";
 	}
 
-	const review = useStudioReview(concepts, routeProjectSlug);
+	const review = useStudioReview(concepts, routeProjectSlug, regenerateReviewEntry, entry => !isConceptGenerating(entry.conceptId));
 
 	void ensureInitialConcepts();
 	syncPromptDrafts(concepts.value);
@@ -495,6 +497,32 @@ export async function useStudioConceptEditor() {
 		}
 	}
 
+
+	async function regenerateReviewEntry(entry: StudioReviewEntry) {
+		const slug = routeProjectSlug.value;
+		if (!slug || isConceptGenerating(entry.conceptId)) throw new Error("Este concepto ya se está regenerando.");
+		const existingIds = new Set(concepts.value.find(concept => concept.id === entry.conceptId)?.formats.find(format => format.ratio === entry.ratio)?.variants.map(variant => variant.id));
+		const key = createFormatKey(entry.conceptId, entry.ratio);
+		setLoadingKey(variantLoadingKeys, key, true);
+		void requestPermission();
+		try {
+			await enqueueConceptMutation(entry.conceptId, async () => {
+				const response = await $fetch<StudioConceptMutationResponse>("/api/studio/regenerate-variant", {
+					method: "POST",
+					body: { projectSlug: slug, conceptId: entry.conceptId, ratio: entry.ratio, sourceVariantId: entry.variant.id, prompt: entry.variant.prompt, fromReview: true }
+				});
+				if (routeProjectSlug.value !== slug) return;
+				replaceConcept(response.concept);
+				const format = response.concept.formats.find(item => item.ratio === entry.ratio);
+				if (!format?.variants.some(variant => variant.imageUrl && !existingIds.has(variant.id))) {
+					throw new Error(format?.generationError || "No se pudo regenerar. La imagen sigue pendiente.");
+				}
+				void notify(`Imagen regenerada: ${entry.conceptTitle} (${entry.ratio}).`, `/studio/${slug}/concepts`);
+			});
+		} finally {
+			setLoadingKey(variantLoadingKeys, key, false);
+		}
+	}
 
 	async function regenerateVariant(conceptId: string, targetSize?: '1K' | '2K' | '4K') {
 		const concept = concepts.value.find((item) => item.id === conceptId);

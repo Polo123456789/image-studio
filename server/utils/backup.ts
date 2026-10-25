@@ -30,7 +30,8 @@ const maxBackupUploadBytes = positiveLimit(process.env.IMAGE_STUDIO_BACKUP_MAX_B
 const maxBackupEntryCount = positiveLimit(process.env.IMAGE_STUDIO_BACKUP_MAX_ENTRIES, 100_000)
 const maxBackupExpandedBytes = positiveLimit(process.env.IMAGE_STUDIO_BACKUP_MAX_EXPANDED_BYTES, 10 * 1024 * 1024 * 1024)
 const allowedZipPrefixes = ['manifest.json', 'db/local.db', 'uploads/']
-const expectedSchemaHash = '8512757629fc7cdc5d641b531fc4aa465c02ba3c0ff21eb93fe0eab91a2d423b'
+const expectedSchemaHash = 'fd160e4ffccb5f2f2035eff02e22f09339f5837b2fed6b84f165dc52f33b305a'
+const reviewSchemaHash = '8512757629fc7cdc5d641b531fc4aa465c02ba3c0ff21eb93fe0eab91a2d423b'
 const legacySchemaHash = '995039db0d088039879693c6c60299c89f32e13ac230398a7ace9dd7ced656eb'
 
 interface BackupManifest {
@@ -317,14 +318,23 @@ function validateExtractedSqliteFile(sqlitePath: string) {
       where name not like 'sqlite_%' and name != '__drizzle_migrations'
       order by type, name
     `).all()
-    if (createHash('sha256').update(JSON.stringify(previousRows)).digest('hex') === legacySchemaHash) {
-      const migrationSql = 'ALTER TABLE `studio_variants` ADD `review_rating` text;'
-      const migration = migrationJournal.entries.find(entry => entry.tag === '0013_chilly_tomas')!
+    const previousHash = createHash('sha256').update(JSON.stringify(previousRows)).digest('hex')
+    const upgrades: Array<{ tag: string, sql: string }> = []
+    if (previousHash === legacySchemaHash) {
+      upgrades.push({ tag: '0013_chilly_tomas', sql: 'ALTER TABLE `studio_variants` ADD `review_rating` text;' })
+    }
+    if (previousHash === legacySchemaHash || previousHash === reviewSchemaHash) {
+      upgrades.push({ tag: '0014_tired_diamondback', sql: 'ALTER TABLE `studio_variants` ADD `review_excluded` integer DEFAULT false NOT NULL;' })
+    }
+    if (upgrades.length) {
       sqlite.transaction(() => {
-        sqlite.exec(migrationSql)
         sqlite.exec('CREATE TABLE IF NOT EXISTS "__drizzle_migrations" (id INTEGER PRIMARY KEY AUTOINCREMENT, hash text NOT NULL, created_at numeric)')
-        sqlite.prepare('INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)')
-          .run(createHash('sha256').update(migrationSql).digest('hex'), migration.when)
+        for (const upgrade of upgrades) {
+          const migration = migrationJournal.entries.find(entry => entry.tag === upgrade.tag)!
+          sqlite.exec(upgrade.sql)
+          sqlite.prepare('INSERT INTO "__drizzle_migrations" (hash, created_at) VALUES (?, ?)')
+            .run(createHash('sha256').update(upgrade.sql).digest('hex'), migration.when)
+        }
       })()
     }
     const integrity = sqlite.pragma('integrity_check', { simple: true })
@@ -338,7 +348,7 @@ function validateExtractedSqliteFile(sqlitePath: string) {
       studio_projects: ['id', 'slug', 'project_name', 'brief', 'created_at', 'updated_at'],
       studio_concepts: ['id', 'project_id', 'concept_key', 'title', 'subtitle', 'rationale', 'creative_style_id', 'creative_style_name', 'approved_at', 'position', 'discarded_at', 'created_at', 'updated_at'],
       studio_concept_formats: ['id', 'concept_id', 'ratio', 'is_preview_source', 'prompt_draft', 'generation_error', 'active_variant_key', 'created_at', 'updated_at'],
-      studio_variants: ['id', 'format_id', 'variant_key', 'label', 'mode', 'prompt', 'image_url', 'thumbnail_url', 'image_mime_type', 'image_file_size', 'image_width', 'image_height', 'image_hash', 'created_at', 'review_rating']
+      studio_variants: ['id', 'format_id', 'variant_key', 'label', 'mode', 'prompt', 'image_url', 'thumbnail_url', 'image_mime_type', 'image_file_size', 'image_width', 'image_height', 'image_hash', 'created_at', 'review_rating', 'review_excluded']
     }
     const hasInvalidSchema = Object.entries(requiredSchema).some(([table, requiredColumns]) => {
       const columnRows = sqlite.prepare(`pragma table_info(${table})`).all() as Array<{ name: string }>

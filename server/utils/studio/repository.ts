@@ -415,11 +415,14 @@ export function addStudioConceptVariant(
   prompt: string,
   image: Pick<StudioConcept['formats'][number]['variants'][number],
     'imageUrl' | 'thumbnailUrl' | 'imageMimeType' | 'imageFileSize' | 'imageWidth' | 'imageHeight' | 'imageHash'>,
-  resolution?: string
+  resolution?: string,
+  reviewSourceVariantId?: string
 ): StudioConcept {
   const project = getStudioProjectRowBySlug(slug)
   const conceptRow = getStudioConceptRow(project.id, conceptId)
   const formatRow = getStudioConceptFormatRow(conceptRow.id, ratio)
+
+  if (reviewSourceVariantId) getStudioVariantRow(formatRow.id, reviewSourceVariantId)
 
   persistGeneratedVariant(project.id, conceptRow, formatRow.id, {
     conceptId,
@@ -427,7 +430,8 @@ export function addStudioConceptVariant(
     mode,
     prompt,
     image,
-    resolution
+    resolution,
+    reviewSourceVariantId
   })
 
   return getStudioConceptById(slug, conceptId)

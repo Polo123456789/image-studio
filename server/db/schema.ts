@@ -109,6 +109,7 @@ export const studioVariants = sqliteTable('studio_variants', {
   formatId: integer('format_id').notNull().references(() => studioConceptFormats.id),
   variantKey: text('variant_key').notNull(),
   reviewRating: text('review_rating', { enum: ['good', 'bad'] }),
+  reviewExcluded: integer('review_excluded', { mode: 'boolean' }).notNull().default(false),
   label: text('label').notNull(),
   mode: text('mode').notNull(),
   prompt: text('prompt').notNull(),

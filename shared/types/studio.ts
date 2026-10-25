@@ -123,6 +123,8 @@ export type StudioVariantMode = 'preview' | 'final'
 export interface StudioVariant {
   /** Missing on older backups; treated as unreviewed. */
   reviewRating?: StudioReviewRating
+  /** A successful review regeneration replaced this version without rating it. */
+  reviewExcluded?: boolean
   id: string
   label: string
   mode: StudioVariantMode
@@ -165,6 +167,7 @@ export interface StudioConceptResponse {
 export type StudioImageSize = '1K' | '2K' | '4K'
 
 export interface StudioRegenerateVariantPayload {
+  fromReview?: boolean
   targetSize?: StudioImageSize
   sourceVariantId?: string
   projectSlug: string

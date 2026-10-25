@@ -29,6 +29,7 @@ export function mapConceptRows(
     const nextVariant: StudioVariant = {
       id: variant.variantKey,
       reviewRating: variant.reviewRating,
+      reviewExcluded: variant.reviewExcluded,
       label: variant.label,
       mode: requireStudioVariantMode(variant.mode),
       prompt: variant.prompt,

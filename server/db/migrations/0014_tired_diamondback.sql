@@ -1,0 +1,1 @@
+ALTER TABLE `studio_variants` ADD `review_excluded` integer DEFAULT false NOT NULL;

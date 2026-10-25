@@ -20,6 +20,19 @@
       <span :class="labels ? '' : 'sr-only'">{{ value === 'good' ? 'Buena' : 'Mala' }}</span>
       <kbd v-if="shortcuts" class="ml-5 text-xs text-text-muted">{{ value === 'good' ? '→' : '←' }}</kbd>
     </button>
+    <button
+      v-if="regenerate"
+      type="button"
+      :disabled="disabled || regenerateDisabled"
+      title="Generar otra versión sin calificar esta imagen"
+      aria-label="Regenerar imagen sin calificar"
+      class="ml-1 inline-flex items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2.5 text-sm font-medium text-accent transition hover:border-accent disabled:cursor-wait disabled:opacity-40"
+      @click="emit('regenerate')"
+    >
+      <svg class="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v5h-5M4 17v-5h5" /><path d="M6 7a7 7 0 0 1 12-1l2 6M4 12l2 6a7 7 0 0 0 12-1" /></svg>
+      <span :class="labels ? '' : 'sr-only'">Regenerar</span>
+      <kbd v-if="shortcuts" class="ml-3 text-xs text-text-muted">R</kbd>
+    </button>
   </div>
 </template>
 
@@ -30,7 +43,9 @@ withDefaults(defineProps<{
   disabled?: boolean
   labels?: boolean
   shortcuts?: boolean
-}>(), { rating: null, disabled: false, labels: true, shortcuts: false })
-const emit = defineEmits<{ rate: [rating: Exclude<StudioReviewRating, null>] }>()
+  regenerate?: boolean
+  regenerateDisabled?: boolean
+}>(), { rating: null, disabled: false, labels: true, shortcuts: false, regenerate: false, regenerateDisabled: false })
+const emit = defineEmits<{ rate: [rating: Exclude<StudioReviewRating, null>]; regenerate: [] }>()
 const values = ['bad', 'good'] as const
 </script>

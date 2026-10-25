@@ -96,6 +96,7 @@
           :format-status-label="formatStatusLabel"
           :format-timestamp="formatTimestamp"
           @review="reviewInline"
+          @review-regenerate="reviewRegenerateInline"
           @discard="discardConcept"
           @cycle-ratio="cycleRatio"
           @ratio-selected="selectRatio"
@@ -150,7 +151,7 @@
         </section>
       </div>
 
-      <div v-if="reviewError && !reviewOpen" role="alert" class="fixed bottom-24 right-8 z-40 max-w-md rounded-xl border border-danger/40 bg-surface px-5 py-4 text-sm text-danger shadow-lg">{{ reviewError }}</div>
+      <div v-if="(reviewError || reviewRegenerationError) && !reviewOpen" role="alert" class="fixed bottom-24 right-8 z-40 max-w-md rounded-xl border border-danger/40 bg-surface px-5 py-4 text-sm text-danger shadow-lg">{{ reviewError || reviewRegenerationError }}</div>
       <p v-if="!reviewOpen" role="status" aria-live="polite" class="sr-only">{{ reviewSaving ? 'Guardando evaluación' : reviewMessage }}</p>
       <button
         v-if="reviewPending.length && !reviewOpen && !pending && !initialLoadError"
@@ -170,12 +171,15 @@
         :available="reviewAvailable"
         :current="reviewCurrent"
         :saving="reviewSaving"
-        :error="reviewError"
+        :error="reviewError || reviewRegenerationError"
+        :regenerating-count="reviewRegeneratingCount"
+        :can-regenerate="reviewCanRegenerate"
         :message="reviewMessage"
         :can-undo="reviewCanUndo"
         @close="closeReview"
         @resume="openReview"
         @rate="reviewRate"
+        @regenerate="reviewRegenerate()"
         @skip="reviewSkip"
         @undo="reviewUndo"
       />
@@ -204,6 +208,7 @@ import StudioReviewQueue from '~/components/studio/StudioReviewQueue.vue'
 
 const {
   reviewOpen, reviewSaving, reviewError, reviewMessage,
+  reviewRegeneratingCount, reviewRegenerationError, reviewCanRegenerate, reviewRegenerate, reviewRegenerateInline,
   reviewEntries, reviewPending, reviewAvailable, reviewCurrent, reviewCanUndo,
   reviewInline, reviewRate, reviewUndo, reviewSkip, openReview, closeReview,
   brief,

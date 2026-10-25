@@ -15,7 +15,7 @@ afterEach(async () => {
 })
 
 describe('backup v2', () => {
-  test.each([false, true])('valida archivos, restaura evaluaciones y acepta el schema anterior: legacy=%s', async (legacy) => {
+  test.each(['current', 'before-regeneration', 'before-review'])('restaura evaluaciones y versiones reemplazadas: schema=%s', async (version) => {
     const root = await mkdtemp(join(tmpdir(), 'image-studio-backup-test-'))
     temporaryDirectories.push(root)
     const databasePath = join(root, 'local.db')
@@ -44,7 +44,11 @@ describe('backup v2', () => {
       encoding: 'utf8'
     })
     const sqlite = new Database(databasePath)
-    if (legacy) {
+    if (version !== 'current') {
+      sqlite.exec('ALTER TABLE studio_variants DROP COLUMN review_excluded')
+      sqlite.exec('DELETE FROM __drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM __drizzle_migrations)')
+    }
+    if (version === 'before-review') {
       sqlite.exec('ALTER TABLE studio_variants DROP COLUMN review_rating')
       sqlite.exec('DELETE FROM __drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM __drizzle_migrations)')
     }
@@ -72,7 +76,8 @@ describe('backup v2', () => {
         '/uploads/generated/thumbnails/aa/thumb.webp', 'image/png', ?, 4, 3, ?)
     `)
       .run(original.length, createHash('sha256').update(original).digest('hex'))
-    if (!legacy) sqlite.exec("UPDATE studio_variants SET review_rating = 'good' WHERE id = 1")
+    if (version !== 'before-review') sqlite.exec("UPDATE studio_variants SET review_rating = 'good' WHERE id = 1")
+    if (version === 'current') sqlite.exec('UPDATE studio_variants SET review_excluded = 1 WHERE id = 1')
     sqlite.close()
 
     const resultPath = join(root, 'result.json')
@@ -95,7 +100,8 @@ describe('backup v2', () => {
       rootMountPointPreserved: true,
       originalRestored: true,
       maintenanceReleased: true,
-      reviewRating: legacy ? null : 'good'
+      reviewRating: version === 'before-review' ? null : 'good',
+      reviewExcluded: version === 'current' ? 1 : 0
     })
   })
 })
