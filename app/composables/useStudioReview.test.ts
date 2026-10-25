@@ -202,3 +202,46 @@ describe('regeneration during individual review', () => {
     expect(review.reviewPending.value.map(entry => entry.variant.id)).toEqual(['replacement', 'old'])
   })
 })
+
+describe('review scope', () => {
+  test('filters active versions without losing historical pending or ratings', async () => {
+    const review = setup()
+    review.setReviewScope('current')
+    expect(review.reviewPending.value.map(e => e.variant.id)).toEqual(['new'])
+    await review.reviewRate('good')
+    expect(review.reviewPending.value).toHaveLength(0)
+    expect(review.reviewTotalPending.value).toBe(1)
+    review.setReviewScope('all')
+    expect(review.reviewCurrent.value?.variant.id).toBe('old')
+  })
+  test('records actual new result IDs rather than guessing a batch from timestamps', () => {
+    const review = setup()
+    review.setReviewScope('latest')
+    expect(review.reviewScope.value).toBe('all')
+    const batch = structuredClone(JSON.parse(JSON.stringify(review.concepts.value))) as StudioConcept[]
+    batch[0]!.formats[0]!.variants.unshift({ ...batch[0]!.formats[0]!.variants[0]!, id: 'batch-result' })
+    review.recordReviewBatch(batch)
+    review.concepts.value = batch
+    review.setReviewScope('latest')
+    expect(review.reviewPending.value.map(e => e.variant.id)).toEqual(['batch-result'])
+    expect(review.reviewTotalPending.value).toBe(3)
+  })
+})
+
+test('latest scope keeps reviewing when a disjoint generation result arrives', () => {
+  const review = setup()
+  function batch(id: string) {
+    const result = structuredClone(JSON.parse(JSON.stringify(review.concepts.value))) as StudioConcept[]
+    result[0]!.formats[0]!.variants.unshift({ ...result[0]!.formats[0]!.variants[0]!, id })
+    return result
+  }
+  let result = batch('first-batch')
+  review.recordReviewBatch(result)
+  review.concepts.value = result
+  review.setReviewScope('latest')
+  result = batch('second-batch')
+  review.recordReviewBatch(result)
+  review.concepts.value = result
+  expect(review.reviewCurrent.value?.variant.id).toBe('first-batch')
+  expect(review.reviewAvailable.value.map(e => e.variant.id)).toEqual(['first-batch', 'second-batch'])
+})

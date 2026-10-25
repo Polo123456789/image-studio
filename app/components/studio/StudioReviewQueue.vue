@@ -23,6 +23,15 @@
             <button type="button" :disabled="saving" class="rounded-lg border border-border px-4 py-2.5 text-sm transition hover:border-accent disabled:opacity-50" @click="emit('close')">Guardar y salir</button>
           </div>
         </header>
+        <div class="flex shrink-0 items-center gap-4 border-b border-border px-8 py-3">
+          <label for="review-scope" class="text-sm text-text-muted">Revisar</label>
+          <select id="review-scope" :value="scope" :disabled="saving" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text" @change="emit('scope', ($event.target as HTMLSelectElement).value as 'all' | 'current' | 'latest')">
+            <option value="all">Todas las pendientes</option>
+            <option value="current">Sólo versiones actuales</option>
+            <option value="latest" :disabled="!hasLatestBatch">Última tanda con imágenes</option>
+          </select>
+          <span class="text-xs text-text-muted">{{ scope === 'latest' ? 'Tanda al abrir la revisión. Las nuevas imágenes se añaden al final.' : !hasLatestBatch ? 'Última tanda se habilita al recibir imágenes generadas en esta sesión.' : 'Cambiar el filtro conserva las evaluaciones.' }}</span>
+        </div>
         <div class="h-1 shrink-0 bg-surface-2" role="progressbar" aria-label="Imágenes revisadas" :aria-valuenow="entries.length - pending.length" :aria-valuemax="entries.length" :aria-valuemin="0">
           <div class="h-full bg-accent transition-[width] duration-200" :style="{ width: `${entries.length ? (entries.length - pending.length) / entries.length * 100 : 0}%` }" />
         </div>
@@ -100,6 +109,8 @@ import type { StudioReviewEntry } from '../../utils/studio-review'
 import type { StudioReviewRating } from '../../../shared/types/studio'
 import StudioReviewControls from './StudioReviewControls.vue'
 const props = defineProps<{
+  scope: 'all' | 'current' | 'latest'
+  hasLatestBatch: boolean
   projectName: string
   entries: StudioReviewEntry[]
   pending: StudioReviewEntry[]
@@ -113,6 +124,7 @@ const props = defineProps<{
   canRegenerate: boolean
 }>()
 const emit = defineEmits<{
+  scope: [scope: 'all' | 'current' | 'latest']
   close: []
   resume: []
   rate: [rating: Exclude<StudioReviewRating, null>]

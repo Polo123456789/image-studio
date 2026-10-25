@@ -25,3 +25,9 @@ bun run db:migrate
 ```
 
 La migración `0013_chilly_tomas` agrega `studio_variants.review_rating`, inicialmente nulo. La migración `0014_tired_diamondback` agrega `studio_variants.review_excluded` para conservar la exclusión de versiones reemplazadas sin marcarlas como buenas o malas. Los backups de los dos esquemas anteriores se actualizan en una copia temporal al restaurarlos; los nuevos incluyen las evaluaciones.
+
+## Filtro de revisión
+
+El selector de la revisión permite ver todas las pendientes, sólo las versiones seleccionadas actualmente en el estudio o la última tanda con imágenes recibida en esta sesión. Esta última opción se habilita al generar, regenerar o finalizar imágenes; no se infiere de fechas ni se reconstruye al recargar. Una generación fallida no sustituye la última tanda con imágenes.
+
+Al revisar una tanda, sus imágenes pendientes se conservan y las nuevas llegadas se añaden al final. Cambiar de filtro reinicia el recorrido y los aplazamientos, conservando las evaluaciones. El contador flotante siempre indica todas las pendientes del proyecto.

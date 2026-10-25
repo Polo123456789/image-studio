@@ -14,6 +14,9 @@ export function useStudioReview(
   regenerate?: (entry: StudioReviewEntry) => Promise<void>,
   canRegenerate: (entry: StudioReviewEntry) => boolean = () => true
 ) {
+  const reviewScope = ref<'all' | 'current' | 'latest'>('all')
+  const latestKeys = ref<string[]>([])
+  const sessionLatestKeys = ref<string[]>([])
   const reviewOpen = ref(false)
   const reviewSaving = ref(false)
   const reviewError = ref('')
@@ -29,8 +32,10 @@ export function useStudioReview(
   const queueOrder = ref<string[]>([])
   const allEntries = computed(() => studioReviewEntries(concepts.value))
   // Regeneration is not a rating. Keep replaced, unreviewed versions out of review totals.
-  const reviewEntries = computed(() => allEntries.value.filter(entry => entry.variant.reviewRating
-    || (!entry.variant.reviewExcluded && !regeneratingKeys.value.includes(entry.key))))
+  const scopeKeys = computed(() => new Set(reviewScope.value === 'latest' ? (sessionActive.value ? sessionLatestKeys.value : latestKeys.value) : concepts.value.flatMap(concept => concept.formats.map(format => studioReviewKey(concept.id, format.ratio, format.activeVariantId || '')))))
+  const reviewEntries = computed(() => allEntries.value.filter(entry => (reviewScope.value === 'all' || scopeKeys.value.has(entry.key)) && (entry.variant.reviewRating
+    || (!entry.variant.reviewExcluded && !regeneratingKeys.value.includes(entry.key)))))
+  const reviewTotalPending = computed(() => allEntries.value.filter(entry => !entry.variant.reviewRating && !entry.variant.reviewExcluded && !regeneratingKeys.value.includes(entry.key)).length)
   const reviewPending = computed(() => reviewEntries.value.filter(entry => !entry.variant.reviewRating))
   const reviewAvailable = computed(() => sessionActive.value
     ? reviewPending.value.filter(entry => !deferredKeys.value.includes(entry.key))
@@ -144,7 +149,23 @@ export function useStudioReview(
     reviewMessage.value = 'La imagen sigue pendiente para después.'
   }
 
+  function recordReviewBatch(batch: StudioConcept[]) {
+    const existing = new Set(allEntries.value.map(entry => entry.key))
+    const added = studioReviewEntries(batch).filter(entry => !existing.has(entry.key)).map(entry => entry.key)
+    if (added.length) {
+      if (sessionActive.value && reviewScope.value === 'latest') sessionLatestKeys.value = [...sessionLatestKeys.value, ...added]
+      latestKeys.value = added
+    }
+  }
+  function setReviewScope(scope: 'all' | 'current' | 'latest') {
+    if (reviewSaving.value || (scope === 'latest' && !latestKeys.value.length)) return
+    reviewScope.value = scope
+    openReview()
+  }
+  const reviewHasLatestBatch = computed(() => latestKeys.value.length > 0)
+
   function openReview() {
+    sessionLatestKeys.value = [...latestKeys.value]
     deferredKeys.value = []
     reviewError.value = ''
     reviewMessage.value = ''
@@ -190,6 +211,7 @@ export function useStudioReview(
   }
 
   return {
+    reviewTotalPending, reviewScope, reviewHasLatestBatch, setReviewScope, recordReviewBatch,
     reviewOpen, reviewSaving, reviewError, reviewMessage,
     reviewRegeneratingCount, reviewRegenerationError, reviewCanRegenerate, reviewRegenerate, reviewRegenerateInline,
     reviewEntries, reviewPending, reviewAvailable, reviewCurrent, reviewCanUndo,

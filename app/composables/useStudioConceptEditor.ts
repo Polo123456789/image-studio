@@ -172,6 +172,7 @@ export async function useStudioConceptEditor() {
 				},
 			);
 
+			review.recordReviewBatch(response.concepts);
 			concepts.value = response.concepts;
 			notifyGeneratedBatch(response.concepts);
 			generationMessage.value = "";
@@ -311,6 +312,7 @@ export async function useStudioConceptEditor() {
 	}
 
 	function replaceConcept(nextConcept: StudioConcept) {
+		review.recordReviewBatch([nextConcept]);
 		updateConcept(nextConcept.id, (currentConcept) => {
 			const selectedRatio = nextConcept.formats.some(
 				(format) => format.ratio === currentConcept.selectedRatio,
@@ -667,6 +669,7 @@ export async function useStudioConceptEditor() {
 				},
 			);
 
+			review.recordReviewBatch(response.concepts);
 			concepts.value = [...concepts.value, ...response.concepts];
 			notifyGeneratedBatch(response.concepts);
 		} catch (error) {
