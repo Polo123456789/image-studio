@@ -1,6 +1,7 @@
 <template>
   <div class="min-h-screen bg-bg text-text">
     <NuxtRouteAnnouncer />
+    <StudioRegenerationTray />
 
     <!-- Mobile top bar -->
     <header class="flex items-center justify-between border-b border-border bg-surface px-4 py-3 lg:hidden">
@@ -123,6 +124,7 @@
 </template>
 
 <script setup lang="ts">
+import StudioRegenerationTray from '~/components/studio/StudioRegenerationTray.vue'
 const route = useRoute()
 const mobileOpen = ref(false)
 

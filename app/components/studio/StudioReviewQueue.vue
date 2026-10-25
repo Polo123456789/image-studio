@@ -89,6 +89,7 @@
         </div>
 
         <div v-if="error" role="alert" class="mx-8 mb-4 rounded-lg border border-danger/40 bg-danger/10 px-5 py-3 text-sm text-danger">{{ error }}</div>
+        <StudioRegenerationTray review :disabled="saving" @navigate="emit('close')" />
         <footer class="flex min-h-24 shrink-0 items-center justify-between gap-5 border-t border-border bg-surface px-8 py-5">
           <div class="flex items-center gap-5">
             <button type="button" :disabled="saving || !canUndo" class="rounded-lg border border-border px-4 py-2.5 text-sm transition hover:border-accent disabled:opacity-40" @click="emit('undo')">↶ Deshacer</button>
@@ -108,6 +109,7 @@
 import type { StudioReviewEntry } from '../../utils/studio-review'
 import type { StudioReviewRating } from '../../../shared/types/studio'
 import StudioReviewControls from './StudioReviewControls.vue'
+import StudioRegenerationTray from './StudioRegenerationTray.vue'
 const props = defineProps<{
   scope: 'all' | 'current' | 'latest'
   hasLatestBatch: boolean

@@ -21,6 +21,8 @@ export async function useStudioConceptEditor() {
 	const route = useRoute();
 	const router = useRouter();
 	const { notify, requestPermission } = useNotifications();
+	const { regenerationTasks, runRegeneration } = useStudioRegenerations();
+	const handledRetries = new Set<string>();
 	const {
 		projectSlug,
 		brief,
@@ -93,9 +95,16 @@ export async function useStudioConceptEditor() {
 	);
 
 	watch(
-		() => [route.query.concept, route.query.ratio, route.query.variant],
+		() => [route.query.concept, route.query.ratio, route.query.variant, route.query.taskFocus],
 		async () => {
 			await applyLibraryFocusFromRoute();
+			const retryId = typeof route.query.retryRegeneration === "string" ? route.query.retryRegeneration : "";
+			if (retryId && !handledRetries.has(retryId)) {
+				handledRetries.add(retryId);
+				// Consume the click intent so Back/Forward cannot resend a paid generation.
+				void router.replace({ query: { ...route.query, retryRegeneration: undefined } });
+				void retryRegenerationTask(retryId);
+			}
 		},
 		{ immediate: true },
 	);
@@ -361,7 +370,7 @@ export async function useStudioConceptEditor() {
 	}
 
 	function isVariantLoading(conceptId: string, ratio: string) {
-		return Boolean(variantLoadingKeys.value[createFormatKey(conceptId, ratio)]);
+		return Boolean(variantLoadingKeys.value[createFormatKey(conceptId, ratio)]) || regenerationTasks.value.some(task => task.status === "running" && task.request.projectSlug === routeProjectSlug.value && task.request.conceptId === conceptId && task.request.ratio === ratio);
 	}
 
 	function isPendingFormatsLoading(conceptId: string) {
@@ -500,6 +509,32 @@ export async function useStudioConceptEditor() {
 	}
 
 
+	async function retryRegenerationTask(taskId: string) {
+		const task = regenerationTasks.value.find(item => item.id === taskId);
+		if (!task || task.status !== 'error' || task.request.projectSlug !== routeProjectSlug.value || isConceptGenerating(task.request.conceptId)) {
+			handledRetries.delete(taskId);
+			if (task && isConceptGenerating(task.request.conceptId)) sessionError.value = 'Espera a que termine la generación de este concepto antes de reintentar.';
+			return;
+		}
+		sessionError.value = "";
+		const slug = task.request.projectSlug;
+		const key = createFormatKey(task.request.conceptId, task.request.ratio);
+		generationErrors.value[key] = "";
+		if (task.request.sourceVariantId) review.clearRegenerationError(task.request.conceptId, task.request.ratio, task.request.sourceVariantId);
+		setLoadingKey(variantLoadingKeys, key, true);
+		try {
+			await enqueueConceptMutation(task.request.conceptId, async () => {
+				const response = await runRegeneration(task.request, task.projectName, task.conceptTitle, task.id);
+				if (routeProjectSlug.value === slug) replaceConcept(response.concept);
+			});
+		} catch (error) {
+			generationErrors.value[key] = getRequestErrorMessage(error, 'No se pudo regenerar la imagen.');
+		} finally {
+			setLoadingKey(variantLoadingKeys, key, false);
+			handledRetries.delete(taskId);
+		}
+	}
+
 	async function regenerateReviewEntry(entry: StudioReviewEntry) {
 		const slug = routeProjectSlug.value;
 		if (!slug || isConceptGenerating(entry.conceptId)) throw new Error("Este concepto ya se está regenerando.");
@@ -509,10 +544,10 @@ export async function useStudioConceptEditor() {
 		void requestPermission();
 		try {
 			await enqueueConceptMutation(entry.conceptId, async () => {
-				const response = await $fetch<StudioConceptMutationResponse>("/api/studio/regenerate-variant", {
-					method: "POST",
-					body: { projectSlug: slug, conceptId: entry.conceptId, ratio: entry.ratio, sourceVariantId: entry.variant.id, prompt: entry.variant.prompt, fromReview: true }
-				});
+				const response = await runRegeneration(
+					{ projectSlug: slug, conceptId: entry.conceptId, ratio: entry.ratio, sourceVariantId: entry.variant.id, prompt: entry.variant.prompt, fromReview: true },
+					brief.value.projectName, entry.conceptTitle
+				);
 				if (routeProjectSlug.value !== slug) return;
 				replaceConcept(response.concept);
 				const format = response.concept.formats.find(item => item.ratio === entry.ratio);
@@ -540,25 +575,17 @@ export async function useStudioConceptEditor() {
 		generationErrors.value[loadingKey] = "";
 		setLoadingKey(variantLoadingKeys, loadingKey, true);
 
+		const slug = routeProjectSlug.value;
 		const sourceVariantId = activeVariantForFormat(format)?.id;
-		const prompt = promptDrafts.value[conceptId];
+		const prompt = promptDrafts.value[conceptId] || format.promptDraft;
 		const ratio = concept.selectedRatio;
 		try {
 			await enqueueConceptMutation(conceptId, async () => {
-				const response = await $fetch<StudioConceptMutationResponse>(
-					"/api/studio/regenerate-variant",
-					{
-						method: "POST",
-						body: {
-							projectSlug: routeProjectSlug.value,
-							conceptId,
-							ratio,
-							prompt,
-							targetSize,
-							sourceVariantId,
-						},
-					},
+				const response = await runRegeneration(
+					{ projectSlug: slug, conceptId, ratio, prompt, targetSize, sourceVariantId },
+					brief.value.projectName, concept.title
 				);
+				if (routeProjectSlug.value !== slug) return;
 
 				replaceConcept(response.concept);
 				const generatedFormat = response.concept.formats.find(item => item.ratio === ratio);

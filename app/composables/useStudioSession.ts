@@ -1,3 +1,4 @@
+import type { StudioRegenerationTask } from '../utils/studio-regenerations'
 import type { StudioBriefPayload, StudioConcept, StudioProject } from '../../shared/types/studio'
 
 const defaultBrief = (): StudioBriefPayload => ({
@@ -21,6 +22,7 @@ const defaultBrief = (): StudioBriefPayload => ({
 })
 
 export function useStudioSession() {
+  const regenerationTasks = useState<StudioRegenerationTask[]>('studio-regeneration-tasks', () => [])
   const projectSlug = useState<string>('studio-project-slug', () => '')
   const brief = useState<StudioBriefPayload>('studio-brief', defaultBrief)
   const concepts = useState<StudioConcept[]>('studio-concepts', () => [])
@@ -42,6 +44,7 @@ export function useStudioSession() {
   }
 
   return {
+    regenerationTasks,
     projectSlug,
     brief,
     concepts,

@@ -177,6 +177,8 @@ describe('regeneration during individual review', () => {
     await settled()
     expect(review.reviewAvailable.value.map(entry => entry.variant.id)).toEqual(['old', 'new'])
     expect(review.reviewRegenerationError.value).toContain('Gemini no está disponible')
+    review.clearRegenerationError('one', '1:1', 'new')
+    expect(review.reviewRegenerationError.value).toBe('')
     expect(review.reviewCanUndo.value).toBe(false)
     expect(review.reviewRegeneratingCount.value).toBe(0)
     expect(review.reviewPending.value).toHaveLength(2)

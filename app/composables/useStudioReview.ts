@@ -62,6 +62,7 @@ export function useStudioReview(
         ...format,
         variants: format.variants.map(variant => {
           const key = studioReviewKey(concept.id, format.ratio, variant.id)
+          if (variant.reviewExcluded) confirmedExclusions.add(key)
           return {
             ...variant,
             ...(confirmedRatings.has(key) ? { reviewRating: confirmedRatings.get(key)! } : {}),
@@ -181,6 +182,11 @@ export function useStudioReview(
     }
   }
 
+  function clearRegenerationError(conceptId: string, ratio: string, variantId: string) {
+    const key = studioReviewKey(conceptId, ratio, variantId)
+    regenerationErrors.value = Object.fromEntries(Object.entries(regenerationErrors.value).filter(([entryKey]) => entryKey !== key))
+  }
+
   function reviewRegenerate(entry = reviewCurrent.value) {
     if (!entry || !regenerate || reviewSaving.value || regeneratingKeys.value.includes(entry.key) || !canRegenerate(entry)) return
     const slug = projectSlug.value
@@ -213,7 +219,7 @@ export function useStudioReview(
   return {
     reviewTotalPending, reviewScope, reviewHasLatestBatch, setReviewScope, recordReviewBatch,
     reviewOpen, reviewSaving, reviewError, reviewMessage,
-    reviewRegeneratingCount, reviewRegenerationError, reviewCanRegenerate, reviewRegenerate, reviewRegenerateInline,
+    clearRegenerationError, reviewRegeneratingCount, reviewRegenerationError, reviewCanRegenerate, reviewRegenerate, reviewRegenerateInline,
     reviewEntries, reviewPending, reviewAvailable, reviewCurrent, reviewCanUndo,
     reviewInline, reviewRate, reviewUndo, reviewSkip, openReview, closeReview, mergeReviewConcept
   }
