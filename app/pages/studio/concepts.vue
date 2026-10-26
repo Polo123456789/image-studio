@@ -208,7 +208,7 @@ import AppSelect from '~/components/base/AppSelect.vue'
 import StudioConceptCard from '~/components/studio/StudioConceptCard.vue'
 import StudioConceptPromptModal from '~/components/studio/StudioConceptPromptModal.vue'
 import StudioReviewQueue from '~/components/studio/StudioReviewQueue.vue'
-import { sortConceptsByReview } from '~/utils/studio-review'
+import { sortConceptsByReview } from '#shared/review-status'
 
 const {
   reviewTotalPending, reviewScope, reviewHasLatestBatch, setReviewScope,

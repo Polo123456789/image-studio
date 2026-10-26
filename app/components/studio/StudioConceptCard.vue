@@ -2,7 +2,7 @@
   <article
     :id="`concept-${concept.id}`"
     class="overflow-hidden rounded-xl border border-border bg-surface"
-    :class="focused ? 'ring-1 ring-accent/50' : ''"
+    :class="[focused ? 'ring-1 ring-accent/50' : '', reviewStatus === 'good' ? 'border-l-[3px] border-l-accent' : reviewStatus === 'bad' ? 'border-l-[3px] border-l-danger' : 'border-l-[3px] border-l-text-muted']"
   >
     <div class="flex items-center justify-between border-b border-border bg-surface-2/50 px-5 py-3">
       <div class="flex items-center gap-3">
@@ -11,8 +11,9 @@
         </span>
         <div class="min-w-0">
           <h2 class="truncate text-base font-medium text-text">{{ concept.title }}</h2>
-          <p v-if="concept.creativeStyleName" class="mt-1 text-[11px] text-text-muted">
-            Estilo: <span class="text-text">{{ concept.creativeStyleName }}</span>
+          <p class="mt-1 text-[11px] text-text-muted">
+            <template v-if="concept.creativeStyleName">Estilo: <span class="text-text">{{ concept.creativeStyleName }}</span> · </template>
+            <span :class="reviewStatus === 'good' ? 'text-accent' : reviewStatus === 'bad' ? 'text-danger' : 'text-text-muted'">{{ reviewStatus === 'good' ? 'Todas buenas' : reviewStatus === 'bad' ? 'Todas malas' : 'Mixto' }}</span>
           </p>
         </div>
       </div>
@@ -356,6 +357,7 @@ import type { StudioConcept, StudioConceptFormat, StudioVariant, StudioFinalizat
 
 import AppButton from '~/components/base/AppButton.vue'
 import StudioReviewControls from './StudioReviewControls.vue'
+import { studioConceptReviewStatus } from '#shared/review-status'
 
 const emit = defineEmits<{
   'review-regenerate': [conceptId: string, ratio: string, variantId: string]
@@ -394,6 +396,7 @@ const props = defineProps<{
   formatTimestamp: (value: string) => string
 }>()
 
+const reviewStatus = computed(() => studioConceptReviewStatus(props.concept))
 const sizeMenuOpen = ref(false)
 const sizeControl = ref<HTMLElement | null>(null)
 const sizeToggle = ref<HTMLButtonElement | null>(null)
