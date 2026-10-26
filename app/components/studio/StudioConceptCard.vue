@@ -13,7 +13,8 @@
           <h2 class="truncate text-base font-medium text-text">{{ concept.title }}</h2>
           <p class="mt-1 text-[11px] text-text-muted">
             <template v-if="concept.creativeStyleName">Estilo: <span class="text-text">{{ concept.creativeStyleName }}</span> · </template>
-            <span :class="reviewStatus === 'good' ? 'text-accent' : reviewStatus === 'bad' ? 'text-danger' : 'text-text-muted'">{{ reviewStatus === 'good' ? 'Todas buenas' : reviewStatus === 'bad' ? 'Todas malas' : 'Mixto' }}</span>
+            <span :class="reviewStatus === 'good' ? 'text-accent' : reviewStatus === 'bad' ? 'text-danger' : 'text-text-muted'">{{ reviewSummary.label }}</span>
+            <span v-if="reviewSummary.total && reviewSummary.reviewed < reviewSummary.total"> · {{ reviewSummary.reviewed }} de {{ reviewSummary.total }} revisadas</span>
           </p>
         </div>
       </div>
@@ -357,7 +358,7 @@ import type { StudioConcept, StudioConceptFormat, StudioVariant, StudioFinalizat
 
 import AppButton from '~/components/base/AppButton.vue'
 import StudioReviewControls from './StudioReviewControls.vue'
-import { studioConceptReviewStatus } from '#shared/review-status'
+import { studioConceptReviewSummary } from '#shared/review-status'
 
 const emit = defineEmits<{
   'review-regenerate': [conceptId: string, ratio: string, variantId: string]
@@ -396,7 +397,8 @@ const props = defineProps<{
   formatTimestamp: (value: string) => string
 }>()
 
-const reviewStatus = computed(() => studioConceptReviewStatus(props.concept))
+const reviewSummary = computed(() => studioConceptReviewSummary(props.concept))
+const reviewStatus = computed(() => reviewSummary.value.status)
 const sizeMenuOpen = ref(false)
 const sizeControl = ref<HTMLElement | null>(null)
 const sizeToggle = ref<HTMLButtonElement | null>(null)

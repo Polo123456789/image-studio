@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
 import type { StudioConcept, StudioReviewRating } from '../../shared/types/studio'
-import { studioConceptReviewStatus, sortConceptsByReview } from '../../shared/review-status'
+import { studioConceptReviewStatus, studioConceptReviewSummary, sortConceptsByReview } from '../../shared/review-status'
 
 function concept(id: string, ratings: StudioReviewRating[]): StudioConcept {
   return {
@@ -37,4 +37,25 @@ test('uses the same status for labels and sorting, keeping empty and pending con
   for (const ratings of [[], [null], ['good', null], ['good', 'bad']] as StudioReviewRating[][]) {
     expect(studioConceptReviewStatus(concept('mixed', ratings))).toBe('mixed')
   }
+})
+
+test('distinguishes incomplete reviews from fully reviewed mixed concepts without changing their sorting group', () => {
+  expect(studioConceptReviewSummary(concept('unreviewed', [null, null])))
+    .toEqual({ status: 'mixed', total: 2, reviewed: 0, label: 'Sin revisar' })
+  expect(studioConceptReviewSummary(concept('partial', ['good', 'bad', null])))
+    .toEqual({ status: 'mixed', total: 3, reviewed: 2, label: 'Pendiente' })
+  expect(studioConceptReviewSummary(concept('mixed', ['good', 'bad'])))
+    .toEqual({ status: 'mixed', total: 2, reviewed: 2, label: 'Mixto' })
+  expect(studioConceptReviewSummary(concept('empty', [])))
+    .toEqual({ status: 'mixed', total: 0, reviewed: 0, label: 'Sin imágenes' })
+})
+
+test('review progress counts historical images and ignores empty generations', () => {
+  const item = concept('historical', ['good'])
+  item.formats[0]!.variants.push(
+    { ...item.formats[0]!.variants[0]!, id: 'old', reviewRating: null },
+    { ...item.formats[0]!.variants[0]!, id: 'failed', imageUrl: ' ', reviewRating: null }
+  )
+  expect(studioConceptReviewSummary(item))
+    .toEqual({ status: 'mixed', total: 2, reviewed: 1, label: 'Pendiente' })
 })
