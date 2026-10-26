@@ -191,10 +191,20 @@ export function useStudioReview(
     regenerationErrors.value = Object.fromEntries(Object.entries(regenerationErrors.value).filter(([entryKey]) => entryKey !== key))
   }
 
+  async function reviewMarkRegenerationSourceBad(conceptId: string, ratio: string, variantId: string) {
+    const entry = allEntries.value.find(item => item.key === studioReviewKey(conceptId, ratio, variantId))
+    if (!entry) {
+      reviewError.value = 'La imagen ya no está disponible en este proyecto.'
+      return false
+    }
+    if (entry.variant.reviewRating === 'bad') return true
+    return saveReview(entry, 'bad')
+  }
+
   async function reviewRegenerate(entry = reviewCurrent.value) {
     if (!entry || !regenerate || reviewSaving.value || regeneratingKeys.value.includes(entry.key) || !canRegenerate(entry)) return
     const slug = projectSlug.value
-    if (!await saveReview(entry, 'bad')) return
+    if (!await reviewMarkRegenerationSourceBad(entry.conceptId, entry.ratio, entry.variant.id)) return
     regenerationErrors.value = Object.fromEntries(Object.entries(regenerationErrors.value).filter(([key]) => key !== entry.key))
     queueOrder.value = queueOrder.value.filter(key => key !== entry.key)
     currentKey.value = null
@@ -222,7 +232,7 @@ export function useStudioReview(
   return {
     reviewTotalPending, reviewScope, reviewHasLatestBatch, setReviewScope, recordReviewBatch,
     reviewOpen, reviewSaving, reviewError, reviewMessage,
-    clearRegenerationError, reviewRegeneratingCount, reviewRegenerationError, reviewCanRegenerate, reviewRegenerate, reviewRegenerateInline,
+    clearRegenerationError, reviewMarkRegenerationSourceBad, reviewRegeneratingCount, reviewRegenerationError, reviewCanRegenerate, reviewRegenerate, reviewRegenerateInline,
     reviewEntries, reviewPending, reviewAvailable, reviewCurrent, reviewCanUndo,
     reviewInline, reviewRate, reviewUndo, reviewSkip, openReview, closeReview, mergeReviewConcept
   }

@@ -140,6 +140,27 @@ function appendReplacement(review: ReturnType<typeof setup>, entry: StudioReview
 }
 
 describe('regeneration during individual review', () => {
+  test('retry confirms a cleared source as bad across editors and preserves a later undo when the response arrives', async () => {
+    const confirmations = ref<StudioConfirmedReviewRatings>({})
+    const previous = setup(async () => { throw new Error('Sin conexión') }, confirmations)
+    await previous.reviewRegenerate()
+    await settled()
+    await previous.reviewUndo()
+    const current = useStudioReview(previous.concepts, previous.slug, undefined, () => true, confirmations)
+    expect(await current.reviewMarkRegenerationSourceBad('one', '1:1', 'new')).toBe(true)
+    const response = structuredClone(JSON.parse(JSON.stringify(previous.concepts.value[0]))) as StudioConcept
+    expect(previous.mergeReviewConcept(response).formats[0]!.variants[0]!.reviewRating).toBe('bad')
+    await current.reviewUndo()
+    expect(previous.mergeReviewConcept(response).formats[0]!.variants[0]!.reviewRating).toBeNull()
+  })
+  test('retry preparation fails if the source is gone or its bad rating cannot be saved', async () => {
+    const review = setup()
+    expect(await review.reviewMarkRegenerationSourceBad('one', '1:1', 'missing')).toBe(false)
+    transport(async () => { throw new Error('No se guardó') })
+    expect(await review.reviewMarkRegenerationSourceBad('one', '1:1', 'new')).toBe(false)
+    expect(review.reviewError.value).toContain('No se guardó')
+    expect(review.reviewCurrent.value?.variant.reviewRating).toBeUndefined()
+  })
   test('waits for the bad rating to persist, blocks duplicate clicks and does not generate if saving fails', async () => {
     let generated = 0
     const review = setup(async () => { generated++ })

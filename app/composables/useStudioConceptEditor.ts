@@ -527,6 +527,12 @@ export async function useStudioConceptEditor() {
 		setLoadingKey(variantLoadingKeys, key, true);
 		try {
 			await enqueueConceptMutation(task.request.conceptId, async () => {
+				if (task.request.fromReview) {
+					if (!task.request.sourceVariantId || !await review.reviewMarkRegenerationSourceBad(task.request.conceptId, task.request.ratio, task.request.sourceVariantId)) {
+						throw new Error(review.reviewError.value || 'No se pudo guardar la evaluación antes de reintentar.');
+					}
+					if (routeProjectSlug.value !== slug) return;
+				}
 				const response = await runRegeneration(task.request, task.projectName, task.conceptTitle, task.id);
 				if (routeProjectSlug.value === slug) replaceConcept(response.concept);
 			});
