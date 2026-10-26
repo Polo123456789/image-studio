@@ -90,7 +90,6 @@
               Arte pendiente
             </div>
             <div v-if="activeVariant?.imageUrl" class="absolute bottom-3 right-3 flex items-center gap-3 rounded-xl border border-border bg-surface/95 p-2 shadow-lg">
-              <span v-if="activeVariant.reviewRating" class="pl-2 text-xs" :class="activeVariant.reviewRating === 'good' ? 'text-accent' : 'text-danger'">{{ activeVariant.reviewRating === 'good' ? 'Buena' : 'Mala' }}</span>
               <StudioReviewControls :rating="activeVariant.reviewRating" :disabled="reviewSaving" :labels="false" @rate="emit('review', concept.id, concept.selectedRatio, activeVariant!.id, $event)" />
             </div>
           </div>
