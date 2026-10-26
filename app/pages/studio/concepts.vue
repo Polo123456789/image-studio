@@ -1,5 +1,5 @@
 <template>
-  <div class="px-6 py-8 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
+  <div class="px-6 py-8 pb-28 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
     <div class="mx-auto max-w-[1240px]">
       <!-- Breadcrumb -->
       <nav class="mb-6 flex items-center gap-1.5 text-xs text-text-muted">
@@ -38,14 +38,7 @@
           </div>
         </div>
 
-        <AppButton
-          class="shrink-0"
-          type="button"
-          :disabled="!routeProjectSlug || loadingExport || !hasExportableConcepts"
-          @click="exportConcepts"
-        >
-          {{ loadingExport ? 'Preparando ZIP...' : 'Exportar ZIP' }}
-        </AppButton>
+        <StudioExportButton :disabled="!routeProjectSlug" :loading="loadingExport" :counts="exportCounts" :has-reviews="exportHasReviews" @export="exportConcepts" />
       </header>
 
       <p v-if="sessionError" role="alert" class="mb-6 break-words rounded-lg border border-danger/40 bg-danger/10 px-6 py-4 text-sm text-danger">
@@ -74,38 +67,45 @@
       </div>
 
       <div v-else class="space-y-10">
-        <StudioConceptCard
-          v-for="(concept, conceptIndex) in concepts"
-          :key="concept.id"
-          :concept="concept"
-          :uses-preview="usesPreview"
-          :finalization-strategy="finalizationStrategy(concept.id, concept.selectedRatio)"
-          :finalizing="isFinalizing(concept.id, concept.selectedRatio)"
-          :generation-busy="isConceptGenerating(concept.id)"
-          :request-error="generationError(concept.id, concept.selectedRatio)"
-          :index="conceptIndex"
-          :focused="focusedConceptId === concept.id"
-          :loading-variant="isVariantLoading(concept.id, concept.selectedRatio)"
-          :loading-pending-formats="isPendingFormatsLoading(concept.id)"
-          :prompt-preview="promptPreview(concept.id)"
-          :prompt-draft="promptDrafts[concept.id] || ''"
-          :selected-format="selectedFormat(concept)"
-          :active-variant="activeVariant(concept)"
-          :active-variant-by-ratio="activeVariantsByRatio(concept)"
-          :format-status-label="formatStatusLabel"
-          :format-timestamp="formatTimestamp"
-          @discard="discardConcept"
-          @cycle-ratio="cycleRatio"
-          @ratio-selected="selectRatio"
-          @generate-pending-formats="generatePendingFormats"
-          @open-prompt="openPromptModal"
-          @regenerate="regenerateVariant"
-          @finalize="finalizeVariant"
-          @finalization-strategy="setFinalizationStrategy"
-          @reset-prompt="resetPrompt"
-          @select-variant="selectVariant"
-          @use-style="useConceptStyleForNextGenerations"
-        />
+        <template v-for="concept in sortedConcepts" :key="concept.id">
+          <div v-if="concept === badConcepts[0]" class="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
+            <h2 class="text-sm text-text-muted">Todas malas · {{ badConcepts.length }} {{ badConcepts.length === 1 ? 'concepto' : 'conceptos' }}</h2>
+            <button type="button" :disabled="discardingBadConcepts || reviewSaving || badConcepts.some(item => isConceptGenerating(item.id))" class="rounded-lg border border-danger/40 px-3 py-2 text-xs text-danger transition hover:bg-danger/10 disabled:opacity-40" @click="openDiscardBadConcepts">Eliminar todas malas · {{ badConcepts.length }}</button>
+          </div>
+          <StudioConceptCard
+            :concept="concept"
+            :review-saving="reviewSaving || discardingBadConcepts"
+            :uses-preview="usesPreview"
+            :finalization-strategy="finalizationStrategy(concept.id, concept.selectedRatio)"
+            :finalizing="isFinalizing(concept.id, concept.selectedRatio)"
+            :generation-busy="isConceptGenerating(concept.id) || discardingBadConcepts"
+            :request-error="generationError(concept.id, concept.selectedRatio)"
+            :index="concepts.indexOf(concept)"
+            :focused="focusedConceptId === concept.id"
+            :loading-variant="isVariantLoading(concept.id, concept.selectedRatio)"
+            :loading-pending-formats="isPendingFormatsLoading(concept.id)"
+            :prompt-preview="promptPreview(concept.id)"
+            :prompt-draft="promptDrafts[concept.id] || ''"
+            :selected-format="selectedFormat(concept)"
+            :active-variant="activeVariant(concept)"
+            :active-variant-by-ratio="activeVariantsByRatio(concept)"
+            :format-status-label="formatStatusLabel"
+            :format-timestamp="formatTimestamp"
+            @review="reviewInline"
+            @review-regenerate="reviewRegenerateInline"
+            @discard="discardConcept"
+            @cycle-ratio="cycleRatio"
+            @ratio-selected="selectRatio"
+            @generate-pending-formats="generatePendingFormats"
+            @open-prompt="openPromptModal"
+            @regenerate="regenerateVariant"
+            @finalize="finalizeVariant"
+            @finalization-strategy="setFinalizationStrategy"
+            @reset-prompt="resetPrompt"
+            @select-variant="selectVariant"
+            @use-style="useConceptStyleForNextGenerations"
+          />
+        </template>
 
         <section class="rounded-xl border border-border bg-surface px-6 py-8">
           <div class="mx-auto flex max-w-2xl flex-col items-center text-center">
@@ -148,6 +148,42 @@
         </section>
       </div>
 
+      <div v-if="(reviewError || reviewRegenerationError) && !reviewOpen" role="alert" class="fixed bottom-24 right-8 z-40 max-w-md rounded-xl border border-danger/40 bg-surface px-5 py-4 text-sm text-danger shadow-lg">{{ reviewError || reviewRegenerationError }}</div>
+      <p v-if="!reviewOpen" role="status" aria-live="polite" class="sr-only">{{ reviewSaving ? 'Guardando evaluación' : reviewMessage }}</p>
+      <button
+        v-if="reviewTotalPending && !reviewOpen && !pending && !initialLoadError"
+        type="button"
+        class="fixed bottom-7 right-8 z-40 flex items-center gap-4 rounded-full border border-accent/40 bg-surface px-6 py-4 text-sm font-medium text-text shadow-lg transition hover:border-accent hover:bg-surface-2"
+        @click="openReview"
+      >
+        <span class="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent" aria-hidden="true">✓</span>
+        Revisar pendientes
+        <span class="rounded-full bg-accent/20 px-2.5 py-1 font-mono text-xs text-accent">{{ reviewTotalPending }}</span>
+      </button>
+      <StudioReviewQueue
+        v-if="reviewOpen"
+        :project-name="brief.projectName"
+        :scope="reviewScope"
+        :has-latest-batch="reviewHasLatestBatch"
+        @scope="setReviewScope"
+        :entries="reviewEntries"
+        :pending="reviewPending"
+        :available="reviewAvailable"
+        :current="reviewCurrent"
+        :saving="reviewSaving"
+        :error="reviewError || reviewRegenerationError"
+        :regenerating-count="reviewRegeneratingCount"
+        :can-regenerate="reviewCanRegenerate"
+        :message="reviewMessage"
+        :can-undo="reviewCanUndo"
+        @close="closeReview"
+        @resume="openReview"
+        @rate="reviewRate"
+        @regenerate="reviewRegenerate()"
+        @skip="reviewSkip"
+        @undo="reviewUndo"
+      />
+
       <StudioConceptPromptModal
         :open="Boolean(promptModalConceptId)"
         :concept="promptModalConcept"
@@ -159,6 +195,14 @@
         @reset="resetPrompt(promptModalConceptId || '')"
         @save="savePromptModal"
       />
+      <StudioDiscardBadConceptsModal
+        v-if="discardCandidates.length"
+        :concepts="discardCandidates"
+        :saving="discardingBadConcepts"
+        :error="discardBadError"
+        @close="discardCandidates = []"
+        @confirm="confirmDiscardBadConcepts"
+      />
     </div>
   </div>
 </template>
@@ -168,8 +212,19 @@ import AppButton from '~/components/base/AppButton.vue'
 import AppSelect from '~/components/base/AppSelect.vue'
 import StudioConceptCard from '~/components/studio/StudioConceptCard.vue'
 import StudioConceptPromptModal from '~/components/studio/StudioConceptPromptModal.vue'
+import StudioReviewQueue from '~/components/studio/StudioReviewQueue.vue'
+import StudioDiscardBadConceptsModal from '~/components/studio/StudioDiscardBadConceptsModal.vue'
+import StudioExportButton from '~/components/studio/StudioExportButton.vue'
+import type { StudioConcept } from '#shared/types/studio'
+import { sortConceptsByReview, studioConceptReviewStatus } from '#shared/review-status'
 
 const {
+  discardBadConcepts, discardingBadConcepts, discardBadError,
+  reviewTotalPending, reviewScope, reviewHasLatestBatch, setReviewScope,
+  reviewOpen, reviewSaving, reviewError, reviewMessage,
+  reviewRegeneratingCount, reviewRegenerationError, reviewCanRegenerate, reviewRegenerate, reviewRegenerateInline,
+  reviewEntries, reviewPending, reviewAvailable, reviewCurrent, reviewCanUndo,
+  reviewInline, reviewRate, reviewUndo, reviewSkip, openReview, closeReview,
   brief,
   usesPreview,
   finalizationStrategy,
@@ -192,10 +247,11 @@ const {
   loadingMoreConcepts,
   moreConceptError,
   loadingExport,
+  exportCounts,
+  exportHasReviews,
   extraConceptCounts,
   routeProjectSlug,
   focusedConceptId,
-  hasExportableConcepts,
   promptModalConcept,
   canEditPromptInModal,
   promptModalDescription,
@@ -220,6 +276,17 @@ const {
   activeVariantsByRatio,
   formatStatusLabel
 } = await useStudioConceptEditor()
+
+const sortedConcepts = computed(() => sortConceptsByReview(concepts.value))
+const badConcepts = computed(() => sortedConcepts.value.filter(concept => studioConceptReviewStatus(concept) === 'bad'))
+const discardCandidates = ref<StudioConcept[]>([])
+function openDiscardBadConcepts() {
+  discardBadError.value = ''
+  discardCandidates.value = [...badConcepts.value]
+}
+async function confirmDiscardBadConcepts() {
+  if (await discardBadConcepts(discardCandidates.value.map(concept => concept.id))) discardCandidates.value = []
+}
 
 const moreConceptCountValue = computed<string>({
   get() {

@@ -1,4 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { createError } from 'h3'
+import { studioConceptReviewStatus } from '../../../shared/review-status'
 
 import type {
   StudioConcept,
@@ -6,7 +8,9 @@ import type {
   StudioProjectListItem,
   StudioProjectListPagination,
   StudioProjectListResponse,
-  StudioVariantMode
+  StudioVariantMode,
+  StudioReviewPayload,
+  StudioReviewResponse
 } from '../../../shared/types/studio'
 import { db } from '../../db/client'
 import {
@@ -405,6 +409,27 @@ export function discardStudioConcept(slug: string, conceptId: string): StudioCon
   return getStudioProjectBySlug(slug).concepts
 }
 
+export function discardBadStudioConcepts(slug: string, conceptIds: unknown): string[] {
+  if (!Array.isArray(conceptIds) || !conceptIds.length || conceptIds.length > 1000
+    || !conceptIds.every(id => typeof id === 'string' && id.trim())
+    || new Set(conceptIds).size !== conceptIds.length) {
+    throw createError({ statusCode: 400, statusMessage: 'Selecciona conceptos válidos para eliminar.' })
+  }
+  return db.transaction((tx) => {
+    const project = getStudioProjectBySlug(slug)
+    const selected = project.concepts.filter(concept => conceptIds.includes(concept.id))
+    if (selected.length !== conceptIds.length || selected.some(concept => studioConceptReviewStatus(concept) !== 'bad')) {
+      throw createError({ statusCode: 409, statusMessage: 'Los conceptos cambiaron. Actualiza la página y revisa cuáles tienen todas las imágenes malas.' })
+    }
+    const now = new Date()
+    tx.update(studioConcepts).set({ discardedAt: now, updatedAt: now })
+      .where(and(eq(studioConcepts.projectId, project.id), inArray(studioConcepts.conceptKey, conceptIds)))
+      .run()
+    tx.update(studioProjects).set({ updatedAt: now }).where(eq(studioProjects.id, project.id)).run()
+    return selected.map(concept => concept.id)
+  })
+}
+
 export function addStudioConceptVariant(
   slug: string,
   conceptId: string,
@@ -413,11 +438,14 @@ export function addStudioConceptVariant(
   prompt: string,
   image: Pick<StudioConcept['formats'][number]['variants'][number],
     'imageUrl' | 'thumbnailUrl' | 'imageMimeType' | 'imageFileSize' | 'imageWidth' | 'imageHeight' | 'imageHash'>,
-  resolution?: string
+  resolution?: string,
+  reviewSourceVariantId?: string
 ): StudioConcept {
   const project = getStudioProjectRowBySlug(slug)
   const conceptRow = getStudioConceptRow(project.id, conceptId)
   const formatRow = getStudioConceptFormatRow(conceptRow.id, ratio)
+
+  if (reviewSourceVariantId) getStudioVariantRow(formatRow.id, reviewSourceVariantId)
 
   persistGeneratedVariant(project.id, conceptRow, formatRow.id, {
     conceptId,
@@ -481,4 +509,23 @@ export function saveStudioConceptGeneratedVariants(
 
 export function getStudioConceptById(slug: string, conceptId: string): StudioConcept {
   return ensureConcept(getStudioProjectBySlug(slug).concepts.find((concept) => concept.id === conceptId))
+}
+
+/** Scope the review to an existing image, including historical versions. */
+export function reviewStudioVariant(slug: string, payload: StudioReviewPayload): StudioReviewResponse {
+  const project = getStudioProjectRowBySlug(slug)
+  const concept = getStudioConceptRow(project.id, payload.conceptId)
+  const format = getStudioConceptFormatRow(concept.id, payload.ratio)
+  const variant = getStudioVariantRow(format.id, payload.variantId)
+
+  if (!variant.imageUrl.trim()) {
+    throw createError({ statusCode: 400, statusMessage: 'No hay una imagen para revisar.' })
+  }
+
+  db.update(studioVariants)
+    .set({ reviewRating: payload.rating })
+    .where(eq(studioVariants.id, variant.id))
+    .run()
+
+  return { rating: payload.rating }
 }

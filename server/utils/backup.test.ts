@@ -15,7 +15,7 @@ afterEach(async () => {
 })
 
 describe('backup v2', () => {
-  test('valida referencias, rechaza archivos corruptos y restaura sin reemplazar el mount point', async () => {
+  test.each(['current', 'before-regeneration', 'before-review'])('restaura evaluaciones y versiones reemplazadas: schema=%s', async (version) => {
     const root = await mkdtemp(join(tmpdir(), 'image-studio-backup-test-'))
     temporaryDirectories.push(root)
     const databasePath = join(root, 'local.db')
@@ -44,6 +44,14 @@ describe('backup v2', () => {
       encoding: 'utf8'
     })
     const sqlite = new Database(databasePath)
+    if (version !== 'current') {
+      sqlite.exec('ALTER TABLE studio_variants DROP COLUMN review_excluded')
+      sqlite.exec('DELETE FROM __drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM __drizzle_migrations)')
+    }
+    if (version === 'before-review') {
+      sqlite.exec('ALTER TABLE studio_variants DROP COLUMN review_rating')
+      sqlite.exec('DELETE FROM __drizzle_migrations WHERE created_at = (SELECT max(created_at) FROM __drizzle_migrations)')
+    }
     sqlite.query("insert into studio_projects values (1, 'proyecto', 'Original', '{}', 1, 1)").run()
     sqlite.query("insert into assets values (1, 'Asset', 'asset.png', '/uploads/assets/asset.png', 'image/png', ?, ?, '', '[]', null, 1, 1)")
       .run(asset.length, createHash('sha256').update(asset).digest('hex'))
@@ -68,6 +76,8 @@ describe('backup v2', () => {
         '/uploads/generated/thumbnails/aa/thumb.webp', 'image/png', ?, 4, 3, ?)
     `)
       .run(original.length, createHash('sha256').update(original).digest('hex'))
+    if (version !== 'before-review') sqlite.exec("UPDATE studio_variants SET review_rating = 'good' WHERE id = 1")
+    if (version === 'current') sqlite.exec('UPDATE studio_variants SET review_excluded = 1 WHERE id = 1')
     sqlite.close()
 
     const resultPath = join(root, 'result.json')
@@ -89,7 +99,9 @@ describe('backup v2', () => {
       projectName: 'Original',
       rootMountPointPreserved: true,
       originalRestored: true,
-      maintenanceReleased: true
+      maintenanceReleased: true,
+      reviewRating: version === 'before-review' ? null : 'good',
+      reviewExcluded: version === 'current' ? 1 : 0
     })
   })
 })

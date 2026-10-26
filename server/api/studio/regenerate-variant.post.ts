@@ -4,13 +4,20 @@ import {
   addStudioConceptVariant,
   getStudioConceptById,
   getStudioProjectBySlug,
-  markStudioConceptFormatGenerationFailed
+  markStudioConceptFormatGenerationFailed,
+  reviewStudioVariant
 } from '../../utils/studio/repository'
 import { getStudioExplorationSettings } from '../../../shared/utils/studio-generation'
 import { generateStoredFinalImageResult } from '../../utils/studio-generation'
 
 export default defineEventHandler(async (event): Promise<StudioConceptMutationResponse> => {
   const payload = await readBody<StudioRegenerateVariantPayload>(event)
+  if (payload.fromReview !== undefined && typeof payload.fromReview !== 'boolean') {
+    throw createError({ statusCode: 400, statusMessage: 'La solicitud de regeneración es inválida.' })
+  }
+  if (payload.fromReview && (!payload.sourceVariantId || payload.targetSize !== undefined)) {
+    throw createError({ statusCode: 400, statusMessage: 'Selecciona la versión que quieres regenerar desde revisión.' })
+  }
   const project = getStudioProjectBySlug(payload.projectSlug)
   const generation = getStudioExplorationSettings(project.brief.resolution)
   const storedConcept = getStudioConceptById(payload.projectSlug, payload.conceptId)
@@ -36,8 +43,14 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
   const resolution = payload.targetSize || currentSize || generation.resolution
   const mode = payload.targetSize ? 'final' : source?.mode || generation.mode
 
+  if (payload.fromReview && source!.reviewRating !== 'bad') {
+    reviewStudioVariant(payload.projectSlug, {
+      conceptId: payload.conceptId, ratio: payload.ratio, variantId: source!.id, rating: 'bad'
+    })
+  }
+
   const result = await generateStoredFinalImageResult(
-    payload.targetSize ? source!.prompt : payload.prompt,
+    payload.targetSize || payload.fromReview ? source!.prompt : payload.prompt,
     payload.ratio,
     resolution,
     project.brief.assetIds ?? [],
@@ -54,9 +67,10 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
         payload.conceptId,
         payload.ratio,
         mode,
-        payload.targetSize ? source!.prompt : payload.prompt,
+        payload.targetSize || payload.fromReview ? source!.prompt : payload.prompt,
         result.image,
-        resolution
+        resolution,
+        payload.fromReview ? source!.id : undefined
       )
     : markStudioConceptFormatGenerationFailed(
         payload.projectSlug,

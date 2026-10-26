@@ -2,7 +2,7 @@
   <article
     :id="`concept-${concept.id}`"
     class="overflow-hidden rounded-xl border border-border bg-surface"
-    :class="focused ? 'ring-1 ring-accent/50' : ''"
+    :class="[focused ? 'ring-1 ring-accent/50' : '', reviewStatus === 'good' ? 'border-l-[3px] border-l-accent' : reviewStatus === 'bad' ? 'border-l-[3px] border-l-danger' : 'border-l-[3px] border-l-text-muted']"
   >
     <div class="flex items-center justify-between border-b border-border bg-surface-2/50 px-5 py-3">
       <div class="flex items-center gap-3">
@@ -11,8 +11,10 @@
         </span>
         <div class="min-w-0">
           <h2 class="truncate text-base font-medium text-text">{{ concept.title }}</h2>
-          <p v-if="concept.creativeStyleName" class="mt-1 text-[11px] text-text-muted">
-            Estilo: <span class="text-text">{{ concept.creativeStyleName }}</span>
+          <p class="mt-1 text-[11px] text-text-muted">
+            <template v-if="concept.creativeStyleName">Estilo: <span class="text-text">{{ concept.creativeStyleName }}</span> · </template>
+            <span :class="reviewStatus === 'good' ? 'text-accent' : reviewStatus === 'bad' ? 'text-danger' : 'text-text-muted'">{{ reviewSummary.label }}</span>
+            <span v-if="reviewSummary.total && reviewSummary.reviewed < reviewSummary.total"> · {{ reviewSummary.reviewed }} de {{ reviewSummary.total }} revisadas</span>
           </p>
         </div>
       </div>
@@ -50,7 +52,7 @@
         </div>
 
         <div class="bg-[#0a0a0a] px-5 py-6">
-          <div class="mx-auto flex max-h-[520px] items-center justify-center overflow-hidden rounded-lg border border-white/[0.06]">
+          <div class="relative mx-auto flex max-h-[520px] items-center justify-center overflow-hidden rounded-lg border border-white/[0.06]">
             <img
               v-if="activeVariant?.imageUrl"
               :src="activeVariant.imageUrl"
@@ -88,6 +90,9 @@
             </div>
             <div v-else class="flex h-64 w-full items-center justify-center text-sm text-text-muted">
               Arte pendiente
+            </div>
+            <div v-if="activeVariant?.imageUrl" class="absolute bottom-3 right-3 flex items-center gap-3 rounded-xl border border-border bg-surface/95 p-2 shadow-lg">
+              <StudioReviewControls :rating="activeVariant.reviewRating" :disabled="reviewSaving" :labels="false" @rate="emit('review', concept.id, concept.selectedRatio, activeVariant!.id, $event)" />
             </div>
           </div>
 
@@ -349,11 +354,15 @@
 </template>
 
 <script setup lang="ts">
-import type { StudioConcept, StudioConceptFormat, StudioVariant, StudioFinalizationStrategy } from '../../../shared/types/studio'
+import type { StudioConcept, StudioConceptFormat, StudioVariant, StudioFinalizationStrategy, StudioReviewRating } from '../../../shared/types/studio'
 
 import AppButton from '~/components/base/AppButton.vue'
+import StudioReviewControls from './StudioReviewControls.vue'
+import { studioConceptReviewSummary } from '#shared/review-status'
 
 const emit = defineEmits<{
+  'review-regenerate': [conceptId: string, ratio: string, variantId: string]
+  review: [conceptId: string, ratio: string, variantId: string, rating: Exclude<StudioReviewRating, null>]
   discard: [conceptId: string]
   'cycle-ratio': [conceptId: string]
   'ratio-selected': [conceptId: string, ratio: string]
@@ -368,6 +377,7 @@ const emit = defineEmits<{
 }>()
 
 const props = defineProps<{
+  reviewSaving: boolean
   usesPreview: boolean
   finalizationStrategy: StudioFinalizationStrategy
   finalizing: boolean
@@ -387,6 +397,8 @@ const props = defineProps<{
   formatTimestamp: (value: string) => string
 }>()
 
+const reviewSummary = computed(() => studioConceptReviewSummary(props.concept))
+const reviewStatus = computed(() => reviewSummary.value.status)
 const sizeMenuOpen = ref(false)
 const sizeControl = ref<HTMLElement | null>(null)
 const sizeToggle = ref<HTMLButtonElement | null>(null)

@@ -22,13 +22,13 @@ describe('library SQL pagination', () => {
       create table studio_projects (id integer primary key, slug text, project_name text, brief text, created_at integer, updated_at integer);
       create table studio_concepts (id integer primary key, project_id integer, concept_key text, title text, subtitle text, rationale text, creative_style_id integer, creative_style_name text, approved_at integer, position integer, discarded_at integer, created_at integer, updated_at integer);
       create table studio_concept_formats (id integer primary key, concept_id integer, ratio text, is_preview_source integer, prompt_draft text, active_variant_key text, created_at integer, updated_at integer);
-      create table studio_variants (id integer primary key, format_id integer, variant_key text, label text, mode text, prompt text, image_url text, thumbnail_url text, image_mime_type text, image_file_size integer, image_width integer, image_height integer, image_hash text, created_at integer);
+      create table studio_variants (id integer primary key, format_id integer, variant_key text, label text, mode text, prompt text, image_url text, thumbnail_url text, image_mime_type text, image_file_size integer, image_width integer, image_height integer, image_hash text, created_at integer, review_rating text, review_excluded integer not null default 0);
       insert into studio_projects values (1, 'proyecto', 'Proyecto', '{}', 1000, 1000);
     `)
 
     const insertConcept = sqlite.query('insert into studio_concepts values (?, 1, ?, ?, ?, ?, null, null, null, ?, null, 1000, 1000)')
     const insertFormat = sqlite.query('insert into studio_concept_formats values (?, ?, ?, 0, ?, ?, 1000, 1000)')
-    const insertVariant = sqlite.query('insert into studio_variants values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1000)')
+    const insertVariant = sqlite.query('insert into studio_variants values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1000, null, 0)')
     const seed = sqlite.transaction(() => {
       for (let id = 1; id <= 45; id += 1) {
         insertConcept.run(id, `concepto-${id}`, `Concepto ${id}`, 'Subtitulo', 'Rationale', id)

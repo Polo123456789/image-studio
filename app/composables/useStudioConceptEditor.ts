@@ -1,5 +1,6 @@
 import type {
 	StudioConcept,
+	StudioDiscardBadConceptsResponse,
 	StudioConceptFormat,
 	StudioConceptListMutationResponse,
 	StudioConceptMutationResponse,
@@ -9,7 +10,10 @@ import type {
 	StudioFinalizationStrategy,
 } from "../../shared/types/studio";
 
+import type { StudioReviewEntry } from "../utils/studio-review";
+
 import { usesStudioPreview } from "#shared/utils/studio-generation";
+import { activeStudioExportImages, selectStudioExportImages, type StudioExportScope } from "#shared/studio-export";
 
 interface ConceptMutationOptions {
 	persist?: boolean;
@@ -19,10 +23,13 @@ export async function useStudioConceptEditor() {
 	const route = useRoute();
 	const router = useRouter();
 	const { notify, requestPermission } = useNotifications();
+	const { regenerationTasks, runRegeneration } = useStudioRegenerations();
+	const handledRetries = new Set<string>();
 	const {
 		projectSlug,
 		brief,
 		concepts,
+		confirmedReviewRatings,
 		isGeneratingConcepts,
 		generationMessage,
 		setProject,
@@ -45,6 +52,8 @@ export async function useStudioConceptEditor() {
 	const loadingMoreConcepts = ref(false);
 	const moreConceptError = ref("");
 	const loadingExport = ref(false);
+	const discardingBadConcepts = ref(false);
+	const discardBadError = ref("");
 	const extraConceptCounts = [1, 2, 3, 4];
 	const focusedConceptId = ref<string | null>(null);
 	const routeParamSlug = computed(() =>
@@ -77,6 +86,8 @@ export async function useStudioConceptEditor() {
 		generationMessage.value = "";
 	}
 
+	const review = useStudioReview(concepts, routeProjectSlug, regenerateReviewEntry, entry => !isConceptGenerating(entry.conceptId), confirmedReviewRatings);
+
 	void ensureInitialConcepts();
 	syncPromptDrafts(concepts.value);
 
@@ -89,22 +100,27 @@ export async function useStudioConceptEditor() {
 	);
 
 	watch(
-		() => [route.query.concept, route.query.ratio, route.query.variant],
+		() => [route.query.concept, route.query.ratio, route.query.variant, route.query.taskFocus],
 		async () => {
 			await applyLibraryFocusFromRoute();
+			const retryId = typeof route.query.retryRegeneration === "string" ? route.query.retryRegeneration : "";
+			if (retryId && !handledRetries.has(retryId)) {
+				handledRetries.add(retryId);
+				// Consume the click intent so Back/Forward cannot resend a paid generation.
+				void router.replace({ query: { ...route.query, retryRegeneration: undefined } });
+				void retryRegenerationTask(retryId);
+			}
 		},
 		{ immediate: true },
 	);
 
-	const hasExportableConcepts = computed(() =>
-		concepts.value.some((concept) => {
-			return concept.formats.some((format) => {
-				const variant = activeVariantForFormat(format);
-
-				return variant?.mode === "final" && Boolean(variant.imageUrl);
-			});
-		}),
-	);
+	const exportHasReviews = computed(() => activeStudioExportImages(concepts.value).some(image => image.variant.reviewRating));
+	const exportCounts = computed(() => ({
+		good: selectStudioExportImages(concepts.value, 'good').length,
+		mixed: selectStudioExportImages(concepts.value, 'mixed').length,
+		all: selectStudioExportImages(concepts.value, 'all').length,
+	}));
+	const hasExportableConcepts = computed(() => exportCounts.value.all > 0);
 
 	const promptModalConcept = computed(() => {
 		return (
@@ -168,6 +184,7 @@ export async function useStudioConceptEditor() {
 				},
 			);
 
+			review.recordReviewBatch(response.concepts);
 			concepts.value = response.concepts;
 			notifyGeneratedBatch(response.concepts);
 			generationMessage.value = "";
@@ -307,6 +324,7 @@ export async function useStudioConceptEditor() {
 	}
 
 	function replaceConcept(nextConcept: StudioConcept) {
+		review.recordReviewBatch([nextConcept]);
 		updateConcept(nextConcept.id, (currentConcept) => {
 			const selectedRatio = nextConcept.formats.some(
 				(format) => format.ratio === currentConcept.selectedRatio,
@@ -315,7 +333,7 @@ export async function useStudioConceptEditor() {
 				: nextConcept.selectedRatio;
 
 			return {
-				...nextConcept,
+				...review.mergeReviewConcept(nextConcept),
 				selectedRatio,
 			};
 		});
@@ -355,7 +373,7 @@ export async function useStudioConceptEditor() {
 	}
 
 	function isVariantLoading(conceptId: string, ratio: string) {
-		return Boolean(variantLoadingKeys.value[createFormatKey(conceptId, ratio)]);
+		return Boolean(variantLoadingKeys.value[createFormatKey(conceptId, ratio)]) || regenerationTasks.value.some(task => task.status === "running" && task.request.projectSlug === routeProjectSlug.value && task.request.conceptId === conceptId && task.request.ratio === ratio);
 	}
 
 	function isPendingFormatsLoading(conceptId: string) {
@@ -494,6 +512,64 @@ export async function useStudioConceptEditor() {
 	}
 
 
+	async function retryRegenerationTask(taskId: string) {
+		const task = regenerationTasks.value.find(item => item.id === taskId);
+		if (!task || task.status !== 'error' || task.request.projectSlug !== routeProjectSlug.value || isConceptGenerating(task.request.conceptId)) {
+			handledRetries.delete(taskId);
+			if (task && isConceptGenerating(task.request.conceptId)) sessionError.value = 'Espera a que termine la generación de este concepto antes de reintentar.';
+			return;
+		}
+		sessionError.value = "";
+		const slug = task.request.projectSlug;
+		const key = createFormatKey(task.request.conceptId, task.request.ratio);
+		generationErrors.value[key] = "";
+		if (task.request.sourceVariantId) review.clearRegenerationError(task.request.conceptId, task.request.ratio, task.request.sourceVariantId);
+		setLoadingKey(variantLoadingKeys, key, true);
+		try {
+			await enqueueConceptMutation(task.request.conceptId, async () => {
+				if (task.request.fromReview) {
+					if (!task.request.sourceVariantId || !await review.reviewMarkRegenerationSourceBad(task.request.conceptId, task.request.ratio, task.request.sourceVariantId)) {
+						throw new Error(review.reviewError.value || 'No se pudo guardar la evaluación antes de reintentar.');
+					}
+					if (routeProjectSlug.value !== slug) return;
+				}
+				const response = await runRegeneration(task.request, task.projectName, task.conceptTitle, task.id);
+				if (routeProjectSlug.value === slug) replaceConcept(response.concept);
+			});
+		} catch (error) {
+			generationErrors.value[key] = getRequestErrorMessage(error, 'No se pudo regenerar la imagen.');
+		} finally {
+			setLoadingKey(variantLoadingKeys, key, false);
+			handledRetries.delete(taskId);
+		}
+	}
+
+	async function regenerateReviewEntry(entry: StudioReviewEntry) {
+		const slug = routeProjectSlug.value;
+		if (!slug || isConceptGenerating(entry.conceptId)) throw new Error("Este concepto ya se está regenerando.");
+		const existingIds = new Set(concepts.value.find(concept => concept.id === entry.conceptId)?.formats.find(format => format.ratio === entry.ratio)?.variants.map(variant => variant.id));
+		const key = createFormatKey(entry.conceptId, entry.ratio);
+		setLoadingKey(variantLoadingKeys, key, true);
+		void requestPermission();
+		try {
+			await enqueueConceptMutation(entry.conceptId, async () => {
+				const response = await runRegeneration(
+					{ projectSlug: slug, conceptId: entry.conceptId, ratio: entry.ratio, sourceVariantId: entry.variant.id, prompt: entry.variant.prompt, fromReview: true },
+					brief.value.projectName, entry.conceptTitle
+				);
+				if (routeProjectSlug.value !== slug) return;
+				replaceConcept(response.concept);
+				const format = response.concept.formats.find(item => item.ratio === entry.ratio);
+				if (!format?.variants.some(variant => variant.imageUrl && !existingIds.has(variant.id))) {
+					throw new Error(format?.generationError || "No se pudo regenerar. La imagen conserva la evaluación mala.");
+				}
+				void notify(`Imagen regenerada: ${entry.conceptTitle} (${entry.ratio}).`, `/studio/${slug}/concepts`);
+			});
+		} finally {
+			setLoadingKey(variantLoadingKeys, key, false);
+		}
+	}
+
 	async function regenerateVariant(conceptId: string, targetSize?: '1K' | '2K' | '4K') {
 		const concept = concepts.value.find((item) => item.id === conceptId);
 		const format = concept ? selectedFormat(concept) : null;
@@ -508,25 +584,17 @@ export async function useStudioConceptEditor() {
 		generationErrors.value[loadingKey] = "";
 		setLoadingKey(variantLoadingKeys, loadingKey, true);
 
+		const slug = routeProjectSlug.value;
 		const sourceVariantId = activeVariantForFormat(format)?.id;
-		const prompt = promptDrafts.value[conceptId];
+		const prompt = promptDrafts.value[conceptId] || format.promptDraft;
 		const ratio = concept.selectedRatio;
 		try {
 			await enqueueConceptMutation(conceptId, async () => {
-				const response = await $fetch<StudioConceptMutationResponse>(
-					"/api/studio/regenerate-variant",
-					{
-						method: "POST",
-						body: {
-							projectSlug: routeProjectSlug.value,
-							conceptId,
-							ratio,
-							prompt,
-							targetSize,
-							sourceVariantId,
-						},
-					},
+				const response = await runRegeneration(
+					{ projectSlug: slug, conceptId, ratio, prompt, targetSize, sourceVariantId },
+					brief.value.projectName, concept.title
 				);
+				if (routeProjectSlug.value !== slug) return;
 
 				replaceConcept(response.concept);
 				const generatedFormat = response.concept.formats.find(item => item.ratio === ratio);
@@ -617,6 +685,31 @@ export async function useStudioConceptEditor() {
 		);
 	}
 
+	async function discardBadConcepts(conceptIds: string[]) {
+		if (discardingBadConcepts.value || review.reviewSaving.value || !routeProjectSlug.value) return false;
+		const slug = routeProjectSlug.value;
+		discardingBadConcepts.value = true;
+		discardBadError.value = "";
+		try {
+			await Promise.all(conceptIds.map(id => conceptMutationQueue.value[id] || Promise.resolve()));
+			if (conceptIds.some(isConceptGenerating)) throw new Error("Espera a que termine la generación de estos conceptos.");
+			const response = await $fetch<StudioDiscardBadConceptsResponse>(`/api/studio/projects/${encodeURIComponent(slug)}/concepts/discard-bad`, {
+				method: "PUT", body: { conceptIds },
+			});
+			if (routeProjectSlug.value !== slug) return false;
+			const discarded = new Set(response.discardedConceptIds);
+			concepts.value = concepts.value.filter(concept => !discarded.has(concept.id));
+			if (promptModalConceptId.value && discarded.has(promptModalConceptId.value)) closePromptModal();
+			for (const id of discarded) delete promptDrafts.value[id];
+			return true;
+		} catch (error) {
+			discardBadError.value = getRequestErrorMessage(error, "No se pudieron eliminar los conceptos. Intenta nuevamente.");
+			return false;
+		} finally {
+			discardingBadConcepts.value = false;
+		}
+	}
+
 	async function generateMoreConcepts() {
 		if (!routeProjectSlug.value) {
 			return;
@@ -637,6 +730,7 @@ export async function useStudioConceptEditor() {
 				},
 			);
 
+			review.recordReviewBatch(response.concepts);
 			concepts.value = [...concepts.value, ...response.concepts];
 			notifyGeneratedBatch(response.concepts);
 		} catch (error) {
@@ -678,17 +772,17 @@ export async function useStudioConceptEditor() {
 				},
 			);
 
-			setProject(response.project);
+			setProject({ ...response.project, concepts: response.project.concepts.map(review.mergeReviewConcept) });
 		} catch (error) {
 			sessionError.value = getRequestErrorMessage(error, "No se pudo guardar el estilo para las siguientes generaciones.");
 		}
 	}
 
-	async function exportConcepts() {
+	async function exportConcepts(scope: StudioExportScope = 'good') {
 		if (
 			!routeProjectSlug.value ||
 			loadingExport.value ||
-			!hasExportableConcepts.value
+			!exportCounts.value[scope]
 		) {
 			return;
 		}
@@ -701,6 +795,7 @@ export async function useStudioConceptEditor() {
 				`/api/studio/projects/${routeProjectSlug.value}/export`,
 				{
 					method: "GET",
+					query: { scope },
 					responseType: "blob",
 				},
 			);
@@ -836,7 +931,7 @@ export async function useStudioConceptEditor() {
 			return;
 		}
 
-		const response = await $fetch<StudioConceptListMutationResponse>(
+		await $fetch<StudioConceptListMutationResponse>(
 			`/api/studio/projects/${routeProjectSlug.value}/concepts/discard`,
 			{
 				method: "PUT",
@@ -846,7 +941,8 @@ export async function useStudioConceptEditor() {
 			},
 		);
 
-		concepts.value = response.concepts;
+		// The concept was removed optimistically. Do not replace other concepts
+		// with a response that may predate their generation or review updates.
 	}
 
 	function formatStatusLabel(
@@ -871,6 +967,10 @@ export async function useStudioConceptEditor() {
 	}
 
 	return {
+		...review,
+		discardBadConcepts,
+		discardingBadConcepts,
+		discardBadError,
 		brief,
 		usesPreview,
 		finalizationStrategy,
@@ -893,6 +993,8 @@ export async function useStudioConceptEditor() {
 		loadingMoreConcepts,
 		moreConceptError,
 		loadingExport,
+		exportCounts,
+		exportHasReviews,
 		extraConceptCounts,
 		routeProjectSlug,
 		focusedConceptId,

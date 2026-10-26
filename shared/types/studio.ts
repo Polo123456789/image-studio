@@ -1,5 +1,7 @@
 export type StudioBriefMode = 'guided' | 'plain'
 
+export type StudioConfirmedReviewRatings = Record<string, Record<string, StudioReviewRating>>
+
 export interface StudioBriefPayload {
   briefMode?: StudioBriefMode
   brandId: number | null
@@ -96,6 +98,10 @@ export interface StudioDiscardConceptPayload {
   conceptId: string
 }
 
+export interface StudioDiscardBadConceptsResponse {
+  discardedConceptIds: string[]
+}
+
 export interface StudioGenerateConceptsPayload {
   projectSlug: string
   brief: StudioBriefPayload
@@ -105,9 +111,26 @@ export interface StudioAppendConceptsPayload {
   count: number
 }
 
+export type StudioReviewRating = 'good' | 'bad' | null
+
+export interface StudioReviewPayload {
+  conceptId: string
+  ratio: string
+  variantId: string
+  rating: StudioReviewRating
+}
+
+export interface StudioReviewResponse {
+  rating: StudioReviewRating
+}
+
 export type StudioVariantMode = 'preview' | 'final'
 
 export interface StudioVariant {
+  /** Missing on older backups; treated as unreviewed. */
+  reviewRating?: StudioReviewRating
+  /** Legacy review regenerations excluded the source without rating it. */
+  reviewExcluded?: boolean
   id: string
   label: string
   mode: StudioVariantMode
@@ -150,6 +173,7 @@ export interface StudioConceptResponse {
 export type StudioImageSize = '1K' | '2K' | '4K'
 
 export interface StudioRegenerateVariantPayload {
+  fromReview?: boolean
   targetSize?: StudioImageSize
   sourceVariantId?: string
   projectSlug: string
