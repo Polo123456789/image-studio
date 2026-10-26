@@ -1,6 +1,6 @@
 import { computed, ref, watch, type Ref } from 'vue'
 import { getRequestErrorMessage } from '../utils/http-errors'
-import type { StudioConcept, StudioReviewRating, StudioReviewResponse, StudioVariant } from '../../shared/types/studio'
+import type { StudioConcept, StudioConfirmedReviewRatings, StudioReviewRating, StudioReviewResponse, StudioVariant } from '../../shared/types/studio'
 import { studioReviewEntries, studioReviewKey, type StudioReviewEntry } from '../utils/studio-review'
 
 interface ReviewChange {
@@ -12,7 +12,8 @@ export function useStudioReview(
   concepts: Ref<StudioConcept[]>,
   projectSlug: Ref<string>,
   regenerate?: (entry: StudioReviewEntry) => Promise<void>,
-  canRegenerate: (entry: StudioReviewEntry) => boolean = () => true
+  canRegenerate: (entry: StudioReviewEntry) => boolean = () => true,
+  confirmedReviewRatings: Ref<StudioConfirmedReviewRatings> = ref({})
 ) {
   const reviewScope = ref<'all' | 'current' | 'latest'>('all')
   const latestKeys = ref<string[]>([])
@@ -24,14 +25,13 @@ export function useStudioReview(
   const deferredKeys = ref<string[]>([])
   const currentKey = ref<string | null>(null)
   const history = ref<ReviewChange[]>([])
-  const confirmedRatings = new Map<string, StudioReviewRating>()
   const confirmedExclusions = new Set<string>()
   const regeneratingKeys = ref<string[]>([])
   const regenerationErrors = ref<Record<string, string>>({})
   const sessionActive = ref(false)
   const queueOrder = ref<string[]>([])
   const allEntries = computed(() => studioReviewEntries(concepts.value))
-  // Regeneration is not a rating. Keep replaced, unreviewed versions out of review totals.
+  // Legacy regenerations excluded unrated sources; keep them out of review totals.
   const scopeKeys = computed(() => new Set(reviewScope.value === 'latest' ? (sessionActive.value ? sessionLatestKeys.value : latestKeys.value) : concepts.value.flatMap(concept => concept.formats.map(format => studioReviewKey(concept.id, format.ratio, format.activeVariantId || '')))))
   const reviewEntries = computed(() => allEntries.value.filter(entry => (reviewScope.value === 'all' || scopeKeys.value.has(entry.key)) && (entry.variant.reviewRating
     || (!entry.variant.reviewExcluded && !regeneratingKeys.value.includes(entry.key)))))
@@ -56,6 +56,7 @@ export function useStudioReview(
 
   // A generation response can have been serialized before a review was saved.
   function mergeReviewConcept(concept: StudioConcept): StudioConcept {
+    const confirmedRatings = confirmedReviewRatings.value[projectSlug.value] || {}
     return {
       ...concept,
       formats: concept.formats.map(format => ({
@@ -65,7 +66,7 @@ export function useStudioReview(
           if (variant.reviewExcluded) confirmedExclusions.add(key)
           return {
             ...variant,
-            ...(confirmedRatings.has(key) ? { reviewRating: confirmedRatings.get(key)! } : {}),
+            ...(Object.hasOwn(confirmedRatings, key) ? { reviewRating: confirmedRatings[key]! } : {}),
             ...(confirmedExclusions.has(key) ? { reviewExcluded: true } : {})
           }
         })
@@ -102,7 +103,10 @@ export function useStudioReview(
         body: { conceptId: entry.conceptId, ratio: entry.ratio, variantId: entry.variant.id, rating }
       })
       if (projectSlug.value !== slug) return false
-      confirmedRatings.set(entry.key, response.rating)
+      confirmedReviewRatings.value = {
+        ...confirmedReviewRatings.value,
+        [slug]: { ...confirmedReviewRatings.value[slug], [entry.key]: response.rating }
+      }
       updateVariant(entry.key, { reviewRating: response.rating })
       if (recordHistory) history.value.push({ key: entry.key, rating: previousRating })
       reviewMessage.value = rating === null ? 'Evaluación retirada. La imagen vuelve a pendientes.' : 'Evaluación guardada.'

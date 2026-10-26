@@ -1,5 +1,6 @@
 import type { StudioRegenerationTask } from '../utils/studio-regenerations'
-import type { StudioBriefPayload, StudioConcept, StudioProject } from '../../shared/types/studio'
+import type { StudioBriefPayload, StudioConcept, StudioConfirmedReviewRatings, StudioProject } from '../../shared/types/studio'
+import { studioReviewKey } from '../utils/studio-review'
 
 const defaultBrief = (): StudioBriefPayload => ({
   briefMode: 'guided',
@@ -26,10 +27,18 @@ export function useStudioSession() {
   const projectSlug = useState<string>('studio-project-slug', () => '')
   const brief = useState<StudioBriefPayload>('studio-brief', defaultBrief)
   const concepts = useState<StudioConcept[]>('studio-concepts', () => [])
+  const confirmedReviewRatings = useState<StudioConfirmedReviewRatings>('studio-confirmed-review-ratings', () => ({}))
   const isGeneratingConcepts = useState<boolean>('studio-is-generating-concepts', () => false)
   const generationMessage = useState<string>('studio-generation-message', () => '')
 
   function setProject(project: StudioProject) {
+    // A fetched project is authoritative; all editor instances must share this baseline.
+    confirmedReviewRatings.value = {
+      ...confirmedReviewRatings.value,
+      [project.slug]: Object.fromEntries(project.concepts.flatMap(concept => concept.formats.flatMap(format =>
+        format.variants.map(variant => [studioReviewKey(concept.id, format.ratio, variant.id), variant.reviewRating ?? null])
+      )))
+    }
     projectSlug.value = project.slug
     brief.value = project.brief
     concepts.value = project.concepts
@@ -48,6 +57,7 @@ export function useStudioSession() {
     projectSlug,
     brief,
     concepts,
+    confirmedReviewRatings,
     isGeneratingConcepts,
     generationMessage,
     setProject,

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, test } from 'bun:test'
 import { ref } from 'vue'
-import type { StudioConcept, StudioReviewRating } from '../../shared/types/studio'
+import type { StudioConcept, StudioConfirmedReviewRatings, StudioReviewRating } from '../../shared/types/studio'
 import type { StudioReviewEntry } from '../utils/studio-review'
 import { useStudioReview } from './useStudioReview'
 
@@ -10,7 +10,7 @@ function transport(handler: (rating: StudioReviewRating) => Promise<{ rating: St
   globalThis.$fetch = ((_url: string, options: { body: { rating: StudioReviewRating } }) => handler(options.body.rating)) as typeof $fetch
 }
 afterEach(() => { globalThis.$fetch = originalFetch })
-function setup(regenerate?: (entry: StudioReviewEntry) => Promise<void>) {
+function setup(regenerate?: (entry: StudioReviewEntry) => Promise<void>, confirmations = ref<StudioConfirmedReviewRatings>({})) {
   const concepts = ref<StudioConcept[]>([{
     id: 'one', title: 'Concepto', subtitle: '', rationale: '', selectedRatio: '1:1', approvedAt: null,
     formats: [{ ratio: '1:1', isPreviewSource: true, promptDraft: 'prompt', generationError: null, activeVariantId: 'new', variants: [
@@ -21,7 +21,7 @@ function setup(regenerate?: (entry: StudioReviewEntry) => Promise<void>) {
   }])
   transport(async rating => ({ rating }))
   const slug = ref('project')
-  const queue = useStudioReview(concepts, slug, regenerate)
+  const queue = useStudioReview(concepts, slug, regenerate, () => true, confirmations)
   queue.openReview()
   return { ...queue, concepts, slug }
 }
@@ -89,6 +89,25 @@ describe('individual review queue', () => {
     const staleRatedSnapshot = review.mergeReviewConcept(snapshot)
     staleRatedSnapshot.formats[0]!.variants[0]!.reviewRating = 'good'
     expect(review.mergeReviewConcept(staleRatedSnapshot).formats[0]!.variants[0]!.reviewRating).toBeNull()
+  })
+  test('a previous editor preserves a newer rating saved by a remounted editor', async () => {
+    const confirmations = ref<StudioConfirmedReviewRatings>({})
+    const previous = setup(undefined, confirmations)
+    await previous.reviewRate('bad')
+    const current = useStudioReview(previous.concepts, previous.slug, undefined, () => true, confirmations)
+    await current.reviewInline('one', '1:1', 'new', 'good')
+    const response = structuredClone(JSON.parse(JSON.stringify(previous.concepts.value[0]))) as StudioConcept
+    expect(previous.mergeReviewConcept(response).formats[0]!.variants[0]!.reviewRating).toBe('good')
+    await current.reviewInline('one', '1:1', 'new', 'good')
+    expect(previous.mergeReviewConcept(response).formats[0]!.variants[0]!.reviewRating).toBeNull()
+  })
+  test('shared confirmations do not cross project boundaries with matching version IDs', async () => {
+    const confirmations = ref<StudioConfirmedReviewRatings>({})
+    const first = setup(undefined, confirmations)
+    const snapshot = structuredClone(JSON.parse(JSON.stringify(first.concepts.value[0]))) as StudioConcept
+    await first.reviewRate('bad')
+    const other = useStudioReview(ref([snapshot]), ref('other-project'), undefined, () => true, confirmations)
+    expect(other.mergeReviewConcept(snapshot).formats[0]!.variants[0]!.reviewRating).toBeUndefined()
   })
   test('applies to the latest concept state after generation has finished', async () => {
     const review = setup()

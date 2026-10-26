@@ -1,5 +1,7 @@
 export type StudioBriefMode = 'guided' | 'plain'
 
+export type StudioConfirmedReviewRatings = Record<string, Record<string, StudioReviewRating>>
+
 export interface StudioBriefPayload {
   briefMode?: StudioBriefMode
   brandId: number | null

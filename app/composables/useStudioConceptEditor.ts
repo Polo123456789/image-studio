@@ -29,6 +29,7 @@ export async function useStudioConceptEditor() {
 		projectSlug,
 		brief,
 		concepts,
+		confirmedReviewRatings,
 		isGeneratingConcepts,
 		generationMessage,
 		setProject,
@@ -85,7 +86,7 @@ export async function useStudioConceptEditor() {
 		generationMessage.value = "";
 	}
 
-	const review = useStudioReview(concepts, routeProjectSlug, regenerateReviewEntry, entry => !isConceptGenerating(entry.conceptId));
+	const review = useStudioReview(concepts, routeProjectSlug, regenerateReviewEntry, entry => !isConceptGenerating(entry.conceptId), confirmedReviewRatings);
 
 	void ensureInitialConcepts();
 	syncPromptDrafts(concepts.value);
