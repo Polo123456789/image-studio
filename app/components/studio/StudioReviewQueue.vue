@@ -82,7 +82,7 @@
             <p v-if="regeneratingCount" role="status" class="mt-6 text-sm text-accent">{{ regeneratingCount }} {{ regeneratingCount === 1 ? 'imagen sigue regenerándose' : 'imágenes siguen regenerándose' }}. Las nuevas versiones quedarán en pendientes cuando estén listas.</p>
             <div class="mt-8 flex justify-center gap-3">
               <button v-if="pending.length" type="button" class="rounded-lg border border-accent bg-accent/10 px-5 py-3 text-sm text-accent" @click="emit('resume')">Retomar pendientes</button>
-              <button type="button" class="rounded-lg border border-border px-5 py-3 text-sm transition hover:border-accent" @click="emit('close')">Volver al estudio</button>
+              <button type="button" :disabled="saving" aria-keyshortcuts="Enter" class="rounded-lg border border-border px-5 py-3 text-sm transition hover:border-accent disabled:opacity-50" @click="emit('close')">Volver al estudio <kbd class="ml-4 text-[10px] text-text-muted">ENTER</kbd></button>
             </div>
             <p class="mt-7 text-xs text-text-muted">Las evaluaciones se guardan. Las imágenes permanecen en el proyecto.</p>
           </div>
@@ -169,7 +169,14 @@ function onKeydown(event: KeyboardEvent) {
     emit('undo')
     return
   }
-  if (event.ctrlKey || event.metaKey || event.altKey || !props.current) return
+  if (event.ctrlKey || event.metaKey || event.altKey) return
+  if (!props.current) {
+    if (event.key === 'Enter' && !target.closest('button, a')) {
+      event.preventDefault()
+      emit('close')
+    }
+    return
+  }
   if (event.key.toLowerCase() === 'r' && props.canRegenerate && imageReady.value) {
     event.preventDefault()
     emit('regenerate')
