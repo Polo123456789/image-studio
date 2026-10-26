@@ -16,6 +16,10 @@ El botón Regenerar de la cola guarda primero la evaluación mala y usa el promp
 
 La revisión permite salir y retomar los pendientes, y muestra un resumen al terminar o posponer todas las imágenes. No borra imágenes ni modifica generación, aprobación o exportación según la evaluación.
 
+## Exportación ZIP
+
+El botón principal exporta sólo imágenes buenas. Si ninguna versión activa exportable está evaluada, conserva el comportamiento de exportar todas. El desplegable permite incluir también los conceptos etiquetados como mixtos, con sus imágenes malas y sin evaluar, o exportar todas las activas. Todas las opciones incluyen únicamente la versión activa de cada formato con arte final, sin historial ni conceptos descartados.
+
 ## Actualización de base de datos
 
 Antes de ejecutar la nueva versión:

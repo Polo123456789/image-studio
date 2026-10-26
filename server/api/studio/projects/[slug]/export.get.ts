@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises'
 import { deflateRawSync } from 'node:zlib'
+import { selectStudioExportImages, type StudioExportScope } from '../../../../../shared/studio-export'
 
 import { resolveAssetFilePath } from '../../../../utils/assets'
 import { getStoredImageExtension, inspectStudioImage, readStoredStudioImage } from '../../../../utils/generated-images'
@@ -137,50 +138,39 @@ export default defineEventHandler(async (event) => {
   }
 
   const project = getStudioProjectBySlug(slug)
+  const scope = getQuery(event).scope ?? 'good'
+  if (!['good', 'mixed', 'all'].includes(scope as string)) {
+    throw createError({ statusCode: 400, statusMessage: 'Selecciona una opción de exportación válida.' })
+  }
   const usedFileNames = new Set<string>()
   const entries: ZipEntry[] = []
 
-  for (const concept of project.concepts) {
-    const activeFinalVariants = concept.formats.flatMap((format) => {
-      const variant = format.variants.find((item) => item.id === format.activeVariantId)
+  for (const { concept, format, variant } of selectStudioExportImages(project.concepts, scope as StudioExportScope)) {
+    const data = await readVariantImage(variant.imageUrl)
+    const inspected = await inspectStudioImage(data)
+    const extension = variant.imageUrl.startsWith('/uploads/generated/')
+      ? getStoredImageExtension(variant.imageUrl)
+      : inspected.extension
+    const baseFileName = `${normalizeFilePart(concept.title)}-${sanitizeRatio(format.ratio)}`
+    let fileName = `${baseFileName}${extension}`
+    let duplicateIndex = 2
 
-      if (!variant || variant.mode !== 'final' || !variant.imageUrl) {
-        return []
-      }
-
-      return [{
-        format,
-        variant
-      }]
-    })
-
-    for (const { format, variant } of activeFinalVariants) {
-      const data = await readVariantImage(variant.imageUrl)
-      const inspected = await inspectStudioImage(data)
-      const extension = variant.imageUrl.startsWith('/uploads/generated/')
-        ? getStoredImageExtension(variant.imageUrl)
-        : inspected.extension
-      const baseFileName = `${normalizeFilePart(concept.title)}-${sanitizeRatio(format.ratio)}`
-      let fileName = `${baseFileName}${extension}`
-      let duplicateIndex = 2
-
-      while (usedFileNames.has(fileName)) {
-        fileName = `${baseFileName}-${duplicateIndex}${extension}`
-        duplicateIndex += 1
-      }
-
-      usedFileNames.add(fileName)
-      entries.push({
-        fileName,
-        data
-      })
+    while (usedFileNames.has(fileName)) {
+      fileName = `${baseFileName}-${duplicateIndex}${extension}`
+      duplicateIndex += 1
     }
+
+    usedFileNames.add(fileName)
+    entries.push({
+      fileName,
+      data
+    })
   }
 
   if (!entries.length) {
     throw createError({
       statusCode: 400,
-      statusMessage: 'No hay artes activos para exportar'
+      statusMessage: 'No hay artes activos que coincidan con esta opción de exportación.'
     })
   }
 

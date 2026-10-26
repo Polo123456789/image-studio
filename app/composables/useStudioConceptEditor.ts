@@ -13,6 +13,7 @@ import type {
 import type { StudioReviewEntry } from "../utils/studio-review";
 
 import { usesStudioPreview } from "#shared/utils/studio-generation";
+import { activeStudioExportImages, selectStudioExportImages, type StudioExportScope } from "#shared/studio-export";
 
 interface ConceptMutationOptions {
 	persist?: boolean;
@@ -112,15 +113,13 @@ export async function useStudioConceptEditor() {
 		{ immediate: true },
 	);
 
-	const hasExportableConcepts = computed(() =>
-		concepts.value.some((concept) => {
-			return concept.formats.some((format) => {
-				const variant = activeVariantForFormat(format);
-
-				return variant?.mode === "final" && Boolean(variant.imageUrl);
-			});
-		}),
-	);
+	const exportHasReviews = computed(() => activeStudioExportImages(concepts.value).some(image => image.variant.reviewRating));
+	const exportCounts = computed(() => ({
+		good: selectStudioExportImages(concepts.value, 'good').length,
+		mixed: selectStudioExportImages(concepts.value, 'mixed').length,
+		all: selectStudioExportImages(concepts.value, 'all').length,
+	}));
+	const hasExportableConcepts = computed(() => exportCounts.value.all > 0);
 
 	const promptModalConcept = computed(() => {
 		return (
@@ -772,11 +771,11 @@ export async function useStudioConceptEditor() {
 		}
 	}
 
-	async function exportConcepts() {
+	async function exportConcepts(scope: StudioExportScope = 'good') {
 		if (
 			!routeProjectSlug.value ||
 			loadingExport.value ||
-			!hasExportableConcepts.value
+			!exportCounts.value[scope]
 		) {
 			return;
 		}
@@ -789,6 +788,7 @@ export async function useStudioConceptEditor() {
 				`/api/studio/projects/${routeProjectSlug.value}/export`,
 				{
 					method: "GET",
+					query: { scope },
 					responseType: "blob",
 				},
 			);
@@ -986,6 +986,8 @@ export async function useStudioConceptEditor() {
 		loadingMoreConcepts,
 		moreConceptError,
 		loadingExport,
+		exportCounts,
+		exportHasReviews,
 		extraConceptCounts,
 		routeProjectSlug,
 		focusedConceptId,

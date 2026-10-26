@@ -38,14 +38,7 @@
           </div>
         </div>
 
-        <AppButton
-          class="shrink-0"
-          type="button"
-          :disabled="!routeProjectSlug || loadingExport || !hasExportableConcepts"
-          @click="exportConcepts"
-        >
-          {{ loadingExport ? 'Preparando ZIP...' : 'Exportar ZIP' }}
-        </AppButton>
+        <StudioExportButton :disabled="!routeProjectSlug" :loading="loadingExport" :counts="exportCounts" :has-reviews="exportHasReviews" @export="exportConcepts" />
       </header>
 
       <p v-if="sessionError" role="alert" class="mb-6 break-words rounded-lg border border-danger/40 bg-danger/10 px-6 py-4 text-sm text-danger">
@@ -221,6 +214,7 @@ import StudioConceptCard from '~/components/studio/StudioConceptCard.vue'
 import StudioConceptPromptModal from '~/components/studio/StudioConceptPromptModal.vue'
 import StudioReviewQueue from '~/components/studio/StudioReviewQueue.vue'
 import StudioDiscardBadConceptsModal from '~/components/studio/StudioDiscardBadConceptsModal.vue'
+import StudioExportButton from '~/components/studio/StudioExportButton.vue'
 import type { StudioConcept } from '#shared/types/studio'
 import { sortConceptsByReview, studioConceptReviewStatus } from '#shared/review-status'
 
@@ -253,10 +247,11 @@ const {
   loadingMoreConcepts,
   moreConceptError,
   loadingExport,
+  exportCounts,
+  exportHasReviews,
   extraConceptCounts,
   routeProjectSlug,
   focusedConceptId,
-  hasExportableConcepts,
   promptModalConcept,
   canEditPromptInModal,
   promptModalDescription,
