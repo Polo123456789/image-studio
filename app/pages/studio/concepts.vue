@@ -75,7 +75,7 @@
 
       <div v-else class="space-y-10">
         <StudioConceptCard
-          v-for="(concept, conceptIndex) in concepts"
+          v-for="concept in sortedConcepts"
           :key="concept.id"
           :concept="concept"
           :review-saving="reviewSaving"
@@ -84,7 +84,7 @@
           :finalizing="isFinalizing(concept.id, concept.selectedRatio)"
           :generation-busy="isConceptGenerating(concept.id)"
           :request-error="generationError(concept.id, concept.selectedRatio)"
-          :index="conceptIndex"
+          :index="concepts.indexOf(concept)"
           :focused="focusedConceptId === concept.id"
           :loading-variant="isVariantLoading(concept.id, concept.selectedRatio)"
           :loading-pending-formats="isPendingFormatsLoading(concept.id)"
@@ -208,6 +208,7 @@ import AppSelect from '~/components/base/AppSelect.vue'
 import StudioConceptCard from '~/components/studio/StudioConceptCard.vue'
 import StudioConceptPromptModal from '~/components/studio/StudioConceptPromptModal.vue'
 import StudioReviewQueue from '~/components/studio/StudioReviewQueue.vue'
+import { sortConceptsByReview } from '~/utils/studio-review'
 
 const {
   reviewTotalPending, reviewScope, reviewHasLatestBatch, setReviewScope,
@@ -265,6 +266,8 @@ const {
   activeVariantsByRatio,
   formatStatusLabel
 } = await useStudioConceptEditor()
+
+const sortedConcepts = computed(() => sortConceptsByReview(concepts.value))
 
 const moreConceptCountValue = computed<string>({
   get() {
