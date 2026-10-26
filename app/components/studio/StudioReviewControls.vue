@@ -24,8 +24,8 @@
       v-if="regenerate"
       type="button"
       :disabled="disabled || regenerateDisabled"
-      title="Generar otra versión sin calificar esta imagen"
-      aria-label="Regenerar imagen sin calificar"
+      title="Marcar como mala y generar otra versión"
+      aria-label="Marcar imagen como mala y regenerar"
       class="ml-1 inline-flex items-center justify-center gap-2 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2.5 text-sm font-medium text-accent transition hover:border-accent disabled:cursor-wait disabled:opacity-40"
       @click="emit('regenerate')"
     >

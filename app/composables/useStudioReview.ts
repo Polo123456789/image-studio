@@ -187,9 +187,10 @@ export function useStudioReview(
     regenerationErrors.value = Object.fromEntries(Object.entries(regenerationErrors.value).filter(([entryKey]) => entryKey !== key))
   }
 
-  function reviewRegenerate(entry = reviewCurrent.value) {
+  async function reviewRegenerate(entry = reviewCurrent.value) {
     if (!entry || !regenerate || reviewSaving.value || regeneratingKeys.value.includes(entry.key) || !canRegenerate(entry)) return
     const slug = projectSlug.value
+    if (!await saveReview(entry, 'bad')) return
     regenerationErrors.value = Object.fromEntries(Object.entries(regenerationErrors.value).filter(([key]) => key !== entry.key))
     queueOrder.value = queueOrder.value.filter(key => key !== entry.key)
     currentKey.value = null
@@ -197,14 +198,12 @@ export function useStudioReview(
     reviewMessage.value = 'Regenerando en segundo plano. Puedes seguir revisando.'
     void regenerate(entry).then(() => {
       if (projectSlug.value !== slug) return
-      confirmedExclusions.add(entry.key)
-      updateVariant(entry.key, { reviewExcluded: true })
       reviewMessage.value = sessionActive.value ? 'Nueva versión añadida al final de la cola.' : 'Nueva versión lista en pendientes.'
     }).catch(error => {
       if (projectSlug.value !== slug) return
       regenerationErrors.value = {
         ...regenerationErrors.value,
-        [entry.key]: `${entry.conceptTitle} (${entry.ratio}): ${getRequestErrorMessage(error, 'No se pudo regenerar. La imagen sigue pendiente.')}`
+        [entry.key]: `${entry.conceptTitle} (${entry.ratio}): ${getRequestErrorMessage(error, 'No se pudo regenerar. La imagen conserva la evaluación mala.')}`
       }
     }).finally(() => {
       regeneratingKeys.value = regeneratingKeys.value.filter(key => key !== entry.key)

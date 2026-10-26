@@ -48,11 +48,12 @@ concept = repository.getStudioConceptById('review', 'concept')
 assert.equal(concept.formats[0].variants.find(item => item.id === 'image').reviewRating, null)
 assert.equal(concept.formats[0].activeVariantId, generatedId)
 assert.equal(concept.formats[0].variants.find(item => item.id === 'image').reviewExcluded, false)
+repository.reviewStudioVariant('review', { ...payload, rating: 'bad' })
 concept = repository.addStudioConceptVariant('review', 'concept', '1:1', 'preview', 'prompt corregido', {
   imageUrl: '/uploads/generated/originals/corrected.jpg', thumbnailUrl: '/uploads/generated/thumbnails/corrected.webp'
 }, '1K', 'image')
-assert.equal(concept.formats[0].variants.find(item => item.id === 'image').reviewExcluded, true)
-assert.equal(concept.formats[0].variants.find(item => item.id === 'image').reviewRating, null)
+assert.equal(concept.formats[0].variants.find(item => item.id === 'image').reviewExcluded, false)
+assert.equal(concept.formats[0].variants.find(item => item.id === 'image').reviewRating, 'bad')
 assert.equal(concept.formats[0].variants[0].reviewExcluded, false)
 assert.equal(concept.formats[0].variants[0].reviewRating, null)
 assert.throws(() => repository.addStudioConceptVariant('review', 'concept', '1:1', 'preview', 'prompt', {

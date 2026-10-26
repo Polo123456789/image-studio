@@ -453,8 +453,7 @@ export function addStudioConceptVariant(
     mode,
     prompt,
     image,
-    resolution,
-    reviewSourceVariantId
+    resolution
   })
 
   return getStudioConceptById(slug, conceptId)

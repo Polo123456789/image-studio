@@ -9,10 +9,10 @@ Mientras haya imágenes generadas sin revisar, un botón flotante inferior muest
 - **← / →:** mala / buena y pasar a la siguiente imagen.
 - **Espacio:** dejar para después, sin evaluar.
 - **Ctrl / ⌘ Z:** deshacer la última evaluación de esta sesión de edición.
-- **R:** regenerar la versión actual sin calificarla.
+- **R:** marcar la versión actual como mala y regenerarla.
 - **Escape:** salir; las evaluaciones confirmadas ya están guardadas.
 
-El botón Regenerar junto a los pulgares usa el prompt y formato de esa versión. La retira de la cola y permite seguir revisando mientras se genera otra. Si la nueva versión llega durante la revisión, va al final; si llega cuando la revisión ya terminó, queda pendiente para la próxima entrada. Si falla, la original vuelve a pendientes y aparece el error. La versión reemplazada sigue en el historial y conserva cualquier evaluación que ya tuviera.
+El botón Regenerar de la cola guarda primero la evaluación mala y usa el prompt y formato de esa versión para generar otra. Si no se puede guardar la evaluación, no inicia la generación. Permite seguir revisando mientras se genera otra. Si la nueva versión llega durante la revisión, va al final; si llega cuando la revisión ya terminó, queda pendiente para la próxima entrada. La nueva versión queda sin evaluar. Si falla, la original conserva la evaluación mala y aparece el error. La versión reemplazada sigue en el historial.
 
 La revisión permite salir y retomar los pendientes, y muestra un resumen al terminar o posponer todas las imágenes. No borra imágenes ni modifica generación, aprobación o exportación según la evaluación.
 

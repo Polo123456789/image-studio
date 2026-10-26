@@ -127,7 +127,7 @@ export type StudioVariantMode = 'preview' | 'final'
 export interface StudioVariant {
   /** Missing on older backups; treated as unreviewed. */
   reviewRating?: StudioReviewRating
-  /** A successful review regeneration replaced this version without rating it. */
+  /** Legacy review regenerations excluded the source without rating it. */
   reviewExcluded?: boolean
   id: string
   label: string

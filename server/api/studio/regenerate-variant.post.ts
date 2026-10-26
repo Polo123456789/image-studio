@@ -4,7 +4,8 @@ import {
   addStudioConceptVariant,
   getStudioConceptById,
   getStudioProjectBySlug,
-  markStudioConceptFormatGenerationFailed
+  markStudioConceptFormatGenerationFailed,
+  reviewStudioVariant
 } from '../../utils/studio/repository'
 import { getStudioExplorationSettings } from '../../../shared/utils/studio-generation'
 import { generateStoredFinalImageResult } from '../../utils/studio-generation'
@@ -41,6 +42,12 @@ export default defineEventHandler(async (event): Promise<StudioConceptMutationRe
   const currentSize = source?.label.match(/\b(1K|2K|4K)\b/)?.[1]
   const resolution = payload.targetSize || currentSize || generation.resolution
   const mode = payload.targetSize ? 'final' : source?.mode || generation.mode
+
+  if (payload.fromReview && source!.reviewRating !== 'bad') {
+    reviewStudioVariant(payload.projectSlug, {
+      conceptId: payload.conceptId, ratio: payload.ratio, variantId: source!.id, rating: 'bad'
+    })
+  }
 
   const result = await generateStoredFinalImageResult(
     payload.targetSize || payload.fromReview ? source!.prompt : payload.prompt,

@@ -555,7 +555,7 @@ export async function useStudioConceptEditor() {
 				replaceConcept(response.concept);
 				const format = response.concept.formats.find(item => item.ratio === entry.ratio);
 				if (!format?.variants.some(variant => variant.imageUrl && !existingIds.has(variant.id))) {
-					throw new Error(format?.generationError || "No se pudo regenerar. La imagen sigue pendiente.");
+					throw new Error(format?.generationError || "No se pudo regenerar. La imagen conserva la evaluación mala.");
 				}
 				void notify(`Imagen regenerada: ${entry.conceptTitle} (${entry.ratio}).`, `/studio/${slug}/concepts`);
 			});

@@ -121,28 +121,58 @@ function appendReplacement(review: ReturnType<typeof setup>, entry: StudioReview
 }
 
 describe('regeneration during individual review', () => {
-  test('removes source without rating it and appends the replacement behind the existing queue', async () => {
+  test('waits for the bad rating to persist, blocks duplicate clicks and does not generate if saving fails', async () => {
+    let generated = 0
+    const review = setup(async () => { generated++ })
+    let fail!: (error: Error) => void
+    transport(rating => {
+      expect(rating).toBe('bad')
+      return new Promise((_resolve, reject) => { fail = reject })
+    })
+    const request = review.reviewRegenerate()
+    expect(review.reviewSaving.value).toBe(true)
+    expect(generated).toBe(0)
+    expect(review.reviewCurrent.value?.variant.id).toBe('new')
+    await review.reviewRegenerate()
+    fail(new Error('No se guardó'))
+    await request
+    expect(generated).toBe(0)
+    expect(review.reviewPending.value).toHaveLength(2)
+    expect(review.reviewError.value).toContain('No se guardó')
+  })
+  test('the bad rating can be undone after regeneration, preserving the unreviewed replacement', async () => {
+    const review = setup(async entry => { appendReplacement(review, entry) })
+    await review.reviewRegenerate()
+    await settled()
+    expect(review.reviewCanUndo.value).toBe(true)
+    await review.reviewUndo()
+    const source = review.concepts.value[0]!.formats[0]!.variants.find(v => v.id === 'new')!
+    expect(source.reviewRating).toBeNull()
+    expect(review.reviewPending.value.map(entry => entry.variant.id)).toContain('new')
+    expect(review.reviewPending.value.map(entry => entry.variant.id)).toContain('replacement')
+  })
+  test('marks the source bad before generating and appends the unreviewed replacement behind the existing queue', async () => {
     const gate = deferred()
     const review = setup(async entry => { await gate.promise; appendReplacement(review, entry) })
-    review.reviewRegenerate()
+    await review.reviewRegenerate()
     expect(review.reviewCurrent.value?.variant.id).toBe('old')
     expect(review.reviewRegeneratingCount.value).toBe(1)
     expect(review.reviewPending.value).toHaveLength(1)
-    expect(review.concepts.value[0]!.formats[0]!.variants.find(v => v.id === 'new')!.reviewRating).toBeUndefined()
+    expect(review.concepts.value[0]!.formats[0]!.variants.find(v => v.id === 'new')!.reviewRating).toBe('bad')
     gate.resolve()
     await settled()
     expect(review.reviewRegeneratingCount.value).toBe(0)
     expect(review.reviewAvailable.value.map(entry => entry.variant.id)).toEqual(['old', 'replacement'])
     expect(review.reviewCurrent.value?.variant.id).toBe('old')
-    expect(review.concepts.value[0]!.formats[0]!.variants.find(v => v.id === 'new')!.reviewExcluded).toBe(true)
+    expect(review.concepts.value[0]!.formats[0]!.variants.find(v => v.id === 'new')!.reviewExcluded).toBeUndefined()
     await review.reviewRate('good')
     expect(review.reviewCurrent.value?.variant.id).toBe('replacement')
-    expect(review.mergeReviewConcept({ ...review.concepts.value[0]!, formats: [{ ...review.concepts.value[0]!.formats[0]!, variants: [{ ...review.concepts.value[0]!.formats[0]!.variants.find(v => v.id === 'new')!, reviewExcluded: false }] }] }).formats[0]!.variants[0]!.reviewExcluded).toBe(true)
+    expect(review.mergeReviewConcept({ ...review.concepts.value[0]!, formats: [{ ...review.concepts.value[0]!.formats[0]!, variants: [{ ...review.concepts.value[0]!.formats[0]!.variants.find(v => v.id === 'new')!, reviewRating: null }] }] }).formats[0]!.variants[0]!.reviewRating).toBe('bad')
   })
   test('does not restart a finished review when the replacement arrives late', async () => {
     const gate = deferred()
     const review = setup(async entry => { await gate.promise; appendReplacement(review, entry) })
-    review.reviewRegenerate()
+    await review.reviewRegenerate()
     await review.reviewRate('bad')
     expect(review.reviewCurrent.value).toBeUndefined()
     gate.resolve()
@@ -158,7 +188,7 @@ describe('regeneration during individual review', () => {
     const gate = deferred()
     const review = setup(async entry => { await gate.promise; appendReplacement(review, entry) })
     await review.reviewInline('one', '1:1', 'old', 'good')
-    review.reviewRegenerate()
+    await review.reviewRegenerate()
     expect(review.reviewCurrent.value).toBeUndefined()
     expect(review.reviewPending.value).toHaveLength(0)
     gate.resolve()
@@ -166,24 +196,25 @@ describe('regeneration during individual review', () => {
     expect(review.reviewPending.value).toHaveLength(1)
     expect(review.reviewCurrent.value).toBeUndefined()
   })
-  test('restores a failed source to the tail and exposes the error without rating it', async () => {
+  test('keeps a failed source rated bad and exposes the error without returning it to pending', async () => {
     const gate = deferred()
     const review = setup(() => gate.promise)
     const original = review.reviewCurrent.value!
-    review.reviewRegenerate(original)
-    review.reviewRegenerate(original)
+    await review.reviewRegenerate(original)
+    await review.reviewRegenerate(original)
     expect(review.reviewRegeneratingCount.value).toBe(1)
     gate.reject(new Error('Gemini no está disponible'))
     await settled()
-    expect(review.reviewAvailable.value.map(entry => entry.variant.id)).toEqual(['old', 'new'])
+    expect(review.reviewAvailable.value.map(entry => entry.variant.id)).toEqual(['old'])
     expect(review.reviewRegenerationError.value).toContain('Gemini no está disponible')
     review.clearRegenerationError('one', '1:1', 'new')
     expect(review.reviewRegenerationError.value).toBe('')
-    expect(review.reviewCanUndo.value).toBe(false)
+    expect(review.reviewCanUndo.value).toBe(true)
     expect(review.reviewRegeneratingCount.value).toBe(0)
-    expect(review.reviewPending.value).toHaveLength(2)
+    expect(review.reviewPending.value).toHaveLength(1)
+    expect(review.concepts.value[0]!.formats[0]!.variants.find(v => v.id === 'new')!.reviewRating).toBe('bad')
   })
-  test('keeps successful sources out of the queue after reloading persisted concepts', async () => {
+  test('keeps legacy excluded sources out of the queue after reloading persisted concepts', async () => {
     const review = setup()
     review.concepts.value[0]!.formats[0]!.variants[0]!.reviewExcluded = true
     review.closeReview()
@@ -195,7 +226,7 @@ describe('regeneration during individual review', () => {
   test('does not reopen a closed review and still updates pending when regeneration completes', async () => {
     const gate = deferred()
     const review = setup(async entry => { await gate.promise; appendReplacement(review, entry) })
-    review.reviewRegenerate()
+    await review.reviewRegenerate()
     review.closeReview()
     gate.resolve()
     await settled()

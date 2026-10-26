@@ -63,7 +63,7 @@
             </dl>
             <div class="mt-7 border-t border-border pt-5 text-xs leading-6 text-text-muted">
               <p>Al evaluar, aparece la siguiente imagen pendiente.</p>
-              <p class="mt-3">Si el diseño funciona pero tiene errores, regenera y sigue revisando. La nueva versión irá al final cuando esté lista.</p>
+              <p class="mt-3">Al regenerar, esta imagen se marca como mala y puedes seguir revisando. La nueva versión irá al final cuando esté lista.</p>
             </div>
             <p v-if="imageFailed" role="alert" class="mt-4 text-xs leading-5 text-danger">No se pudo cargar la imagen. Puedes dejarla para después o salir e intentarlo de nuevo.</p>
           </aside>
