@@ -74,41 +74,45 @@
       </div>
 
       <div v-else class="space-y-10">
-        <StudioConceptCard
-          v-for="concept in sortedConcepts"
-          :key="concept.id"
-          :concept="concept"
-          :review-saving="reviewSaving"
-          :uses-preview="usesPreview"
-          :finalization-strategy="finalizationStrategy(concept.id, concept.selectedRatio)"
-          :finalizing="isFinalizing(concept.id, concept.selectedRatio)"
-          :generation-busy="isConceptGenerating(concept.id)"
-          :request-error="generationError(concept.id, concept.selectedRatio)"
-          :index="concepts.indexOf(concept)"
-          :focused="focusedConceptId === concept.id"
-          :loading-variant="isVariantLoading(concept.id, concept.selectedRatio)"
-          :loading-pending-formats="isPendingFormatsLoading(concept.id)"
-          :prompt-preview="promptPreview(concept.id)"
-          :prompt-draft="promptDrafts[concept.id] || ''"
-          :selected-format="selectedFormat(concept)"
-          :active-variant="activeVariant(concept)"
-          :active-variant-by-ratio="activeVariantsByRatio(concept)"
-          :format-status-label="formatStatusLabel"
-          :format-timestamp="formatTimestamp"
-          @review="reviewInline"
-          @review-regenerate="reviewRegenerateInline"
-          @discard="discardConcept"
-          @cycle-ratio="cycleRatio"
-          @ratio-selected="selectRatio"
-          @generate-pending-formats="generatePendingFormats"
-          @open-prompt="openPromptModal"
-          @regenerate="regenerateVariant"
-          @finalize="finalizeVariant"
-          @finalization-strategy="setFinalizationStrategy"
-          @reset-prompt="resetPrompt"
-          @select-variant="selectVariant"
-          @use-style="useConceptStyleForNextGenerations"
-        />
+        <template v-for="concept in sortedConcepts" :key="concept.id">
+          <div v-if="concept === badConcepts[0]" class="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
+            <h2 class="text-sm text-text-muted">Todas malas · {{ badConcepts.length }} {{ badConcepts.length === 1 ? 'concepto' : 'conceptos' }}</h2>
+            <button type="button" :disabled="discardingBadConcepts || reviewSaving || badConcepts.some(item => isConceptGenerating(item.id))" class="rounded-lg border border-danger/40 px-3 py-2 text-xs text-danger transition hover:bg-danger/10 disabled:opacity-40" @click="openDiscardBadConcepts">Eliminar todas malas · {{ badConcepts.length }}</button>
+          </div>
+          <StudioConceptCard
+            :concept="concept"
+            :review-saving="reviewSaving || discardingBadConcepts"
+            :uses-preview="usesPreview"
+            :finalization-strategy="finalizationStrategy(concept.id, concept.selectedRatio)"
+            :finalizing="isFinalizing(concept.id, concept.selectedRatio)"
+            :generation-busy="isConceptGenerating(concept.id) || discardingBadConcepts"
+            :request-error="generationError(concept.id, concept.selectedRatio)"
+            :index="concepts.indexOf(concept)"
+            :focused="focusedConceptId === concept.id"
+            :loading-variant="isVariantLoading(concept.id, concept.selectedRatio)"
+            :loading-pending-formats="isPendingFormatsLoading(concept.id)"
+            :prompt-preview="promptPreview(concept.id)"
+            :prompt-draft="promptDrafts[concept.id] || ''"
+            :selected-format="selectedFormat(concept)"
+            :active-variant="activeVariant(concept)"
+            :active-variant-by-ratio="activeVariantsByRatio(concept)"
+            :format-status-label="formatStatusLabel"
+            :format-timestamp="formatTimestamp"
+            @review="reviewInline"
+            @review-regenerate="reviewRegenerateInline"
+            @discard="discardConcept"
+            @cycle-ratio="cycleRatio"
+            @ratio-selected="selectRatio"
+            @generate-pending-formats="generatePendingFormats"
+            @open-prompt="openPromptModal"
+            @regenerate="regenerateVariant"
+            @finalize="finalizeVariant"
+            @finalization-strategy="setFinalizationStrategy"
+            @reset-prompt="resetPrompt"
+            @select-variant="selectVariant"
+            @use-style="useConceptStyleForNextGenerations"
+          />
+        </template>
 
         <section class="rounded-xl border border-border bg-surface px-6 py-8">
           <div class="mx-auto flex max-w-2xl flex-col items-center text-center">
@@ -198,6 +202,14 @@
         @reset="resetPrompt(promptModalConceptId || '')"
         @save="savePromptModal"
       />
+      <StudioDiscardBadConceptsModal
+        v-if="discardCandidates.length"
+        :concepts="discardCandidates"
+        :saving="discardingBadConcepts"
+        :error="discardBadError"
+        @close="discardCandidates = []"
+        @confirm="confirmDiscardBadConcepts"
+      />
     </div>
   </div>
 </template>
@@ -208,9 +220,12 @@ import AppSelect from '~/components/base/AppSelect.vue'
 import StudioConceptCard from '~/components/studio/StudioConceptCard.vue'
 import StudioConceptPromptModal from '~/components/studio/StudioConceptPromptModal.vue'
 import StudioReviewQueue from '~/components/studio/StudioReviewQueue.vue'
-import { sortConceptsByReview } from '#shared/review-status'
+import StudioDiscardBadConceptsModal from '~/components/studio/StudioDiscardBadConceptsModal.vue'
+import type { StudioConcept } from '#shared/types/studio'
+import { sortConceptsByReview, studioConceptReviewStatus } from '#shared/review-status'
 
 const {
+  discardBadConcepts, discardingBadConcepts, discardBadError,
   reviewTotalPending, reviewScope, reviewHasLatestBatch, setReviewScope,
   reviewOpen, reviewSaving, reviewError, reviewMessage,
   reviewRegeneratingCount, reviewRegenerationError, reviewCanRegenerate, reviewRegenerate, reviewRegenerateInline,
@@ -268,6 +283,15 @@ const {
 } = await useStudioConceptEditor()
 
 const sortedConcepts = computed(() => sortConceptsByReview(concepts.value))
+const badConcepts = computed(() => sortedConcepts.value.filter(concept => studioConceptReviewStatus(concept) === 'bad'))
+const discardCandidates = ref<StudioConcept[]>([])
+function openDiscardBadConcepts() {
+  discardBadError.value = ''
+  discardCandidates.value = [...badConcepts.value]
+}
+async function confirmDiscardBadConcepts() {
+  if (await discardBadConcepts(discardCandidates.value.map(concept => concept.id))) discardCandidates.value = []
+}
 
 const moreConceptCountValue = computed<string>({
   get() {

@@ -1,5 +1,6 @@
 import type {
 	StudioConcept,
+	StudioDiscardBadConceptsResponse,
 	StudioConceptFormat,
 	StudioConceptListMutationResponse,
 	StudioConceptMutationResponse,
@@ -49,6 +50,8 @@ export async function useStudioConceptEditor() {
 	const loadingMoreConcepts = ref(false);
 	const moreConceptError = ref("");
 	const loadingExport = ref(false);
+	const discardingBadConcepts = ref(false);
+	const discardBadError = ref("");
 	const extraConceptCounts = [1, 2, 3, 4];
 	const focusedConceptId = ref<string | null>(null);
 	const routeParamSlug = computed(() =>
@@ -676,6 +679,31 @@ export async function useStudioConceptEditor() {
 		);
 	}
 
+	async function discardBadConcepts(conceptIds: string[]) {
+		if (discardingBadConcepts.value || review.reviewSaving.value || !routeProjectSlug.value) return false;
+		const slug = routeProjectSlug.value;
+		discardingBadConcepts.value = true;
+		discardBadError.value = "";
+		try {
+			await Promise.all(conceptIds.map(id => conceptMutationQueue.value[id] || Promise.resolve()));
+			if (conceptIds.some(isConceptGenerating)) throw new Error("Espera a que termine la generación de estos conceptos.");
+			const response = await $fetch<StudioDiscardBadConceptsResponse>(`/api/studio/projects/${encodeURIComponent(slug)}/concepts/discard-bad`, {
+				method: "PUT", body: { conceptIds },
+			});
+			if (routeProjectSlug.value !== slug) return false;
+			const discarded = new Set(response.discardedConceptIds);
+			concepts.value = concepts.value.filter(concept => !discarded.has(concept.id));
+			if (promptModalConceptId.value && discarded.has(promptModalConceptId.value)) closePromptModal();
+			for (const id of discarded) delete promptDrafts.value[id];
+			return true;
+		} catch (error) {
+			discardBadError.value = getRequestErrorMessage(error, "No se pudieron eliminar los conceptos. Intenta nuevamente.");
+			return false;
+		} finally {
+			discardingBadConcepts.value = false;
+		}
+	}
+
 	async function generateMoreConcepts() {
 		if (!routeProjectSlug.value) {
 			return;
@@ -933,6 +961,9 @@ export async function useStudioConceptEditor() {
 
 	return {
 		...review,
+		discardBadConcepts,
+		discardingBadConcepts,
+		discardBadError,
 		brief,
 		usesPreview,
 		finalizationStrategy,

@@ -96,6 +96,10 @@ export interface StudioDiscardConceptPayload {
   conceptId: string
 }
 
+export interface StudioDiscardBadConceptsResponse {
+  discardedConceptIds: string[]
+}
+
 export interface StudioGenerateConceptsPayload {
   projectSlug: string
   brief: StudioBriefPayload

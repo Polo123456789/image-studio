@@ -59,3 +59,36 @@ assert.throws(() => repository.addStudioConceptVariant('review', 'concept', '1:1
   imageUrl: '/uploads/generated/originals/rejected.jpg', thumbnailUrl: null
 }, '1K', 'foreign-image'))
 console.log('Review migration, persistence, project scoping, undo and regeneration: OK')
+
+// Bulk cleanup must validate the entire confirmed selection before changing anything.
+const bulkDb = new Database(process.env.IMAGE_STUDIO_DB_PATH)
+bulkDb.prepare('INSERT INTO studio_projects (id, slug, project_name, brief, created_at, updated_at) VALUES (3, ?, ?, ?, 1000, 1000)').run('cleanup', 'Cleanup', brief)
+const fixtures = [[10, 'bad-one', ['bad', 'bad']], [11, 'bad-two', ['bad']], [12, 'good', ['good']], [13, 'mixed', ['bad', 'good']], [14, 'pending', ['bad', null]], [15, 'empty', []]]
+for (const [id, key, ratings] of fixtures) {
+  bulkDb.prepare('INSERT INTO studio_concepts (id, project_id, concept_key, title, subtitle, rationale, position, created_at, updated_at) VALUES (?, 3, ?, ?, ?, ?, ?, 1000, 1000)').run(id, key, key, '', '', id)
+  bulkDb.prepare('INSERT INTO studio_concept_formats (id, concept_id, ratio, prompt_draft, active_variant_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 1000, 1000)').run(id, id, '1:1', 'prompt', 'v0')
+  for (const [index, rating] of ratings.entries()) {
+    bulkDb.prepare('INSERT INTO studio_variants (format_id, variant_key, label, mode, prompt, image_url, review_rating, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1000)').run(id, `v${index}`, 'Final', 'final', 'prompt', '/uploads/generated/existing.jpg', rating)
+  }
+}
+const visible = () => bulkDb.prepare('SELECT count(*) AS n FROM studio_concepts WHERE project_id = 3 AND discarded_at IS NULL').get().n
+for (const ids of [null, [], ['bad-one', 'bad-one'], [1]]) {
+  assert.throws(() => repository.discardBadStudioConcepts('cleanup', ids), error => error.statusCode === 400)
+}
+for (const key of ['good', 'mixed', 'pending', 'empty', 'foreign', 'missing']) {
+  assert.throws(() => repository.discardBadStudioConcepts('cleanup', ['bad-one', key]), error => error.statusCode === 409)
+  assert.equal(visible(), 6, 'The complete operation must roll back on a non-bad or foreign concept')
+}
+// A newly generated, unreviewed historical version invalidates a stale confirmation.
+bulkDb.prepare('UPDATE studio_variants SET review_rating = NULL WHERE format_id = 11').run()
+assert.throws(() => repository.discardBadStudioConcepts('cleanup', ['bad-one', 'bad-two']), error => error.statusCode === 409)
+assert.equal(visible(), 6)
+bulkDb.prepare("UPDATE studio_variants SET review_rating = 'bad' WHERE format_id = 11").run()
+const variantsBefore = bulkDb.prepare('SELECT count(*) AS n FROM studio_variants').get().n
+assert.deepEqual(repository.discardBadStudioConcepts('cleanup', ['bad-one', 'bad-two']), ['bad-one', 'bad-two'])
+assert.equal(visible(), 4)
+assert.equal(bulkDb.prepare('SELECT count(*) AS n FROM studio_variants').get().n, variantsBefore, 'Images and historical versions are retained')
+assert.deepEqual(repository.getStudioProjectBySlug('cleanup').concepts.map(item => item.id), ['good', 'mixed', 'pending', 'empty'])
+assert.throws(() => repository.discardBadStudioConcepts('cleanup', ['bad-one']), error => error.statusCode === 409)
+bulkDb.close()
+console.log('Bulk cleanup validation, atomicity, stale reviews, project scoping and retained images: OK')

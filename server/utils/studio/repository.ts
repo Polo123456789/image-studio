@@ -1,4 +1,6 @@
 import { and, asc, desc, eq, inArray, isNull, sql } from 'drizzle-orm'
+import { createError } from 'h3'
+import { studioConceptReviewStatus } from '../../../shared/review-status'
 
 import type {
   StudioConcept,
@@ -405,6 +407,27 @@ export function discardStudioConcept(slug: string, conceptId: string): StudioCon
   persistDiscardedConcept(project.id, conceptRow.id)
 
   return getStudioProjectBySlug(slug).concepts
+}
+
+export function discardBadStudioConcepts(slug: string, conceptIds: unknown): string[] {
+  if (!Array.isArray(conceptIds) || !conceptIds.length || conceptIds.length > 1000
+    || !conceptIds.every(id => typeof id === 'string' && id.trim())
+    || new Set(conceptIds).size !== conceptIds.length) {
+    throw createError({ statusCode: 400, statusMessage: 'Selecciona conceptos válidos para eliminar.' })
+  }
+  return db.transaction((tx) => {
+    const project = getStudioProjectBySlug(slug)
+    const selected = project.concepts.filter(concept => conceptIds.includes(concept.id))
+    if (selected.length !== conceptIds.length || selected.some(concept => studioConceptReviewStatus(concept) !== 'bad')) {
+      throw createError({ statusCode: 409, statusMessage: 'Los conceptos cambiaron. Actualiza la página y revisa cuáles tienen todas las imágenes malas.' })
+    }
+    const now = new Date()
+    tx.update(studioConcepts).set({ discardedAt: now, updatedAt: now })
+      .where(and(eq(studioConcepts.projectId, project.id), inArray(studioConcepts.conceptKey, conceptIds)))
+      .run()
+    tx.update(studioProjects).set({ updatedAt: now }).where(eq(studioProjects.id, project.id)).run()
+    return selected.map(concept => concept.id)
+  })
 }
 
 export function addStudioConceptVariant(

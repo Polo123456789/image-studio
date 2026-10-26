@@ -11,6 +11,7 @@ test('migrates existing images and persists scoped version reviews without chang
       cwd: resolve('.'), env: { ...process.env, IMAGE_STUDIO_DB_PATH: join(directory, 'review.db') }, encoding: 'utf8'
     })
     expect(output).toContain('Review migration, persistence, project scoping, undo and regeneration: OK')
+    expect(output).toContain('Bulk cleanup validation, atomicity, stale reviews, project scoping and retained images: OK')
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
