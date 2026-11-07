@@ -38,7 +38,10 @@
           </div>
         </div>
 
-        <StudioExportButton :disabled="!routeProjectSlug" :loading="loadingExport" :counts="exportCounts" :has-reviews="exportHasReviews" @export="exportConcepts" />
+        <div class="shrink-0 space-y-2">
+          <StudioExportButton :disabled="!routeProjectSlug" :loading="loadingExport" :counts="exportCounts" :has-reviews="exportHasReviews" @export="exportConcepts" />
+          <button v-if="reviewTotalPending && !reviewOpen && !pending && !initialLoadError" type="button" class="flex w-full items-center justify-center gap-2 rounded-lg border border-accent/40 bg-surface px-3 text-sm text-accent lg:hidden" @click="openReview">Revisar pendientes <span>{{ reviewTotalPending }}</span></button>
+        </div>
       </header>
 
       <p v-if="sessionError" role="alert" class="mb-6 break-words rounded-lg border border-danger/40 bg-danger/10 px-6 py-4 text-sm text-danger">
@@ -160,7 +163,7 @@
       <button
         v-if="reviewTotalPending && !reviewOpen && !pending && !initialLoadError"
         type="button"
-        class="fixed bottom-[calc(92px+env(safe-area-inset-bottom))] right-4 z-40 lg:bottom-7 lg:right-8 flex items-center gap-4 rounded-full border border-accent/40 bg-surface px-6 py-4 text-sm font-medium text-text shadow-lg transition hover:border-accent hover:bg-surface-2"
+        class="fixed bottom-7 right-8 z-40 hidden items-center lg:flex gap-4 rounded-full border border-accent/40 bg-surface px-6 py-4 text-sm font-medium text-text shadow-lg transition hover:border-accent hover:bg-surface-2"
         @click="openReview"
       >
         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent" aria-hidden="true">✓</span>
