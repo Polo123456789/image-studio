@@ -1,12 +1,12 @@
 <template>
-  <div v-if="regenerationTasks.length" ref="root" class="fixed left-8 z-40 text-text" :class="review ? 'bottom-28' : 'bottom-7'" @keydown="onTrayKeydown">
-    <section v-if="open" :id="panelId" role="region" aria-label="Regeneraciones de esta sesión" class="mb-3 flex max-h-[min(590px,calc(100dvh-220px))] w-[390px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+  <div v-if="regenerationTasks.length" ref="root" class="z-40 text-text" :class="review ? 'relative mx-3 shrink-0 lg:fixed lg:bottom-28 lg:left-8 lg:mx-0' : 'fixed inset-x-4 bottom-[calc(176px+env(safe-area-inset-bottom))] lg:bottom-7 lg:left-8 lg:right-auto'" @keydown="onTrayKeydown">
+    <section v-if="open" :id="panelId" :class="review ? 'fixed inset-x-3 bottom-[calc(180px+env(safe-area-inset-bottom))] lg:static' : ''" role="region" aria-label="Regeneraciones de esta sesión" class="mb-3 flex max-h-[min(590px,calc(100dvh-220px))] w-full lg:w-[390px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
       <header class="flex items-center justify-between px-5 pt-5">
         <h2 class="font-display text-xl">Regeneraciones</h2>
         <button type="button" aria-label="Cerrar bandeja" class="rounded px-2 py-1 text-text-muted hover:text-text" @click="close">×</button>
       </header>
       <p class="px-5 pt-2 text-xs text-text-muted">Actividad de esta sesión de trabajo</p>
-      <div class="flex gap-1 border-b border-border px-4 py-3" role="group" aria-label="Filtrar regeneraciones">
+      <div class="flex flex-wrap gap-1 border-b border-border px-4 py-3" role="group" aria-label="Filtrar regeneraciones">
         <button v-for="tab in tabs" :key="tab.value" type="button" :aria-pressed="filter === tab.value" class="rounded-md px-2 py-2 text-xs transition" :class="filter === tab.value ? 'bg-accent/15 text-accent' : 'text-text-muted hover:text-text'" @click="filter = tab.value">{{ tab.label }} {{ tab.count }}</button>
       </div>
       <ul class="min-h-0 overflow-y-auto px-5">
@@ -29,7 +29,7 @@
       </ul>
       <p v-if="!visibleTasks.length" class="px-5 py-8 text-center text-sm text-text-muted">No hay regeneraciones en esta categoría.</p>
     </section>
-    <button ref="toggle" type="button" :aria-expanded="open" :aria-controls="panelId" class="flex items-center gap-3 rounded-full border border-accent/40 bg-surface px-5 py-3 text-sm shadow-lg transition hover:border-accent" @click="open = !open"><span aria-hidden="true" :class="running ? 'animate-spin' : ''">↻</span> Regeneraciones <span class="text-xs text-text-muted">{{ running }} en curso · {{ ready }} listas<span v-if="failed"> · {{ failed }} errores</span></span></button>
+    <button ref="toggle" type="button" :aria-expanded="open" :aria-controls="panelId" class="flex items-center gap-3 max-w-full flex-wrap rounded-full border border-accent/40 bg-surface px-4 py-3 text-sm shadow-lg transition hover:border-accent" @click="open = !open"><span aria-hidden="true" :class="running ? 'animate-spin' : ''">↻</span> Regeneraciones <span class="text-xs text-text-muted">{{ running }} en curso · {{ ready }} listas<span v-if="failed"> · {{ failed }} errores</span></span></button>
   </div>
 </template>
 <script setup lang="ts">

@@ -1,15 +1,15 @@
 <template>
-  <div class="px-6 py-8 pb-28 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
+  <div class="px-4 py-4 pb-28 sm:px-8 sm:py-10 lg:px-12 lg:py-12">
     <div class="mx-auto max-w-[1240px]">
       <!-- Breadcrumb -->
-      <nav class="mb-6 flex items-center gap-1.5 text-xs text-text-muted">
+      <nav class="mb-3 flex flex-wrap items-center gap-1.5 text-xs text-text-muted">
         <NuxtLink to="/studio" class="transition hover:text-text">Proyectos</NuxtLink>
         <svg class="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6" /></svg>
         <span class="text-text">{{ brief.projectName || 'Proyecto' }}</span>
       </nav>
 
       <!-- Tabs -->
-      <div class="mb-10 flex gap-1 rounded-lg border border-border bg-surface-2/50 p-1">
+      <div class="mb-4 flex gap-1 rounded-lg border border-border bg-surface-2/50 p-1">
         <NuxtLink
           :to="routeProjectSlug ? `/studio/${routeProjectSlug}/brief` : '/studio'"
           class="flex-1 rounded-md px-4 py-2 text-center text-sm text-text-muted transition hover:bg-surface-2 hover:text-text"
@@ -23,16 +23,16 @@
         </div>
       </div>
 
-      <header class="mb-8 flex flex-col gap-5 border-b border-border pb-6 lg:flex-row lg:items-start lg:justify-between">
+      <header class="mb-4 flex flex-col gap-3 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Conceptos</p>
-          <h1 class="mt-3 font-display text-3xl text-text">
+          <h1 class="mt-2 font-display text-xl lg:mt-3 lg:text-3xl text-text">
             {{ brief.projectName || 'Proyecto sin nombre' }}
           </h1>
-          <p class="mt-3 max-w-3xl text-sm leading-6 text-text-muted">
+          <p class="mt-3 hidden max-w-3xl text-sm lg:block leading-6 text-text-muted">
             {{ usesPreview ? `Gemini propone ${brief.conceptCount} conceptos con previews en 1K. Aprueba cada formato para generar su arte final en 4K.` : `Gemini propone ${brief.conceptCount} conceptos y genera directamente el primer arte de cada uno. Puedes completar los formatos restantes cuando elijas una propuesta.` }}
           </p>
-          <div class="mt-4 flex flex-wrap gap-2 text-sm text-text-muted">
+          <div class="mt-4 hidden flex-wrap gap-2 lg:flex text-sm text-text-muted">
             <span class="rounded border border-border px-3 py-1.5 text-xs">{{ brief.goal }}</span>
             <span class="rounded border border-border px-3 py-1.5 text-xs">{{ brief.mediaChannels.join(', ') }}</span>
           </div>
@@ -66,8 +66,15 @@
         No hay conceptos disponibles. Vuelve al brief y genera una nueva tanda.
       </div>
 
-      <div v-else class="space-y-10">
-        <template v-for="concept in sortedConcepts" :key="concept.id">
+      <div v-else class="space-y-4 lg:space-y-10">
+        <nav v-if="sortedConcepts.length" aria-label="Elegir concepto" class="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 lg:hidden">
+          <button type="button" aria-label="Concepto anterior" :disabled="mobileConceptIndex <= 0" class="rounded-lg border border-border px-3 disabled:opacity-40" @click="moveMobileConcept(-1)">←</button>
+          <label class="min-w-0 flex-1 text-xs text-text-muted">Concepto {{ mobileConceptIndex + 1 }} de {{ sortedConcepts.length }}
+            <select :value="mobileConceptId" class="mt-1 w-full rounded-lg border border-border bg-surface-2 px-2 text-sm text-text" @change="mobileConceptId = ($event.target as HTMLSelectElement).value"><option v-for="item in sortedConcepts" :key="item.id" :value="item.id">{{ item.title }}</option></select>
+          </label>
+          <button type="button" aria-label="Concepto siguiente" :disabled="mobileConceptIndex >= sortedConcepts.length - 1" class="rounded-lg border border-border px-3 disabled:opacity-40" @click="moveMobileConcept(1)">→</button>
+        </nav>
+        <div v-for="concept in sortedConcepts" :key="concept.id" :class="concept.id === mobileConceptId ? '' : 'hidden lg:block'">
           <div v-if="concept === badConcepts[0]" class="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-6">
             <h2 class="text-sm text-text-muted">Todas malas · {{ badConcepts.length }} {{ badConcepts.length === 1 ? 'concepto' : 'conceptos' }}</h2>
             <button type="button" :disabled="discardingBadConcepts || reviewSaving || badConcepts.some(item => isConceptGenerating(item.id))" class="rounded-lg border border-danger/40 px-3 py-2 text-xs text-danger transition hover:bg-danger/10 disabled:opacity-40" @click="openDiscardBadConcepts">Eliminar todas malas · {{ badConcepts.length }}</button>
@@ -105,7 +112,7 @@
             @select-variant="selectVariant"
             @use-style="useConceptStyleForNextGenerations"
           />
-        </template>
+        </div>
 
         <section class="rounded-xl border border-border bg-surface px-6 py-8">
           <div class="mx-auto flex max-w-2xl flex-col items-center text-center">
@@ -148,12 +155,12 @@
         </section>
       </div>
 
-      <div v-if="(reviewError || reviewRegenerationError) && !reviewOpen" role="alert" class="fixed bottom-24 right-8 z-40 max-w-md rounded-xl border border-danger/40 bg-surface px-5 py-4 text-sm text-danger shadow-lg">{{ reviewError || reviewRegenerationError }}</div>
+      <div v-if="(reviewError || reviewRegenerationError) && !reviewOpen" role="alert" class="fixed bottom-[calc(164px+env(safe-area-inset-bottom))] left-4 right-4 z-40 max-w-md lg:bottom-24 lg:left-auto lg:right-8 rounded-xl border border-danger/40 bg-surface px-5 py-4 text-sm text-danger shadow-lg">{{ reviewError || reviewRegenerationError }}</div>
       <p v-if="!reviewOpen" role="status" aria-live="polite" class="sr-only">{{ reviewSaving ? 'Guardando evaluación' : reviewMessage }}</p>
       <button
         v-if="reviewTotalPending && !reviewOpen && !pending && !initialLoadError"
         type="button"
-        class="fixed bottom-7 right-8 z-40 flex items-center gap-4 rounded-full border border-accent/40 bg-surface px-6 py-4 text-sm font-medium text-text shadow-lg transition hover:border-accent hover:bg-surface-2"
+        class="fixed bottom-[calc(92px+env(safe-area-inset-bottom))] right-4 z-40 lg:bottom-7 lg:right-8 flex items-center gap-4 rounded-full border border-accent/40 bg-surface px-6 py-4 text-sm font-medium text-text shadow-lg transition hover:border-accent hover:bg-surface-2"
         @click="openReview"
       >
         <span class="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-accent" aria-hidden="true">✓</span>
@@ -278,6 +285,16 @@ const {
 } = await useStudioConceptEditor()
 
 const sortedConcepts = computed(() => sortConceptsByReview(concepts.value))
+const mobileConceptId = ref('')
+const mobileConceptIndex = computed(() => sortedConcepts.value.findIndex(item => item.id === mobileConceptId.value))
+watch(sortedConcepts, items => {
+  if (!items.some(item => item.id === mobileConceptId.value)) mobileConceptId.value = items[0]?.id ?? ''
+}, { immediate: true })
+watch(focusedConceptId, id => { if (id) mobileConceptId.value = id }, { immediate: true })
+function moveMobileConcept(delta: number) {
+  const next = sortedConcepts.value[mobileConceptIndex.value + delta]
+  if (next) mobileConceptId.value = next.id
+}
 const badConcepts = computed(() => sortedConcepts.value.filter(concept => studioConceptReviewStatus(concept) === 'bad'))
 const discardCandidates = ref<StudioConcept[]>([])
 function openDiscardBadConcepts() {

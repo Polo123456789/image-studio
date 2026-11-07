@@ -106,7 +106,7 @@
           Sin resultados para este filtro.
         </div>
 
-        <div v-else class="grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div v-else class="grid grid-cols-2 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           <button
             v-for="image in images"
             :key="image.id"

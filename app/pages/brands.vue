@@ -39,7 +39,7 @@
       <!-- Main layout -->
       <div v-else class="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
         <!-- List panel -->
-        <section class="flex flex-col overflow-hidden rounded-xl border border-border bg-surface">
+        <section class="flex flex-col overflow-hidden rounded-xl border border-border bg-surface" :class="mobileEditor ? 'hidden xl:flex' : ''">
           <div class="border-b border-border px-4 py-3">
             <div class="flex items-center justify-between gap-3">
               <h2 class="text-sm font-medium text-text">Registradas</h2>
@@ -130,7 +130,8 @@
         </section>
 
         <!-- Editor panel -->
-        <section class="overflow-hidden rounded-xl border border-border bg-surface">
+        <section class="overflow-hidden rounded-xl border border-border bg-surface" :class="mobileEditor ? '' : 'hidden xl:block'">
+          <button type="button" class="m-4 rounded-lg border border-border px-4 py-2 text-sm text-text-muted xl:hidden" @click="mobileEditor = false">← Cambiar marca</button>
           <div class="border-b border-border px-5 py-4">
             <div class="flex items-center justify-between gap-3">
               <div>
@@ -219,7 +220,7 @@
             </div>
 
             <!-- Actions bar -->
-            <div class="flex items-center justify-between gap-4 border-t border-border pt-5">
+            <div class="mobile-form-actions mobile-actions flex items-center justify-between gap-4 border-t border-border pt-5">
               <button
                 type="button"
                 class="text-xs text-text-muted transition hover:text-text"
@@ -260,6 +261,7 @@ const { data, pending } = await useFetch<BrandsResponse>('/api/brands')
 const { data: styleGuideData } = await useFetch<StyleGuidesResponse>('/api/style-guides')
 const { data: assetData } = await useFetch<AssetsResponse>('/api/assets')
 
+const mobileEditor = ref(false)
 const form = reactive({
   name: '',
   description: ''
@@ -379,10 +381,12 @@ function hydrateForm(brandId: number) {
 }
 
 function selectBrand(brandId: number) {
+  mobileEditor.value = true
   hydrateForm(brandId)
 }
 
 function startCreate() {
+  mobileEditor.value = true
   creatingBrand.value = true
   selectedBrandId.value = null
   form.name = ''

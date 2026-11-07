@@ -1,9 +1,5 @@
 <template>
-  <div
-    v-if="open"
-    class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm"
-  >
-    <div class="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+  <AppModal :open="open" label="Editar prompt" @close="$emit('close')">
       <div class="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
         <div>
           <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Editor de prompt</p>
@@ -34,7 +30,7 @@
         />
       </div>
 
-      <div class="flex items-center justify-between gap-3 border-t border-border px-6 py-4">
+      <div class="mobile-safe-footer flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border px-6 py-4">
         <button
           type="button"
           class="text-xs text-text-muted transition hover:text-text disabled:opacity-40"
@@ -62,11 +58,11 @@
           </AppButton>
         </div>
       </div>
-    </div>
-  </div>
+  </AppModal>
 </template>
 
 <script setup lang="ts">
+import AppModal from '~/components/base/AppModal.vue'
 import type { StudioConcept } from '../../../shared/types/studio'
 
 import AppButton from '~/components/base/AppButton.vue'

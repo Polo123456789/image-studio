@@ -1,5 +1,5 @@
 <template>
-  <div class="min-h-screen bg-bg text-text">
+  <div class="min-h-screen bg-bg pb-[calc(76px+env(safe-area-inset-bottom))] text-text lg:pb-0">
     <NuxtRouteAnnouncer />
     <StudioRegenerationTray />
 
@@ -14,7 +14,7 @@
 
       <button
         type="button"
-        class="rounded-md border border-border p-1.5 text-text-muted transition hover:border-accent/30 hover:text-text"
+        aria-label="Abrir menú de navegación" :aria-expanded="mobileOpen" class="flex h-12 w-12 items-center justify-center rounded-md border border-border p-1.5 text-text-muted transition hover:border-accent/30 hover:text-text"
         @click="mobileOpen = !mobileOpen"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
@@ -115,6 +115,10 @@
         </div>
       </aside>
 
+      <nav aria-label="Navegación móvil" class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <NuxtLink v-for="item in mainNav.slice(0, 3)" :key="item.to" :to="item.to" :aria-current="isActive(item.to) ? 'page' : undefined" class="flex min-h-[76px] flex-col items-center justify-center gap-1 text-xs" :class="isActive(item.to) ? 'text-accent' : 'text-text-muted'"><span aria-hidden="true" class="text-xl">{{ item.icon === 'studio' ? '▧' : item.icon === 'library' ? '▦' : '+' }}</span>{{ item.label }}</NuxtLink>
+        <button type="button" :aria-expanded="mobileOpen" aria-label="Más secciones" class="flex min-h-[76px] flex-col items-center justify-center gap-1 text-xs text-text-muted" @click="mobileOpen = !mobileOpen"><span aria-hidden="true" class="text-xl">•••</span>Más</button>
+      </nav>
       <!-- Main content -->
       <main class="min-w-0 flex-1">
         <slot />
@@ -127,6 +131,7 @@
 import StudioRegenerationTray from '~/components/studio/StudioRegenerationTray.vue'
 const route = useRoute()
 const mobileOpen = ref(false)
+useBodyScrollLock(() => mobileOpen.value)
 
 watch(() => route.fullPath, () => {
   mobileOpen.value = false

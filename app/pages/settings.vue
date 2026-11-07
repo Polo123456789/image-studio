@@ -27,7 +27,13 @@
       </div>
 
       <form v-else class="space-y-8" @submit.prevent="saveSettings">
-        <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <nav aria-label="Secciones de configuración" class="lg:hidden">
+          <button v-if="mobileSettingsSection !== 'index'" type="button" class="mb-4 rounded-lg border border-border px-4 text-sm text-text-muted" @click="mobileSettingsSection = 'index'">← Todas las secciones</button>
+          <div v-else class="divide-y divide-border rounded-xl border border-border bg-surface">
+            <button v-for="section in settingsSections" :key="section.key" type="button" class="flex w-full items-center justify-between px-4 py-4 text-left text-sm" @click="mobileSettingsSection = section.key">{{ section.label }} <span aria-hidden="true">→</span></button>
+          </div>
+        </nav>
+        <section :class="mobileSettingsSection === 'geminiApiKey' ? '' : 'hidden lg:block'" class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div class="border-b border-border px-6 py-5">
             <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Proveedor</p>
             <h3 class="mt-2 text-xl text-text">Gemini</h3>
@@ -53,7 +59,7 @@
           </div>
         </section>
 
-        <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <section :class="mobileSettingsSection === 'conceptGeneratorPrompt' ? '' : 'hidden lg:block'" class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div class="border-b border-border px-6 py-5">
             <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Prompt base</p>
             <h3 class="mt-2 text-xl text-text">Generador de conceptos</h3>
@@ -71,7 +77,7 @@
           </div>
         </section>
 
-        <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <section :class="mobileSettingsSection === 'imageGeneratorPrompt' ? '' : 'hidden lg:block'" class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div class="border-b border-border px-6 py-5">
             <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Prompt base</p>
             <h3 class="mt-2 text-xl text-text">Generador de imagenes</h3>
@@ -89,7 +95,7 @@
           </div>
         </section>
 
-        <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <section :class="mobileSettingsSection === 'styleGuideReverseEngineeringPrompt' ? '' : 'hidden lg:block'" class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div class="border-b border-border px-6 py-5">
             <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Prompt base</p>
             <h3 class="mt-2 text-xl text-text">Ingenieria inversa de guias</h3>
@@ -108,11 +114,12 @@
         </section>
 
         <CreativeStylesManager
+          :class="mobileSettingsSection === 'creative' ? '' : 'hidden lg:block'"
           :model-value="creativeStylesData?.styles ?? []"
           @update:model-value="updateCreativeStyles"
         />
 
-        <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+        <section :class="mobileSettingsSection === 'backup' ? '' : 'hidden lg:block'" class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
           <div class="border-b border-border px-6 py-5">
             <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Respaldo</p>
             <h3 class="mt-2 text-xl text-text">Exportar e importar todo el estudio</h3>
@@ -178,7 +185,7 @@
           </div>
         </section>
 
-        <div class="flex flex-col gap-3 rounded-2xl border border-border bg-surface-2/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+        <div :class="editableSettingsSection ? '' : 'hidden lg:flex'" class="mobile-actions flex flex-col gap-3 rounded-2xl border border-border bg-surface-2/70 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <p class="text-sm text-text">Guardar configuracion activa</p>
             <p class="mt-1 text-sm leading-6 text-text-muted">
@@ -196,12 +203,12 @@
             </button>
 
             <AppButton type="submit" :disabled="saving || !canSave">
-              {{ saving ? 'Guardando...' : 'Guardar configuracion' }}
+              {{ saving ? 'Guardando...' : 'Guardar cambios' }}
             </AppButton>
           </div>
         </div>
 
-        <p v-if="feedback" class="text-sm" :class="feedbackClass">
+        <p v-if="feedback" role="status" class="text-sm" :class="feedbackClass">
           {{ feedback }}
         </p>
       </form>
@@ -304,6 +311,16 @@ const loadedSnapshot = ref({
   styleGuideReverseEngineeringPrompt: ''
 })
 
+const mobileSettingsSection = ref('index')
+const settingsSections = [
+  { key: 'geminiApiKey', label: 'Proveedor Gemini' },
+  { key: 'conceptGeneratorPrompt', label: 'Prompt de conceptos' },
+  { key: 'imageGeneratorPrompt', label: 'Prompt de imágenes' },
+  { key: 'styleGuideReverseEngineeringPrompt', label: 'Prompt de ingeniería inversa' },
+  { key: 'creative', label: 'Estilos creativos' },
+  { key: 'backup', label: 'Copias de seguridad' },
+]
+const editableSettingsSection = computed(() => ['geminiApiKey', 'conceptGeneratorPrompt', 'imageGeneratorPrompt', 'styleGuideReverseEngineeringPrompt'].includes(mobileSettingsSection.value))
 const saving = ref(false)
 const feedback = ref('')
 const feedbackTone = ref<'success' | 'error'>('success')
@@ -316,7 +333,7 @@ const backupFeedbackTone = ref<'success' | 'error'>('success')
 const isRestoreModalOpen = ref(false)
 const restoreConfirmation = ref('')
 
-watchEffect(() => {
+watch(data, () => {
   if (!data.value) {
     return
   }
@@ -333,7 +350,7 @@ watchEffect(() => {
   if (!saving.value) {
     Object.assign(form, nextSnapshot)
   }
-})
+}, { immediate: true, flush: 'sync' })
 
 const canSave = computed(() => {
   return Boolean(
@@ -359,6 +376,12 @@ function updateCreativeStyles(styles: CreativeStylesResponse['styles']) {
 }
 
 function resetForm() {
+  if (window.matchMedia('(max-width: 1023px)').matches && editableSettingsSection.value) {
+    const section = mobileSettingsSection.value as keyof typeof form
+    form[section] = loadedSnapshot.value[section]
+    feedback.value = ''
+    return
+  }
   Object.assign(form, loadedSnapshot.value)
   feedback.value = ''
 }
@@ -476,6 +499,10 @@ async function saveSettings() {
     return
   }
 
+  if (saving.value) return
+  const section = window.matchMedia('(max-width: 1023px)').matches && editableSettingsSection.value
+    ? mobileSettingsSection.value as keyof typeof form : null
+  const payload = section ? { ...loadedSnapshot.value, [section]: form[section] } : { ...form }
   saving.value = true
   feedback.value = ''
 
@@ -483,15 +510,14 @@ async function saveSettings() {
     const response = await $fetch<AppSettingsResponse>('/api/settings', {
       method: 'POST',
       body: {
-        geminiApiKey: form.geminiApiKey,
-        conceptGeneratorPrompt: form.conceptGeneratorPrompt,
-        imageGeneratorPrompt: form.imageGeneratorPrompt,
-        styleGuideReverseEngineeringPrompt: form.styleGuideReverseEngineeringPrompt
+        ...payload
       }
     })
 
     data.value = response
-    Object.assign(form, {
+    if (section) {
+      form[section] = section === 'geminiApiKey' ? '' : response[section]
+    } else Object.assign(form, {
       geminiApiKey: '',
       conceptGeneratorPrompt: response.conceptGeneratorPrompt,
       imageGeneratorPrompt: response.imageGeneratorPrompt,

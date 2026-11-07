@@ -1,6 +1,6 @@
 <template>
   <AppModal :open="open" size="xl" @close="handleClose">
-    <div class="border-b border-border px-6 py-5">
+    <div class="shrink-0 border-b border-border px-4 py-4 sm:px-6 sm:py-5">
       <p class="font-mono text-[10px] uppercase tracking-[0.28em] text-accent">Nuevo asset</p>
       <h2 class="mt-2 font-display text-2xl text-text">Preparar subida</h2>
       <p class="mt-2 text-sm leading-6 text-text-muted">
@@ -19,7 +19,7 @@
             :alt="selectedUploadFiles[0].name"
             class="h-44 w-full object-cover"
           >
-          <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
+          <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100">
             <label
               class="cursor-pointer rounded-lg border border-white/30 bg-black/50 px-4 py-2 text-sm text-white backdrop-blur-sm transition hover:bg-black/70"
               :class="{ 'pointer-events-none opacity-60': uploading }"
@@ -81,7 +81,7 @@
             </div>
             <div>
               <p class="text-sm text-text">
-                {{ isDragging ? 'Suelta el archivo aqui' : 'Arrastra una imagen o selecciona un archivo' }}
+                {{ isDragging ? 'Suelta el archivo aqui' : 'Selecciona fotos de tu teléfono o arrastra imágenes' }}
               </p>
               <p class="mt-1 text-xs text-text-muted">JPG, PNG, WebP o GIF</p>
             </div>
@@ -90,7 +90,7 @@
               :class="{ 'pointer-events-none opacity-60': uploading }"
             >
               <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
-              Elegir archivos
+              Elegir fotos
             </label>
           </div>
         </section>

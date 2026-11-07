@@ -12,9 +12,9 @@ interface SelectedFileItem {
 
 const maxFiles = 8
 
-export async function useReverseEngineerStyleGuide() {
-  const { data: styleGuideData } = await useFetch<StyleGuidesResponse>('/api/style-guides')
-  const { data: settingsData } = await useFetch<AppSettingsResponse>('/api/settings')
+export function useReverseEngineerStyleGuide() {
+  const { data: styleGuideData } = useFetch<StyleGuidesResponse>('/api/style-guides')
+  const { data: settingsData } = useFetch<AppSettingsResponse>('/api/settings')
 
   const brandSelection = ref('')
   const description = ref('')

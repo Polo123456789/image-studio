@@ -24,6 +24,7 @@
         </div>
       </header>
 
+      <NuxtLink to="/styles/reverse-engineer" class="mb-5 flex min-h-12 items-center justify-center rounded-xl border border-accent/30 px-4 text-sm text-accent xl:hidden">Crear guía desde imágenes →</NuxtLink>
       <!-- Loading state -->
       <div v-if="pending" class="rounded-2xl border border-border bg-surface px-6 py-12 text-center text-sm text-text-muted">
         Cargando guias de estilo...
@@ -32,7 +33,7 @@
       <!-- Main layout -->
       <div v-else class="space-y-6">
         <!-- Reverse engineering CTA banner -->
-        <section class="overflow-hidden rounded-2xl border border-accent/20 bg-gradient-to-r from-accent/[0.06] to-transparent shadow-sm">
+        <section class="hidden overflow-hidden rounded-2xl border border-accent/20 xl:block bg-gradient-to-r from-accent/[0.06] to-transparent shadow-sm">
           <div class="flex flex-col gap-5 px-6 py-6 lg:flex-row lg:items-center lg:justify-between">
             <div class="flex items-start gap-4">
               <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent/12">
@@ -60,7 +61,7 @@
         <!-- Content grid: list + editor -->
         <div class="grid gap-6 xl:grid-cols-[360px_minmax(0,1fr)]">
           <!-- ─── List panel ─────────────────────────────────────────── -->
-          <section class="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+          <section class="flex flex-col overflow-hidden rounded-2xl border border-border bg-surface shadow-sm" :class="mobileEditor ? 'hidden xl:flex' : ''">
             <!-- List header with search -->
             <div class="border-b border-border px-5 py-4">
               <div class="flex items-center justify-between gap-3">
@@ -135,7 +136,8 @@
           </section>
 
           <!-- ─── Editor panel ───────────────────────────────────────── -->
-          <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm">
+          <section class="overflow-hidden rounded-2xl border border-border bg-surface shadow-sm" :class="mobileEditor ? '' : 'hidden xl:block'">
+          <button type="button" class="m-4 rounded-lg border border-border px-4 py-2 text-sm text-text-muted xl:hidden" @click="mobileEditor = false">← Cambiar guía</button>
             <!-- Editor header -->
             <div class="border-b border-border px-6 py-5">
               <div class="flex items-center justify-between gap-3">
@@ -196,7 +198,7 @@
               </label>
 
               <!-- Actions bar -->
-              <div class="flex items-center justify-between gap-4 border-t border-border pt-5">
+              <div class="mobile-form-actions mobile-actions flex items-center justify-between gap-4 border-t border-border pt-5">
                 <button
                   type="button"
                   class="text-xs text-text-muted transition hover:text-text"
@@ -235,6 +237,7 @@ import { getRequestErrorMessage } from '~/utils/http-errors'
 
 const { data, pending } = await useFetch<StyleGuidesResponse>('/api/style-guides')
 
+const mobileEditor = ref(false)
 const form = reactive({
   name: '',
   content: ''
@@ -296,10 +299,12 @@ function hydrateForm(guideId: number) {
 }
 
 function selectGuide(guideId: number) {
+  mobileEditor.value = true
   hydrateForm(guideId)
 }
 
 function startCreate() {
+  mobileEditor.value = true
   creatingGuide.value = true
   selectedGuideId.value = null
   form.name = ''

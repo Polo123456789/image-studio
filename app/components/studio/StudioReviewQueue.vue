@@ -10,7 +10,7 @@
       @keydown="onKeydown"
     >
       <div class="flex h-full flex-col">
-        <header class="flex shrink-0 items-center justify-between gap-6 border-b border-border px-8 py-5">
+        <header class="hidden shrink-0 lg:flex items-center justify-between gap-6 border-b border-border px-8 py-5">
           <div class="flex items-center gap-6">
             <button type="button" :disabled="saving" class="rounded-lg border border-border px-4 py-2.5 text-sm text-text-muted transition hover:text-text disabled:opacity-50" @click="emit('close')">← Estudio</button>
             <div>
@@ -23,7 +23,12 @@
             <button type="button" :disabled="saving" class="rounded-lg border border-border px-4 py-2.5 text-sm transition hover:border-accent disabled:opacity-50" @click="emit('close')">Guardar y salir</button>
           </div>
         </header>
-        <div class="flex shrink-0 items-center gap-4 border-b border-border px-8 py-3">
+        <header class="flex shrink-0 items-center justify-between gap-2 border-b border-border px-4 pt-[env(safe-area-inset-top)] lg:hidden">
+          <button type="button" :disabled="saving" aria-label="Salir de revisión" class="px-3" @click="emit('close')">×</button>
+          <p class="min-w-0 text-sm">{{ entries.length - pending.length }} de {{ entries.length }} revisadas</p>
+          <button type="button" :aria-expanded="mobileOptions" aria-controls="review-options" class="px-3" @click="mobileOptions = !mobileOptions">Filtros</button>
+        </header>
+        <div id="review-options" class="shrink-0 flex-wrap items-center gap-3 border-b border-border px-4 py-3 lg:flex lg:px-8" :class="mobileOptions ? 'flex' : 'hidden'">
           <label for="review-scope" class="text-sm text-text-muted">Revisar</label>
           <select id="review-scope" :value="scope" :disabled="saving" class="rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text" @change="emit('scope', ($event.target as HTMLSelectElement).value as 'all' | 'current' | 'latest')">
             <option value="all">Todas las pendientes</option>
@@ -36,8 +41,8 @@
           <div class="h-full bg-accent transition-[width] duration-200" :style="{ width: `${entries.length ? (entries.length - pending.length) / entries.length * 100 : 0}%` }" />
         </div>
 
-        <div v-if="current" class="grid min-h-0 flex-1 grid-cols-[180px_minmax(0,1fr)_230px] gap-7 px-8 py-7">
-          <aside class="min-h-0 overflow-y-auto" aria-label="Imágenes pendientes">
+        <div v-if="current" class="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3 lg:grid lg:grid-cols-[180px_minmax(0,1fr)_230px] lg:gap-7 lg:overflow-visible lg:px-8 lg:py-7">
+          <aside class="hidden min-h-0 overflow-y-auto lg:block" aria-label="Imágenes pendientes">
             <p class="font-mono text-[10px] uppercase tracking-[0.18em] text-text-muted">Cola de revisión</p>
             <p class="mt-2 text-xs text-text-muted">Sólo sin revisar</p>
             <ol class="mt-6 space-y-3">
@@ -48,11 +53,16 @@
             </ol>
             <p v-if="available.length > queuePreview.length" class="mt-4 text-xs text-text-muted">Y {{ available.length - queuePreview.length }} más</p>
           </aside>
-          <div class="relative flex min-h-0 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface/30 p-5">
-            <img :key="current.key" :src="current.variant.imageUrl" :alt="`${current.conceptTitle}, ${current.ratio}, ${current.variant.label}`" class="h-full w-full object-contain" @error="imageFailed = true; imageReady = false" @load="imageFailed = false; imageReady = true">
+          <div class="relative flex min-h-[140px] flex-1 items-center justify-center overflow-hidden rounded-xl border border-border bg-surface/30 p-1 lg:min-h-0 lg:p-5">
+            <img :key="current.key" :src="current.variant.imageUrl" :alt="`${current.conceptTitle}, ${current.ratio}, ${current.variant.label}`" class="h-full max-h-[60dvh] w-full object-contain lg:max-h-none" @error="imageFailed = true; imageReady = false" @load="imageFailed = false; imageReady = true">
             <p v-if="!imageReady && !imageFailed" role="status" class="absolute text-sm text-text-muted">Cargando imagen…</p>
           </div>
-          <aside class="overflow-y-auto py-3">
+          <div class="shrink-0 px-1 lg:hidden">
+            <h2 class="font-display text-xl">{{ current.conceptTitle }}</h2>
+            <p class="mt-1 text-xs text-text-muted">{{ current.ratio }} · {{ current.variant.label }} · {{ projectName }}</p>
+            <p v-if="imageFailed" role="alert" class="mt-2 text-sm text-danger">No se pudo cargar la imagen. Déjala para después o vuelve a intentarlo.</p>
+          </div>
+          <aside class="hidden overflow-y-auto py-3 lg:block">
             <span class="rounded border border-border px-2.5 py-1.5 font-mono text-[10px] text-accent">Sin revisar</span>
             <h2 class="mt-7 font-display text-2xl leading-tight">{{ current.conceptTitle }}</h2>
             <dl class="mt-5 space-y-3 text-sm">
@@ -72,15 +82,15 @@
         <div v-else class="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-8 py-10 text-center">
           <div>
             <p class="font-mono text-xs uppercase tracking-[0.25em] text-accent">{{ pending.length ? 'Progreso guardado' : 'Revisión completa' }}</p>
-            <h2 class="mt-5 font-display text-5xl">{{ pending.length ? 'Lo retomamos después.' : 'Todo revisado.' }}</h2>
+            <h2 class="mt-5 font-display text-3xl sm:text-5xl">{{ pending.length ? 'Lo retomamos después.' : 'Todo revisado.' }}</h2>
             <p class="mt-5 text-sm text-text-muted">{{ pending.length ? 'Las imágenes que dejaste para después siguen pendientes.' : 'Cada imagen tiene ahora tu evaluación.' }}</p>
-            <div class="mt-9 flex justify-center gap-4">
-              <div v-for="stat in stats" :key="stat.label" class="min-w-36 rounded-xl border border-border bg-surface px-7 py-5">
+            <div class="mt-9 grid gap-3 sm:grid-cols-3">
+              <div v-for="stat in stats" :key="stat.label" class="min-w-0 rounded-xl border border-border bg-surface px-7 py-5">
                 <p class="font-display text-4xl" :class="stat.color">{{ stat.count }}</p><p class="mt-2 text-sm text-text-muted">{{ stat.label }}</p>
               </div>
             </div>
             <p v-if="regeneratingCount" role="status" class="mt-6 text-sm text-accent">{{ regeneratingCount }} {{ regeneratingCount === 1 ? 'imagen sigue regenerándose' : 'imágenes siguen regenerándose' }}. Las nuevas versiones quedarán en pendientes cuando estén listas.</p>
-            <div class="mt-8 flex justify-center gap-3">
+            <div class="mt-8 flex flex-wrap justify-center gap-3">
               <button v-if="pending.length" type="button" class="rounded-lg border border-accent bg-accent/10 px-5 py-3 text-sm text-accent" @click="emit('resume')">Retomar pendientes</button>
               <button type="button" :disabled="saving" aria-keyshortcuts="Enter" class="rounded-lg border border-border px-5 py-3 text-sm transition hover:border-accent disabled:opacity-50" @click="emit('close')">Volver al estudio <kbd class="ml-4 text-[10px] text-text-muted">ENTER</kbd></button>
             </div>
@@ -90,13 +100,14 @@
 
         <div v-if="error" role="alert" class="mx-8 mb-4 rounded-lg border border-danger/40 bg-danger/10 px-5 py-3 text-sm text-danger">{{ error }}</div>
         <StudioRegenerationTray review :disabled="saving" @navigate="emit('close')" />
-        <footer class="flex min-h-24 shrink-0 items-center justify-between gap-5 border-t border-border bg-surface px-8 py-5">
-          <div class="flex items-center gap-5">
+        <footer class="review-footer mobile-safe-footer flex shrink-0 flex-col gap-2 border-t border-border bg-surface px-3 py-3 lg:min-h-24 lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:px-8 lg:py-5">
+          <div class="flex w-full items-center justify-between gap-3 lg:w-auto lg:justify-start">
             <button type="button" :disabled="saving || !canUndo" class="rounded-lg border border-border px-4 py-2.5 text-sm transition hover:border-accent disabled:opacity-40" @click="emit('undo')">↶ Deshacer</button>
-            <p role="status" aria-live="polite" class="max-w-[240px] text-xs text-text-muted">{{ saving ? 'Guardando evaluación…' : message || 'Se guarda al evaluar · Ctrl / ⌘ Z para deshacer' }}</p>
+            <button v-if="current" type="button" :disabled="saving" class="rounded-lg border border-border px-4 text-sm text-text-muted lg:hidden" @click="emit('skip')">Después →</button>
+            <p role="status" aria-live="polite" class="hidden max-w-[240px] text-xs text-text-muted lg:block">{{ saving ? 'Guardando evaluación…' : message || 'Se guarda al evaluar · Ctrl / ⌘ Z para deshacer' }}</p>
           </div>
-          <div v-if="current" class="flex items-center gap-4">
-            <button type="button" :disabled="saving" class="rounded-lg border border-border px-4 py-2.5 text-sm text-text-muted transition hover:text-text disabled:opacity-40" @click="emit('skip')">Después <kbd class="ml-4 text-[10px]">ESPACIO</kbd></button>
+          <div v-if="current" class="review-rating-row flex w-full flex-wrap items-center justify-center gap-2 lg:w-auto lg:flex-nowrap lg:gap-4">
+            <button type="button" :disabled="saving" class="hidden rounded-lg border border-border px-4 py-2.5 text-sm text-text-muted transition hover:text-text disabled:opacity-40 lg:block" @click="emit('skip')">Después <kbd class="ml-4 text-[10px]">ESPACIO</kbd></button>
             <StudioReviewControls :disabled="saving || !imageReady" shortcuts regenerate :regenerate-disabled="!canRegenerate" @regenerate="emit('regenerate')" @rate="emit('rate', $event)" />
           </div>
         </footer>
@@ -106,6 +117,7 @@
 </template>
 
 <script setup lang="ts">
+const mobileOptions = ref(false)
 import type { StudioReviewEntry } from '../../utils/studio-review'
 import type { StudioReviewRating } from '../../../shared/types/studio'
 import StudioReviewControls from './StudioReviewControls.vue'
@@ -188,16 +200,21 @@ function onKeydown(event: KeyboardEvent) {
     emit('skip')
   }
 }
-let previousOverflow = ''
+useBodyScrollLock(() => true)
 onMounted(() => {
-  previousOverflow = document.body.style.overflow
-  document.body.style.overflow = 'hidden'
   dialog.value?.showModal()
   // Keep Space available for deferring an image, without overriding button activation.
   dialog.value?.focus()
 })
 onBeforeUnmount(() => {
   dialog.value?.close()
-  document.body.style.overflow = previousOverflow
 })
 </script>
+
+<style scoped>
+@media (max-width: 1023px) {
+  .review-footer :deep(kbd) { display: none; }
+  .review-rating-row :deep([role="group"]) { flex: 1; justify-content: center; gap: 6px; }
+  .review-rating-row :deep([role="group"] button) { flex: 1; min-width: 0; padding: 10px 8px; margin-left: 0; gap: 5px; white-space: nowrap; }
+}
+</style>

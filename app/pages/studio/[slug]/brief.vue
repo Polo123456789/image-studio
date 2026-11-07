@@ -39,7 +39,11 @@
         {{ loadError }}
       </div>
 
-      <form v-else class="space-y-12" @submit.prevent="saveBrief">
+      <form v-else class="space-y-12" @submit.prevent="handleBriefSubmit">
+        <nav aria-label="Secciones del brief" class="grid grid-cols-3 gap-2 lg:hidden">
+          <button v-for="(label, index) in ['1. Brief', '2. Referencias', '3. Salida']" :key="label" type="button" :disabled="isSaving" :aria-current="briefStep === index + 1 ? 'step' : undefined" class="rounded-lg border px-2 text-xs" :class="briefStep === index + 1 ? 'border-accent bg-accent/10 text-accent' : 'border-border text-text-muted'" @click="briefStep = index + 1">{{ label }}</button>
+        </nav>
+        <div class="space-y-8 lg:space-y-12" :class="briefStep === 1 ? '' : 'hidden lg:block'">
         <StudioFieldSection
           title="Tipo de brief"
           description="El modo se define al crear el proyecto y no se puede cambiar despues."
@@ -141,6 +145,8 @@
           ></AppTextarea>
         </StudioFieldSection>
 
+        </div>
+        <div :class="briefStep === 2 ? '' : 'hidden lg:block'">
         <div class="grid gap-8 sm:grid-cols-2">
           <StudioStyleGuideSection
             v-model:selected-guide-id="selectedStyleGuideId"
@@ -166,6 +172,8 @@
           </div>
         </div>
 
+        </div>
+        <div class="space-y-8" :class="briefStep === 3 ? '' : 'hidden lg:block'">
         <div class="grid gap-8 sm:grid-cols-3">
           <StudioFieldSection title="Formatos">
             <StudioChipMultiSelect v-model="selectedRatios" :options="aspectRatios" />
@@ -196,7 +204,7 @@
             {{ summaryText }}
           </p>
           <div class="mt-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <p v-if="feedback" class="text-sm" :class="feedbackClass">
+            <p v-if="feedback" role="status" class="text-sm" :class="feedbackClass">
               {{ feedback }}
             </p>
             <p v-else class="text-sm leading-6 text-text-muted">
@@ -207,6 +215,11 @@
               {{ isSaving ? 'Guardando...' : 'Guardar brief' }}
             </AppButton>
           </div>
+        </div>
+        </div>
+        <div class="mobile-actions flex flex-wrap items-center justify-between gap-3 lg:hidden">
+          <button type="button" class="rounded-lg border border-border px-3 text-sm disabled:opacity-40" :disabled="briefStep === 1 || isSaving" @click="briefStep--">← Anterior</button>
+          <button v-if="briefStep < 3" type="button" class="rounded-lg bg-accent px-4 text-sm text-bg" @click="briefStep++">Continuar →</button>
         </div>
       </form>
     </div>
@@ -267,6 +280,7 @@ const aspectRatios = studioAspectRatios
 const resolutions = studioResolutions
 const conceptCounts = studioConceptCounts
 
+const briefStep = ref(1)
 const form = reactive(createStudioBriefFormState())
 
 const selectedMedia = ref<string[]>([...defaultStudioMediaChannels])
@@ -389,8 +403,16 @@ function buildBriefPayload(): StudioBriefPayload {
   return buildStudioBriefPayload(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value, selectedBrandName.value)
 }
 
+function handleBriefSubmit() {
+  if (window.matchMedia('(max-width: 1023px)').matches && briefStep.value < 3) {
+    briefStep.value++
+    return
+  }
+  void saveBrief()
+}
+
 async function saveBrief() {
-  if (!canSave.value) return
+  if (isSaving.value || !canSave.value) return
 
   isSaving.value = true
   feedback.value = ''
