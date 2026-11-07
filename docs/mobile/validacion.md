@@ -11,7 +11,8 @@ La implementación mantiene la generación, las evaluaciones y las reglas de exp
 - Diálogo de revisión a 360 × 640, 390 × 844, 430 × 740 y 1280 × 844. Los controles de evaluación quedan dentro del viewport.
 - Evaluar una imagen guarda la decisión; deshacer restaura el contador y la evaluación.
 - Guardar un borrador, recargar y recuperarlo conserva el brief.
-- Guardar una sección de Ajustes no envía los cambios pendientes de otra sección ni los borra del formulario.
+- Guardar una sección de Ajustes no envía los cambios pendientes de otra sección ni los borra del formulario, incluso si otra sección tiene un prompt vacío sin guardar.
+- Menú móvil: foco inicial, ciclo con Tab, Escape, devolución del foco y desbloqueo al redimensionar a escritorio.
 - Abrir y cerrar el detalle de biblioteca restaura el scroll de fondo. El diálogo conserva el selector de versiones y el enlace al estudio.
 - Fallo de regeneración simulado a 360 × 640 px: bandeja contenida en pantalla y Reintentar accesible, sin llamadas reales al proveedor.
 - Acceso directo a ingeniería inversa sin el anterior error de contexto de Nuxt.

@@ -202,7 +202,10 @@
               Restaurar cargado
             </button>
 
-            <AppButton type="submit" :disabled="saving || !canSave">
+            <AppButton type="submit" class="lg:hidden" :disabled="saving || !canSaveSection">
+              {{ saving ? 'Guardando...' : 'Guardar cambios' }}
+            </AppButton>
+            <AppButton type="submit" class="hidden lg:inline-flex" :disabled="saving || !canSave">
               {{ saving ? 'Guardando...' : 'Guardar cambios' }}
             </AppButton>
           </div>
@@ -360,6 +363,12 @@ const canSave = computed(() => {
   )
 })
 
+const canSaveSection = computed(() => {
+  const section = mobileSettingsSection.value as keyof typeof form
+  const payload = { ...loadedSnapshot.value, ...(editableSettingsSection.value ? { [section]: form[section] } : {}) }
+  return Boolean(payload.conceptGeneratorPrompt.trim() && payload.imageGeneratorPrompt.trim() && payload.styleGuideReverseEngineeringPrompt.trim())
+})
+
 const settingsStateLabel = computed(() => data.value?.hasGeminiApiKey ? 'Activa' : 'Pendiente')
 const settingsStateClass = computed(() => data.value?.hasGeminiApiKey
   ? 'bg-accent/15 text-accent'
@@ -493,16 +502,15 @@ async function importBackup() {
 }
 
 async function saveSettings() {
-  if (!canSave.value) {
-    feedback.value = 'Completa todos los prompts base antes de guardar.'
-    feedbackTone.value = 'error'
-    return
-  }
-
   if (saving.value) return
   const section = window.matchMedia('(max-width: 1023px)').matches && editableSettingsSection.value
     ? mobileSettingsSection.value as keyof typeof form : null
   const payload = section ? { ...loadedSnapshot.value, [section]: form[section] } : { ...form }
+  if (!payload.conceptGeneratorPrompt.trim() || !payload.imageGeneratorPrompt.trim() || !payload.styleGuideReverseEngineeringPrompt.trim()) {
+    feedback.value = 'Completa el prompt antes de guardar.'
+    feedbackTone.value = 'error'
+    return
+  }
   saving.value = true
   feedback.value = ''
 
