@@ -44,14 +44,14 @@
 
           <button
             type="button"
-            class="font-mono text-xs text-text-muted transition hover:text-accent"
+            class="hidden font-mono text-xs text-text-muted transition hover:text-accent lg:block"
             @click="$emit('cycle-ratio', concept.id)"
           >
             Siguiente &rarr;
           </button>
         </div>
 
-        <div class="bg-[#0a0a0a] px-5 py-6">
+        <div class="bg-[#0a0a0a] px-3 py-3 lg:px-5 lg:py-6">
           <div class="relative mx-auto flex max-h-[520px] items-center justify-center overflow-hidden rounded-lg border border-white/[0.06]">
             <img
               v-if="activeVariant?.imageUrl"
@@ -59,7 +59,7 @@
               loading="lazy"
               decoding="async"
               :alt="`${concept.title} ${concept.selectedRatio}`"
-              class="max-h-[42dvh] w-full object-contain lg:max-h-[520px]"
+              class="max-h-[32dvh] w-full object-contain lg:max-h-[520px]"
             >
             <div
               v-else-if="loadingVariant"

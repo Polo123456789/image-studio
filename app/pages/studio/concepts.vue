@@ -23,9 +23,9 @@
         </div>
       </div>
 
-      <header class="mb-4 flex flex-col gap-3 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
-        <div>
-          <p class="font-mono text-[10px] uppercase tracking-[0.3em] text-accent">Conceptos</p>
+      <header class="mb-4 flex flex-row items-start gap-3 border-b border-border pb-4 lg:items-start lg:justify-between">
+        <div class="min-w-0 flex-1">
+          <p class="hidden font-mono text-[10px] uppercase tracking-[0.3em] text-accent lg:block">Conceptos</p>
           <h1 class="mt-2 font-display text-xl lg:mt-3 lg:text-3xl text-text">
             {{ brief.projectName || 'Proyecto sin nombre' }}
           </h1>
@@ -67,10 +67,10 @@
       </div>
 
       <div v-else class="space-y-4 lg:space-y-10">
-        <nav v-if="sortedConcepts.length" aria-label="Elegir concepto" class="flex items-center gap-3 rounded-xl border border-border bg-surface p-3 lg:hidden">
+        <nav v-if="sortedConcepts.length" aria-label="Elegir concepto" class="flex items-center gap-2 rounded-xl border border-border bg-surface p-2 lg:hidden">
           <button type="button" aria-label="Concepto anterior" :disabled="mobileConceptIndex <= 0" class="rounded-lg border border-border px-3 disabled:opacity-40" @click="moveMobileConcept(-1)">←</button>
-          <label class="min-w-0 flex-1 text-xs text-text-muted">Concepto {{ mobileConceptIndex + 1 }} de {{ sortedConcepts.length }}
-            <select :value="mobileConceptId" class="mt-1 w-full rounded-lg border border-border bg-surface-2 px-2 text-sm text-text" @change="mobileConceptId = ($event.target as HTMLSelectElement).value"><option v-for="item in sortedConcepts" :key="item.id" :value="item.id">{{ item.title }}</option></select>
+          <label class="min-w-0 flex-1 text-xs text-text-muted"><span class="sr-only">Concepto {{ mobileConceptIndex + 1 }} de {{ sortedConcepts.length }}</span>
+            <select :value="mobileConceptId" class="w-full rounded-lg border border-border bg-surface-2 px-2 text-sm text-text" @change="mobileConceptId = ($event.target as HTMLSelectElement).value"><option v-for="(item, index) in sortedConcepts" :key="item.id" :value="item.id">{{ index + 1 }} / {{ sortedConcepts.length }} · {{ item.title }}</option></select>
           </label>
           <button type="button" aria-label="Concepto siguiente" :disabled="mobileConceptIndex >= sortedConcepts.length - 1" class="rounded-lg border border-border px-3 disabled:opacity-40" @click="moveMobileConcept(1)">→</button>
         </nav>
