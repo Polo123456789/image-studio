@@ -15,7 +15,10 @@ La implementación mantiene la generación, las evaluaciones y las reglas de exp
 - Menú móvil: foco inicial, ciclo con Tab, Escape, devolución del foco y desbloqueo al redimensionar a escritorio.
 - Abrir y cerrar el detalle de biblioteca restaura el scroll de fondo. El diálogo conserva el selector de versiones y el enlace al estudio.
 - Fallo de regeneración simulado a 360 × 640 px: bandeja contenida en pantalla y Reintentar accesible, sin llamadas reales al proveedor.
-- Acceso directo a ingeniería inversa sin el anterior error de contexto de Nuxt.
+- Acceso directo a ingeniería inversa sin el anterior error de contexto de Nuxt ni diferencias de hidratación del prompt.
+- Restauración a 844 × 390 px: cuerpo desplazable, acciones visibles y confirmación accesible, sin ejecutar la restauración.
+- Selector de fotos activado con Enter y control de cierre del editor con nombre accesible.
+- Configuración sin formularios anidados ni avisos de hidratación.
 
 No se realizaron llamadas reales de generación con Gemini, restauraciones destructivas ni pruebas en Safari o en un teléfono físico. El teclado virtual y los selectores de fotos nativos requieren comprobación en dispositivo. Las alturas dinámicas, áreas seguras y tamaño de campos están contemplados en los estilos y el viewport.
 

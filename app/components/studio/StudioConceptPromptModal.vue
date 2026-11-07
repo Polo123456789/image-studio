@@ -1,6 +1,6 @@
 <template>
   <AppModal :open="open" label="Editar prompt" @close="$emit('close')">
-      <div class="flex items-start justify-between gap-4 border-b border-border px-6 py-5">
+      <div class="flex shrink-0 items-start justify-between gap-4 border-b border-border px-6 py-5">
         <div>
           <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-accent">Editor de prompt</p>
           <h2 class="mt-2 text-lg font-medium text-text">
@@ -13,14 +13,15 @@
 
         <button
           type="button"
+          aria-label="Cerrar editor de prompt"
           class="rounded border border-border p-1.5 text-text-muted transition hover:border-text-muted hover:text-text"
           @click="$emit('close')"
         >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          <svg aria-hidden="true" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
         </button>
       </div>
 
-      <div class="flex-1 overflow-y-auto px-6 py-5">
+      <div class="min-h-0 flex-1 overflow-y-auto px-6 py-5">
         <AppTextarea
           :model-value="draft"
           :rows="18"

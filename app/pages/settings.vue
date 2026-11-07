@@ -26,7 +26,7 @@
         Cargando configuracion...
       </div>
 
-      <form v-else class="space-y-8" @submit.prevent="saveSettings">
+      <div v-else class="space-y-8">
         <nav aria-label="Secciones de configuración" class="lg:hidden">
           <button v-if="mobileSettingsSection !== 'index'" type="button" class="mb-4 rounded-lg border border-border px-4 text-sm text-text-muted" @click="mobileSettingsSection = 'index'">← Todas las secciones</button>
           <div v-else class="divide-y divide-border rounded-xl border border-border bg-surface">
@@ -160,12 +160,12 @@
               </div>
 
               <div class="mt-5 flex flex-col gap-4 sm:flex-row sm:items-center">
-                <label class="flex-1 cursor-pointer rounded-xl border border-border bg-surface px-4 py-3 transition hover:border-danger/35">
+                <label class="flex-1 cursor-pointer rounded-xl border border-border bg-surface px-4 py-3 transition focus-within:ring-2 focus-within:ring-accent hover:border-danger/35">
                   <span class="block text-sm text-text">Archivo de backup</span>
                   <span class="mt-1 block text-sm text-text-muted">
                     {{ selectedBackupFileName || 'Selecciona un archivo .zip exportado desde Image Studio' }}
                   </span>
-                  <input class="hidden" type="file" accept=".zip,application/zip" @change="onBackupFileSelected">
+                  <input class="sr-only" type="file" accept=".zip,application/zip" @change="onBackupFileSelected">
                 </label>
 
                 <button
@@ -202,10 +202,10 @@
               Restaurar cargado
             </button>
 
-            <AppButton type="submit" class="lg:hidden" :disabled="saving || !canSaveSection">
+            <AppButton type="button" class="lg:hidden" @click="saveSettings" :disabled="saving || !canSaveSection">
               {{ saving ? 'Guardando...' : 'Guardar cambios' }}
             </AppButton>
-            <AppButton type="submit" class="hidden lg:inline-flex" :disabled="saving || !canSave">
+            <AppButton type="button" class="hidden lg:inline-flex" @click="saveSettings" :disabled="saving || !canSave">
               {{ saving ? 'Guardando...' : 'Guardar cambios' }}
             </AppButton>
           </div>
@@ -214,10 +214,10 @@
         <p v-if="feedback" role="status" class="text-sm" :class="feedbackClass">
           {{ feedback }}
         </p>
-      </form>
+      </div>
 
-      <AppModal :open="isRestoreModalOpen" size="lg" @close="closeRestoreModal">
-        <div class="border-b border-border px-5 py-4">
+      <AppModal :open="isRestoreModalOpen" size="lg" label="Confirmar restauración" @close="closeRestoreModal">
+        <div class="shrink-0 border-b border-border px-5 py-4">
           <div class="flex items-start justify-between gap-4">
             <div>
               <p class="font-mono text-[10px] uppercase tracking-[0.25em] text-danger">Accion destructiva</p>
@@ -229,6 +229,7 @@
 
             <button
               type="button"
+              aria-label="Cerrar confirmación de restauración"
               class="rounded-lg border border-border p-2 text-text-muted transition hover:border-text-muted hover:text-text"
               @click="closeRestoreModal"
             >
@@ -237,7 +238,7 @@
           </div>
         </div>
 
-        <div class="space-y-4 px-5 py-5">
+        <div class="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
           <div class="rounded-xl border border-danger/25 bg-danger/8 px-4 py-4 text-sm leading-6 text-text-muted">
             Escribe <span class="font-mono text-danger">SOBREESCRIBIR</span> para confirmar. El archivo seleccionado es <span class="font-mono text-text">{{ selectedBackupFileName || 'sin archivo' }}</span>.
           </div>
@@ -255,7 +256,7 @@
           </div>
         </div>
 
-        <div class="flex items-center justify-between gap-3 border-t border-border px-5 py-4">
+        <div class="mobile-safe-footer flex shrink-0 flex-wrap items-center justify-between gap-3 border-t border-border px-5 py-4">
           <p class="text-xs text-text-muted">
             Si la restauracion termina bien, recargaremos la aplicacion.
           </p>

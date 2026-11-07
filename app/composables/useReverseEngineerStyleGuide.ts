@@ -13,8 +13,10 @@ interface SelectedFileItem {
 const maxFiles = 8
 
 export function useReverseEngineerStyleGuide() {
-  const { data: styleGuideData } = useFetch<StyleGuidesResponse>('/api/style-guides')
-  const { data: settingsData } = useFetch<AppSettingsResponse>('/api/settings')
+  const styleGuideRequest = useFetch<StyleGuidesResponse>('/api/style-guides')
+  const settingsRequest = useFetch<AppSettingsResponse>('/api/settings')
+  const { data: styleGuideData } = styleGuideRequest
+  const { data: settingsData } = settingsRequest
 
   const brandSelection = ref('')
   const description = ref('')
@@ -48,6 +50,11 @@ export function useReverseEngineerStyleGuide() {
       promptDraft.value = value
     }
   }, { immediate: true })
+
+  onServerPrefetch(async () => {
+    await Promise.all([styleGuideRequest, settingsRequest])
+    if (!promptDraft.value.trim()) promptDraft.value = loadedPrompt.value
+  })
 
   onBeforeUnmount(() => {
     for (const file of selectedFiles.value) {
