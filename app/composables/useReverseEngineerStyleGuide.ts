@@ -252,6 +252,7 @@ export function useReverseEngineerStyleGuide() {
     isGenerating,
     isSavingGuide,
     generationFeedback,
+    generationFeedbackTone,
     saveFeedback,
     isDragging,
     showPrompt,

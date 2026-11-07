@@ -44,7 +44,7 @@
         :aria-modal="mobileOpen || undefined"
         aria-label="Navegación"
         @keydown="onNavigationKeydown"
-        class="fixed inset-y-0 left-0 z-50 flex w-[220px] flex-col border-r border-border bg-surface transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0"
+        class="fixed inset-y-0 left-0 z-50 flex w-[220px] flex-col overflow-y-auto overscroll-contain border-r border-border bg-surface transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0"
         :class="mobileOpen ? 'translate-x-0' : '-translate-x-full invisible lg:visible'"
       >
         <button type="button" class="m-3 rounded-lg border border-border px-4 py-2 text-sm text-text-muted lg:hidden" aria-label="Cerrar menú de navegación" @click="mobileOpen = false">Cerrar menú ×</button>

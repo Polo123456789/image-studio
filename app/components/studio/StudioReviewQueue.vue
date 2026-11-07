@@ -79,8 +79,8 @@
           </aside>
         </div>
 
-        <div v-else class="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-8 py-10 text-center">
-          <div>
+        <div v-else class="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-6 text-center sm:px-8 sm:py-10">
+          <div class="my-auto w-full max-w-3xl shrink-0 self-center">
             <p class="font-mono text-xs uppercase tracking-[0.25em] text-accent">{{ pending.length ? 'Progreso guardado' : 'Revisión completa' }}</p>
             <h2 class="mt-5 font-display text-3xl sm:text-5xl">{{ pending.length ? 'Lo retomamos después.' : 'Todo revisado.' }}</h2>
             <p class="mt-5 text-sm text-text-muted">{{ pending.length ? 'Las imágenes que dejaste para después siguen pendientes.' : 'Cada imagen tiene ahora tu evaluación.' }}</p>
