@@ -32,7 +32,7 @@
       </div>
       <footer class="mobile-safe-footer flex shrink-0 flex-wrap gap-3 border-t border-border px-4 py-3">
         <NuxtLink :to="studioLink" class="flex min-h-12 flex-1 items-center justify-center rounded-lg border border-border px-3 text-center text-sm">Abrir en estudio</NuxtLink>
-        <a v-if="selectedVersion?.imageUrl" :href="selectedVersion.imageUrl" :download="`${image.conceptTitle}-${image.ratio.replace(':', 'x')}.png`" class="flex min-h-12 flex-1 items-center justify-center rounded-lg bg-accent px-3 text-sm font-medium text-bg">Descargar ↓</a>
+        <a v-if="selectedVersion?.imageUrl" :href="selectedVersion.imageUrl" :download="downloadName" class="flex min-h-12 flex-1 items-center justify-center rounded-lg bg-accent px-3 text-sm font-medium text-bg">Descargar ↓</a>
       </footer>
     </template>
   </AppModal>
@@ -54,6 +54,13 @@ defineEmits<{
   'select-version': [versionId: string]
 }>()
 
+const downloadName = computed(() => {
+  const source = props.selectedVersion?.imageUrl ?? ''
+  const extension = source.split(/[?#]/)[0]?.match(/\.(jpe?g|png|webp|gif)$/i)?.[1]
+    ?? ({ jpeg: 'jpg', png: 'png', webp: 'webp', gif: 'gif' } as Record<string, string>)[source.match(/^data:image\/(jpeg|png|webp|gif)[;,]/i)?.[1]?.toLowerCase() ?? '']
+  const name = `${props.image?.conceptTitle || 'imagen'}-${props.image?.ratio.replace(':', 'x') || ''}`.replace(/[\\/:*?"<>|]/g, '-')
+  return extension ? `${name}.${extension.toLowerCase()}` : name
+})
 watch(() => props.image?.id, () => { tab.value = 'versions' })
 
 function formatTimestamp(value: string) {
