@@ -1,6 +1,6 @@
 <template>
   <div v-if="regenerationTasks.length" ref="root" class="z-40 text-text" :class="review ? 'relative mx-3 shrink-0 lg:fixed lg:bottom-28 lg:left-8 lg:mx-0' : 'fixed inset-x-4 bottom-[calc(92px+env(safe-area-inset-bottom))] lg:bottom-7 lg:left-8 lg:right-auto'" @keydown="onTrayKeydown">
-    <section v-if="open" :id="panelId" :class="review ? 'fixed inset-x-3 bottom-[calc(180px+env(safe-area-inset-bottom))] lg:static' : ''" role="region" aria-label="Regeneraciones de esta sesión" class="mb-3 flex max-h-[min(590px,calc(100dvh-220px))] w-full lg:w-[390px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+    <section v-if="open" :id="panelId" :class="review ? 'fixed inset-x-3 bottom-[calc(180px+env(safe-area-inset-bottom))] lg:static' : 'w-full'" role="region" aria-label="Regeneraciones de esta sesión" class="mb-3 flex max-h-[min(590px,calc(100dvh-220px))] lg:w-[390px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
       <header class="flex items-center justify-between px-5 pt-5">
         <h2 class="font-display text-xl">Regeneraciones</h2>
         <button type="button" aria-label="Cerrar bandeja" class="rounded px-2 py-1 text-text-muted hover:text-text" @click="close">×</button>

@@ -13,6 +13,7 @@ La implementación mantiene la generación, las evaluaciones y las reglas de exp
 - Guardar un borrador, recargar y recuperarlo conserva el brief.
 - Guardar una sección de Ajustes no envía los cambios pendientes de otra sección ni los borra del formulario.
 - Abrir y cerrar el detalle de biblioteca restaura el scroll de fondo. El diálogo conserva el selector de versiones y el enlace al estudio.
+- Fallo de regeneración simulado a 360 × 640 px: bandeja contenida en pantalla y Reintentar accesible, sin llamadas reales al proveedor.
 - Acceso directo a ingeniería inversa sin el anterior error de contexto de Nuxt.
 
 No se realizaron llamadas reales de generación con Gemini, restauraciones destructivas ni pruebas en Safari o en un teléfono físico. El teclado virtual y los selectores de fotos nativos requieren comprobación en dispositivo. Las alturas dinámicas, áreas seguras y tamaño de campos están contemplados en los estilos y el viewport.
