@@ -12,6 +12,8 @@ export interface StudioRegenerationTask {
   variantId?: string
   thumbnailUrl?: string
   error?: string
+  operation?: 'formats' | 'final' | 'concepts'
+  summary?: string
 }
 
 export function regenerationLocation(task: StudioRegenerationTask, retry = false) {
@@ -56,4 +58,27 @@ export function createRegenerationRunner(
     }
   }
   return { run }
+}
+
+export async function trackStudioGeneration<T>(
+  tasks: Ref<StudioRegenerationTask[]>,
+  request: StudioRegenerateVariantPayload,
+  projectName: string,
+  conceptTitle: string,
+  operation: NonNullable<StudioRegenerationTask['operation']>,
+  execute: () => Promise<T>,
+  summarize: (response: T) => { summary: string; request?: StudioRegenerateVariantPayload; error?: string; variantId?: string; thumbnailUrl?: string }
+): Promise<T> {
+  const id = globalThis.crypto.randomUUID()
+  tasks.value = [{ id, request: { ...request }, projectName, conceptTitle, operation, status: 'running', startedAt: new Date().toISOString() }, ...tasks.value]
+  const patch = (update: Partial<StudioRegenerationTask>) => { tasks.value = tasks.value.map(task => task.id === id ? { ...task, ...update } : task) }
+  try {
+    const response = await execute()
+    const result = summarize(response)
+    patch({ ...result, request: result.request ? { ...result.request, projectSlug: request.projectSlug } : { ...request }, status: result.error ? 'error' : 'ready' })
+    return response
+  } catch (error) {
+    patch({ status: 'error', error: getRequestErrorMessage(error, 'No se pudo completar la generación.') })
+    throw error
+  }
 }

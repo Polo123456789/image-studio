@@ -1,12 +1,12 @@
 <template>
   <div v-if="regenerationTasks.length" ref="root" class="z-40 text-text" :class="review ? 'relative mx-3 shrink-0 lg:fixed lg:bottom-28 lg:left-8 lg:mx-0' : 'fixed inset-x-4 bottom-[calc(92px+env(safe-area-inset-bottom))] lg:bottom-7 lg:left-8 lg:right-auto'" @keydown="onTrayKeydown">
-    <section v-if="open" :id="panelId" :class="review ? 'fixed inset-x-3 bottom-[calc(180px+env(safe-area-inset-bottom))] lg:static' : 'w-full'" role="region" aria-label="Regeneraciones de esta sesión" class="mb-3 flex max-h-[min(590px,calc(100dvh-220px))] lg:w-[390px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
+    <section v-if="open" :id="panelId" :class="review ? 'fixed inset-x-3 bottom-[calc(180px+env(safe-area-inset-bottom))] lg:static' : 'w-full'" role="region" aria-label="Generaciones de esta sesión" class="mb-3 flex max-h-[min(590px,calc(100dvh-220px))] lg:w-[390px] flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-lg">
       <header class="flex items-center justify-between px-5 pt-5">
-        <h2 class="font-display text-xl">Regeneraciones</h2>
+        <h2 class="font-display text-xl">Generaciones</h2>
         <button type="button" aria-label="Cerrar bandeja" class="rounded px-2 py-1 text-text-muted hover:text-text" @click="close">×</button>
       </header>
       <p class="px-5 pt-2 text-xs text-text-muted">Actividad de esta sesión de trabajo</p>
-      <div class="flex flex-wrap gap-1 border-b border-border px-4 py-3" role="group" aria-label="Filtrar regeneraciones">
+      <div class="flex flex-wrap gap-1 border-b border-border px-4 py-3" role="group" aria-label="Filtrar generaciones">
         <button v-for="tab in tabs" :key="tab.value" type="button" :aria-pressed="filter === tab.value" class="rounded-md px-2 py-2 text-xs transition" :class="filter === tab.value ? 'bg-accent/15 text-accent' : 'text-text-muted hover:text-text'" @click="filter = tab.value">{{ tab.label }} {{ tab.count }}</button>
       </div>
       <ul class="min-h-0 overflow-y-auto px-5">
@@ -16,20 +16,21 @@
             <span v-else class="flex h-12 w-12 shrink-0 items-center justify-center rounded bg-surface-2 text-accent" :class="task.status === 'running' ? 'animate-pulse' : ''" aria-hidden="true">↻</span>
             <span class="min-w-0 flex-1">
               <span class="block text-sm">{{ task.conceptTitle }}</span>
-              <span class="mt-1 block truncate text-[11px] text-text-muted">{{ task.projectName }} · {{ task.request.ratio }}</span>
-              <span class="mt-1 block text-xs" :class="task.status === 'error' ? 'text-danger' : 'text-accent'">{{ task.status === 'running' ? 'Generando · Ver en el estudio' : task.status === 'ready' ? 'Lista · Ver esta versión' : 'No se pudo generar · Ver original' }}</span>
+              <span class="mt-1 block truncate text-[11px] text-text-muted">{{ task.projectName }} · {{ task.operation === "concepts" ? "Conceptos nuevos" : task.operation === "formats" ? "Formatos pendientes" : task.operation === "final" ? "Arte final 4K" : "Regeneración" }} {{ task.request.ratio }} {{ task.request.targetSize }}</span>
+              <span class="mt-1 block text-xs" :class="task.status === 'error' ? 'text-danger' : 'text-accent'">{{ task.status === 'running' ? 'Generando · Ver en el estudio' : task.status === 'ready' ? (task.operation ? 'Lista · Ver resultados' : 'Lista · Ver esta versión') : (task.thumbnailUrl ? 'Terminó con errores · Ver resultados' : 'No se pudo generar · Ver en el estudio') }}</span>
             </span>
           </button>
           <div v-if="task.status === 'running'" class="mt-3 h-1 overflow-hidden rounded-full bg-surface-2" aria-label="Generación en curso"><div class="h-full w-1/3 animate-pulse rounded-full bg-accent/70" /></div>
+          <p v-if="task.summary" class="mt-2 text-xs text-text-muted">{{ task.summary }}</p>
           <template v-if="task.status === 'error'">
             <p class="mt-2 break-words text-xs leading-5 text-danger">{{ task.error }}</p>
-            <button type="button" :disabled="disabled || busy(task)" class="mt-3 rounded-lg border border-accent/40 px-3 py-2 text-xs text-accent disabled:opacity-40" @click="visit(task, true)">Reintentar</button>
+            <button type="button" :disabled="disabled || busy(task)" class="mt-3 rounded-lg border border-accent/40 px-3 py-2 text-xs text-accent disabled:opacity-40" @click="visit(task, !task.operation)">{{ task.operation ? 'Abrir para reintentar' : 'Reintentar' }}</button>
           </template>
         </li>
       </ul>
-      <p v-if="!visibleTasks.length" class="px-5 py-8 text-center text-sm text-text-muted">No hay regeneraciones en esta categoría.</p>
+      <p v-if="!visibleTasks.length" class="px-5 py-8 text-center text-sm text-text-muted">No hay generaciones en esta categoría.</p>
     </section>
-    <button ref="toggle" type="button" :aria-expanded="open" :aria-controls="panelId" class="flex items-center gap-3 max-w-full flex-wrap rounded-full border border-accent/40 bg-surface px-4 py-3 text-sm shadow-lg transition hover:border-accent" @click="open = !open"><span aria-hidden="true" :class="running ? 'animate-spin' : ''">↻</span> Regeneraciones <span class="text-xs text-text-muted">{{ running }} en curso · {{ ready }} listas<span v-if="failed"> · {{ failed }} errores</span></span></button>
+    <button ref="toggle" type="button" :aria-expanded="open" :aria-controls="panelId" class="flex items-center gap-3 max-w-full flex-wrap rounded-full border border-accent/40 bg-surface px-4 py-3 text-sm shadow-lg transition hover:border-accent" @click="open = !open"><span aria-hidden="true" :class="running ? 'animate-spin' : ''">↻</span> Generaciones <span class="text-xs text-text-muted">{{ running }} en curso · {{ ready }} listas<span v-if="failed"> · {{ failed }} errores</span></span></button>
   </div>
 </template>
 <script setup lang="ts">

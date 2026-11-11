@@ -43,3 +43,18 @@ test('network failure leaves a retryable task and permits independent concepts',
   expect(tasks.value).toHaveLength(2)
   expect(tasks.value.every(task => task.status === 'error' && task.error === 'Offline')).toBe(true)
 })
+
+test('batch tracking exposes running state, partial errors and network failures', async () => {
+  const { trackStudioGeneration } = await import('./studio-regenerations')
+  const tasks = ref<StudioRegenerationTask[]>([])
+  let release!: (value: number) => void
+  const pending = trackStudioGeneration(tasks, request, 'Project', 'Formats', 'formats', () => new Promise<number>(resolve => { release = resolve }), () => ({ summary: '1 lista · 1 error', error: 'Falló 9:16' }))
+  expect(tasks.value[0]!.status).toBe('running')
+  release(1)
+  expect(await pending).toBe(1)
+  expect(tasks.value[0]!.status).toBe('error')
+  expect(tasks.value[0]!.summary).toBe('1 lista · 1 error')
+  await expect(trackStudioGeneration(tasks, request, 'Project', 'New concepts', 'concepts', async () => { throw new Error('Offline') }, () => ({ summary: '' }))).rejects.toThrow('Offline')
+  expect(tasks.value[0]!.status).toBe('error')
+  expect(tasks.value).toHaveLength(2)
+})

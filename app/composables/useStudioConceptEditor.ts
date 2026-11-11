@@ -1,3 +1,4 @@
+import { trackStudioGeneration } from '../utils/studio-regenerations'
 import type {
 	StudioConcept,
 	StudioDiscardBadConceptsResponse,
@@ -479,6 +480,7 @@ export async function useStudioConceptEditor() {
 	}
 
 	async function finalizeVariant(conceptId: string) {
+		const generationSlug = routeProjectSlug.value;
 		const concept = concepts.value.find(item => item.id === conceptId);
 		const format = concept ? selectedFormat(concept) : undefined;
 		const preview = format ? activeVariantForFormat(format) : undefined;
@@ -493,14 +495,23 @@ export async function useStudioConceptEditor() {
 		setLoadingKey(finalizingKeys, loadingKey, true);
 		try {
 			await enqueueConceptMutation(conceptId, async () => {
-				const response = await $fetch<StudioConceptMutationResponse>('/api/studio/finalize-variant', {
+				const response = await trackStudioGeneration(regenerationTasks, { projectSlug: generationSlug, conceptId, ratio, prompt: preview.prompt }, brief.value.projectName, concept!.title, 'final', () => $fetch<StudioConceptMutationResponse>('/api/studio/finalize-variant', {
 					method: 'POST',
-					body: { projectSlug: routeProjectSlug.value, conceptId, ratio, previewVariantId: preview.id, strategy }
-				});
-				replaceConcept(response.concept);
+					body: { projectSlug: generationSlug, conceptId, ratio, previewVariantId: preview.id, strategy }
+				}), response => {
+ const items = [response.concept];
+ const formats = items.flatMap(item => item.formats).filter(item => item.ratio === ratio);
+ const errors = formats.filter(item => item.generationError);
+ const previousIds = new Set(concept!.formats.flatMap(item => item.variants.map(variant => variant.id)));
+ const variant = formats.flatMap(item => item.variants).find(item => item.imageUrl && !previousIds.has(item.id));
+ const resultConcept = items.find(item => item.formats.some(format => format.variants.some(item => item.id === variant?.id))) || items[0];
+ const resultFormat = resultConcept?.formats.find(format => format.variants.some(item => item.id === variant?.id));
+ return { request: { projectSlug: generationSlug, conceptId: resultConcept?.id || '', ratio: resultFormat?.ratio || '', prompt: '' }, summary: `${formats.filter(format => format.variants.some(item => item.imageUrl)).length} formatos con imagen · ${errors.length} errores`, error: errors.map(item => item.generationError).join(' · ') || undefined, variantId: variant?.id, thumbnailUrl: variant?.thumbnailUrl || variant?.imageUrl };
+});
+				if (routeProjectSlug.value === generationSlug) replaceConcept(response.concept);
 				const resultFormat = response.concept.formats.find(item => item.ratio === ratio);
 				if (resultFormat?.variants.some(item => item.mode === 'final' && item.imageUrl && !format.variants.some(previous => previous.id === item.id))) {
-					void notify(`Arte final 4K listo: ${response.concept.title} (${ratio}).`, `/studio/${routeProjectSlug.value}/concepts?concept=${conceptId}&ratio=${encodeURIComponent(ratio)}`);
+					void notify(`Arte final 4K listo: ${response.concept.title} (${ratio}).`, `/studio/${generationSlug}/concepts?concept=${conceptId}&ratio=${encodeURIComponent(ratio)}`);
 				}
 			});
 		} catch (error) {
@@ -613,12 +624,17 @@ export async function useStudioConceptEditor() {
 	}
 
 	async function generatePendingFormats(conceptId: string) {
+		const generationSlug = routeProjectSlug.value;
 		const concept = concepts.value.find((item) => item.id === conceptId);
 
 		if (!concept || isConceptGenerating(conceptId)) {
 			return;
 		}
 
+		const pendingRatios = new Set(concept.formats.filter(format => {
+            const active = format.variants.find(item => item.id === format.activeVariantId);
+            return usesPreview.value ? !active : active?.mode !== 'final';
+        }).map(format => format.ratio));
 		void requestPermission();
 		pendingFormatsLoading.value = {
 			...pendingFormatsLoading.value,
@@ -629,24 +645,33 @@ export async function useStudioConceptEditor() {
 		generationErrors.value[loadingKey] = '';
 		try {
 			await enqueueConceptMutation(conceptId, async () => {
-				const response = await $fetch<StudioConceptMutationResponse>(
+				const response = await trackStudioGeneration(regenerationTasks, { projectSlug: generationSlug, conceptId, ratio: concept.selectedRatio, prompt: "" }, brief.value.projectName, concept.title, 'formats', () => $fetch<StudioConceptMutationResponse>(
 					"/api/studio/generate-pending-formats",
 					{
 						method: "POST",
 						body: {
-							projectSlug: routeProjectSlug.value,
+							projectSlug: generationSlug,
 							conceptId,
 						},
 					},
-				);
+				), response => {
+ const items = [response.concept];
+ const formats = items.flatMap(item => item.formats).filter(item => pendingRatios.has(item.ratio));
+ const errors = formats.filter(item => item.generationError);
+ const previousIds = new Set(concept!.formats.flatMap(item => item.variants.map(variant => variant.id)));
+ const variant = formats.flatMap(item => item.variants).find(item => item.imageUrl && !previousIds.has(item.id));
+ const resultConcept = items.find(item => item.formats.some(format => format.variants.some(item => item.id === variant?.id))) || items[0];
+ const resultFormat = resultConcept?.formats.find(format => format.variants.some(item => item.id === variant?.id));
+ return { request: { projectSlug: generationSlug, conceptId: resultConcept?.id || '', ratio: resultFormat?.ratio || '', prompt: '' }, summary: `${formats.filter(format => format.variants.some(item => item.imageUrl)).length} formatos con imagen · ${errors.length} errores`, error: errors.map(item => item.generationError).join(' · ') || undefined, variantId: variant?.id, thumbnailUrl: variant?.thumbnailUrl || variant?.imageUrl };
+});
 
-				replaceConcept(response.concept);
+				if (routeProjectSlug.value === generationSlug) replaceConcept(response.concept);
 				const generatedCount = response.concept.formats.filter(format => format.variants.some(variant =>
 					variant.imageUrl && !concept.formats.find(previous => previous.ratio === format.ratio)?.variants.some(previous => previous.id === variant.id),
 				)).length;
 				const failedCount = response.concept.formats.filter(format => Boolean(format.generationError)).length;
 				if (generatedCount || failedCount) {
-					void notify(`Formatos de ${concept.title}: ${generatedCount} ${generatedCount === 1 ? 'formato generado' : 'formatos generados'}.${failedCount ? ` ${failedCount} con errores.` : ''}`, `/studio/${routeProjectSlug.value}/concepts?concept=${conceptId}`);
+					void notify(`Formatos de ${concept.title}: ${generatedCount} ${generatedCount === 1 ? 'formato generado' : 'formatos generados'}.${failedCount ? ` ${failedCount} con errores.` : ''}`, `/studio/${generationSlug}/concepts?concept=${conceptId}`);
 				}
 			});
 		} catch (error) {
@@ -711,6 +736,7 @@ export async function useStudioConceptEditor() {
 	}
 
 	async function generateMoreConcepts() {
+		const generationSlug = routeProjectSlug.value;
 		if (!routeProjectSlug.value) {
 			return;
 		}
@@ -720,16 +746,25 @@ export async function useStudioConceptEditor() {
 		moreConceptError.value = "";
 
 		try {
-			const response = await $fetch<StudioConceptResponse>(
-				`/api/studio/projects/${routeProjectSlug.value}/concepts/append`,
+			const response = await trackStudioGeneration(regenerationTasks, { projectSlug: generationSlug, conceptId: "", ratio: "", prompt: "" }, brief.value.projectName, `${moreConceptCount.value} conceptos nuevos`, 'concepts', () => $fetch<StudioConceptResponse>(
+				`/api/studio/projects/${generationSlug}/concepts/append`,
 				{
 					method: "POST",
 					body: {
 						count: moreConceptCount.value,
 					},
 				},
-			);
+			), response => {
+ const items = response.concepts;
+ const formats = items.flatMap(item => item.formats);
+ const errors = formats.filter(item => item.generationError);
+ const variant = formats.flatMap(item => item.variants).find(item => item.imageUrl);
+ const resultConcept = items.find(item => item.formats.some(format => format.variants.some(item => item.id === variant?.id))) || items[0];
+ const resultFormat = resultConcept?.formats.find(format => format.variants.some(item => item.id === variant?.id));
+ return { request: { projectSlug: generationSlug, conceptId: resultConcept?.id || '', ratio: resultFormat?.ratio || '', prompt: '' }, summary: `${formats.filter(format => format.variants.some(item => item.imageUrl)).length} formatos con imagen · ${errors.length} errores`, error: errors.map(item => item.generationError).join(' · ') || undefined, variantId: variant?.id, thumbnailUrl: variant?.thumbnailUrl || variant?.imageUrl };
+});
 
+			if (routeProjectSlug.value !== generationSlug) return;
 			review.recordReviewBatch(response.concepts);
 			concepts.value = [...concepts.value, ...response.concepts];
 			notifyGeneratedBatch(response.concepts);
