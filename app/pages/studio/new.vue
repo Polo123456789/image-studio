@@ -30,12 +30,13 @@
         {{ submitError }}
       </p>
 
-      <div v-if="draftAvailable && !sourceName" class="mb-6 rounded-xl border border-accent/30 bg-surface p-4">
-        <p class="text-sm text-text-muted">Tienes un borrador guardado en este teléfono.</p>
-        <button type="button" class="mt-3 rounded-lg border border-accent/30 px-4 text-sm text-accent" @click="restoreLocalDraft">Recuperar borrador</button>
+      <div v-if="draftAvailable" role="status" class="mb-6 rounded-xl border border-accent/30 bg-surface p-4">
+        <p class="text-sm text-text-muted">Tienes un brief pendiente en este navegador. Puedes verlo y continuar con él, o borrarlo para crear un nuevo proyecto.</p>
+        <button type="button" class="mt-3 rounded-lg border border-accent/30 px-4 text-sm text-accent" @click="restoreLocalDraft">Ver brief pendiente</button>
+        <button type="button" class="ml-3 mt-3 rounded-lg border border-border px-4 text-sm text-text-muted" @click="discardLocalDraft">Borrar y crear nuevo</button>
       </div>
       <p v-if="draftFeedback" role="status" class="mb-4 text-sm text-text-muted">{{ draftFeedback }}</p>
-      <form v-if="!sourceError" class="space-y-12" @submit.prevent="handleBriefSubmit">
+      <form v-if="!sourceError && !draftAvailable" class="space-y-12" @submit.prevent="handleBriefSubmit">
         <nav aria-label="Secciones del brief" class="grid grid-cols-3 gap-2 lg:hidden">
           <button v-for="(label, index) in ['1. Brief', '2. Referencias', '3. Salida']" :key="label" type="button" :disabled="isSubmitting" :aria-current="briefStep === index + 1 ? 'step' : undefined" class="rounded-lg border px-2 text-xs" :class="briefStep === index + 1 ? 'border-accent bg-accent/10 text-accent' : 'border-border text-text-muted'" @click="briefStep = index + 1">{{ label }}</button>
         </nav>
@@ -230,7 +231,7 @@
           </div>
         </div>
         </div>
-        <button type="button" :disabled="isSubmitting" class="rounded-lg border border-border px-4 py-3 text-sm text-text-muted" @click="saveLocalDraft">Guardar borrador en este teléfono</button>
+        <button type="button" :disabled="isSubmitting" class="rounded-lg border border-border px-4 py-3 text-sm text-text-muted" @click="saveLocalDraft">Guardar borrador en este navegador</button>
         <div class="mobile-actions flex flex-wrap items-center justify-between gap-3 lg:hidden">
           <button type="button" class="rounded-lg border border-border px-3 text-sm disabled:opacity-40" :disabled="briefStep === 1 || isSubmitting" @click="briefStep--">← Anterior</button>
           <button v-if="briefStep < 3" type="button" class="rounded-lg bg-accent px-4 text-sm text-bg" @click="briefStep++">Continuar →</button>
@@ -308,9 +309,16 @@ onMounted(() => {
 function saveLocalDraft() {
   try {
     localStorage.setItem(draftStorageKey, JSON.stringify(buildBriefPayload()))
-    draftAvailable.value = true
-    draftFeedback.value = 'Borrador guardado en este teléfono.'
-  } catch { draftFeedback.value = 'No se pudo guardar el borrador en este teléfono.' }
+    draftAvailable.value = false
+    draftFeedback.value = 'Borrador guardado en este navegador.'
+  } catch { draftFeedback.value = 'No se pudo guardar el borrador en este navegador.' }
+}
+function discardLocalDraft() {
+  try {
+    localStorage.removeItem(draftStorageKey)
+    draftAvailable.value = false
+    draftFeedback.value = 'Brief pendiente borrado. Puedes crear un nuevo proyecto.'
+  } catch { draftFeedback.value = 'No se pudo borrar el brief pendiente. Inténtalo de nuevo.' }
 }
 async function restoreLocalDraft() {
   restoringDraft.value = true
@@ -322,6 +330,9 @@ async function restoreLocalDraft() {
     selectedStyleGuideId.value = selection.selectedStyleGuideId
     selectedAssetIds.value = [...(draft.assetIds ?? [])]
     draftAvailable.value = false
+    sourceName.value = ''
+    sourceError.value = ''
+    briefStep.value = 1
     draftFeedback.value = 'Borrador recuperado. Revisa los datos antes de generar.'
   } catch { draftFeedback.value = 'No se pudo recuperar el borrador guardado.' }
   finally { await nextTick(); restoringDraft.value = false }
@@ -448,7 +459,7 @@ function handleBriefSubmit() {
 }
 
 async function submitBrief() {
-  if (isSubmitting.value || sourceError.value || !canContinue.value) return
+  if (isSubmitting.value || sourceError.value || draftAvailable.value || !canContinue.value) return
 
   void useNotifications().requestPermission()
   isSubmitting.value = true
