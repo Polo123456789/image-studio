@@ -1,6 +1,6 @@
 <template>
   <Teleport to="body">
-    <dialog ref="dialog" :aria-label="label" class="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-transparent p-0 text-text backdrop:bg-black/70" @cancel.prevent="emit('close')" @click.self="emit('close')">
+    <dialog v-if="open" ref="dialog" :aria-label="label" class="fixed inset-0 m-0 h-dvh max-h-none w-screen max-w-none border-0 bg-transparent p-0 text-text backdrop:bg-black/70" @cancel.prevent="emit('close')" @click.self="emit('close')">
       <div class="flex h-full items-center justify-center sm:px-4 sm:py-6" @click.self="emit('close')">
         <div class="mobile-modal-panel flex h-full max-h-full w-full min-w-0 flex-col overflow-hidden border border-border bg-surface shadow-lg sm:h-auto sm:max-h-[90dvh] sm:rounded-xl" :class="sizeClass"><slot /></div>
       </div>
