@@ -97,7 +97,7 @@
         </div>
 
         <template v-if="visibleAssets.length">
-          <div class="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+          <div class="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             <article
               v-for="asset in visibleAssets"
               :key="asset.id"
@@ -154,10 +154,10 @@
               <div class="mt-3">
                 <div
                   v-if="confirmDeleteId === asset.id"
-                  class="flex items-center justify-between gap-2 rounded-lg border border-danger/25 bg-danger/8 px-3 py-2"
+                  class="flex flex-col items-start justify-between gap-2 rounded-lg border border-danger/25 sm:flex-row sm:items-center bg-danger/8 px-3 py-2"
                 >
                   <p class="truncate font-mono text-[10px] text-danger">Eliminar?</p>
-                  <div class="flex shrink-0 items-center gap-2">
+                  <div class="flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       class="text-xs text-text-muted transition hover:text-text disabled:opacity-50"
@@ -177,9 +177,10 @@
                   </div>
                 </div>
 
-                <div v-else class="flex items-center gap-2">
+                <div v-else class="flex flex-col gap-2 sm:flex-row sm:items-center">
                   <AppSelect
                     :model-value="assetBrandSelection(asset)"
+                    :aria-label="`Marca de ${asset.name}`"
                     class="flex-1"
                     :disabled="assetActionId === asset.id"
                     @update:model-value="(value) => updateAssetBrand(asset, value)"
@@ -195,6 +196,7 @@
                     class="flex shrink-0 items-center justify-center rounded border border-border p-2.5 text-text-muted transition hover:border-danger/40 hover:bg-danger/5 hover:text-danger disabled:cursor-not-allowed disabled:opacity-40"
                     :disabled="assetActionId === asset.id"
                     :title="`Eliminar ${asset.name}`"
+                    :aria-label="`Eliminar ${asset.name}`"
                     @click="confirmDeleteId = asset.id"
                   >
                     <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">

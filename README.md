@@ -43,3 +43,13 @@ La bandeja flotante está disponible tanto en la revisión como en el resto de l
 Pulsar una fila en curso lleva al concepto, formato y versión original en el estudio. Pulsar un resultado listo abre exactamente la versión generada, aunque se haya seleccionado otra después. Desde otra sección de la app, la bandeja navega al proyecto correspondiente. Dentro de la revisión, estos enlaces salen al estudio conservando las evaluaciones.
 
 Reintentar conserva el prompt, formato, tamaño, versión de referencia y modo de la solicitud original. Un reintento exitoso retira el error anterior. La actividad se conserva al navegar entre secciones durante esta sesión de la app; la lista no se reconstruye al recargar la página.
+
+## Uso desde el teléfono
+
+En pantallas de menos de 1024 px, Conceptos muestra una propuesta cada vez, con selector y botones anterior/siguiente. Los formatos son pestañas compactas; prompt, historial y acciones avanzadas se despliegan desde «Prompt, versiones y detalles». Los enlaces de la bandeja de regeneraciones seleccionan también el concepto correspondiente.
+
+La revisión usa una imagen grande con evaluación, regeneración, aplazamiento y deshacer bajo la imagen. Los filtros se abren desde la cabecera. Las evaluaciones y los alcances de exportación mantienen las mismas reglas que en escritorio.
+
+El brief se divide en Brief, Referencias y Salida. «Guardar borrador en este teléfono» guarda una copia en el almacenamiento local del navegador; se recupera de forma explícita y se elimina al crear el proyecto. No se sincroniza entre dispositivos y depende de que el navegador permita almacenamiento local.
+
+Marcas y guías separan lista y editor en móvil. Configuración permite abrir una sección; guardar o restaurar afecta a esa sección, mientras que escritorio conserva el formulario completo. Biblioteca y Assets usan dos columnas. Los editores y el detalle de imagen usan diálogos a pantalla completa en teléfonos, con navegación por teclado y bloqueo del fondo.

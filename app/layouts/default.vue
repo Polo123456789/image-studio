@@ -1,10 +1,10 @@
 <template>
-  <div class="min-h-screen bg-bg text-text">
+  <div class="min-h-screen bg-bg pb-[calc(76px+env(safe-area-inset-bottom))] text-text lg:pb-0">
     <NuxtRouteAnnouncer />
     <StudioRegenerationTray />
 
     <!-- Mobile top bar -->
-    <header class="flex items-center justify-between border-b border-border bg-surface px-4 py-3 lg:hidden">
+    <header :inert="mobileOpen" class="flex items-center justify-between border-b border-border bg-surface px-4 py-3 lg:hidden">
       <NuxtLink to="/studio" class="flex items-center gap-2">
         <div class="flex h-7 w-7 items-center justify-center rounded-md bg-accent/15">
           <svg class="h-3.5 w-3.5 text-accent" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="m21 15-5-5L5 21" /></svg>
@@ -14,7 +14,7 @@
 
       <button
         type="button"
-        class="rounded-md border border-border p-1.5 text-text-muted transition hover:border-accent/30 hover:text-text"
+        aria-label="Abrir menú de navegación" aria-controls="mobile-navigation" :aria-expanded="mobileOpen" class="flex h-12 w-12 items-center justify-center rounded-md border border-border p-1.5 text-text-muted transition hover:border-accent/30 hover:text-text"
         @click="mobileOpen = !mobileOpen"
       >
         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" /></svg>
@@ -38,9 +38,16 @@
     <div class="flex min-h-screen">
       <!-- Sidebar -->
       <aside
-        class="fixed inset-y-0 left-0 z-50 flex w-[220px] flex-col border-r border-border bg-surface transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0"
-        :class="mobileOpen ? 'translate-x-0' : '-translate-x-full'"
+        id="mobile-navigation"
+        ref="navigationPanel"
+        :role="mobileOpen ? 'dialog' : undefined"
+        :aria-modal="mobileOpen || undefined"
+        aria-label="Navegación"
+        @keydown="onNavigationKeydown"
+        class="fixed inset-y-0 left-0 z-50 flex w-[220px] flex-col overflow-y-auto overscroll-contain border-r border-border bg-surface transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0"
+        :class="mobileOpen ? 'translate-x-0' : '-translate-x-full invisible lg:visible'"
       >
+        <button type="button" class="m-3 rounded-lg border border-border px-4 py-2 text-sm text-text-muted lg:hidden" aria-label="Cerrar menú de navegación" @click="mobileOpen = false">Cerrar menú ×</button>
         <!-- Logo -->
         <div class="hidden px-5 pt-6 pb-4 lg:block">
           <NuxtLink to="/studio" class="flex items-center gap-2.5">
@@ -115,8 +122,12 @@
         </div>
       </aside>
 
+      <nav :inert="mobileOpen" aria-label="Navegación móvil" class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-4 border-t border-border bg-surface pb-[env(safe-area-inset-bottom)] lg:hidden">
+        <NuxtLink v-for="item in mainNav.slice(0, 3)" :key="item.to" :to="item.to" :aria-current="isActive(item.to) ? 'page' : undefined" class="flex min-h-[76px] flex-col items-center justify-center gap-1 text-xs" :class="isActive(item.to) ? 'text-accent' : 'text-text-muted'"><span aria-hidden="true" class="text-xl">{{ item.icon === 'studio' ? '▧' : item.icon === 'library' ? '▦' : '+' }}</span>{{ item.label }}</NuxtLink>
+        <button type="button" :aria-expanded="mobileOpen" aria-label="Más secciones" aria-controls="mobile-navigation" class="flex min-h-[76px] flex-col items-center justify-center gap-1 text-xs text-text-muted" @click="mobileOpen = !mobileOpen"><span aria-hidden="true" class="text-xl">•••</span>Más</button>
+      </nav>
       <!-- Main content -->
-      <main class="min-w-0 flex-1">
+      <main :inert="mobileOpen" class="min-w-0 flex-1">
         <slot />
       </main>
     </div>
@@ -126,7 +137,35 @@
 <script setup lang="ts">
 import StudioRegenerationTray from '~/components/studio/StudioRegenerationTray.vue'
 const route = useRoute()
+const navigationPanel = ref<HTMLElement | null>(null)
 const mobileOpen = ref(false)
+let navigationTrigger: HTMLElement | null = null
+watch(mobileOpen, async open => {
+  if (open) navigationTrigger = document.activeElement as HTMLElement | null
+  await nextTick()
+  if (open) Array.from(navigationPanel.value?.querySelectorAll<HTMLElement>('a, button') ?? []).find(element => element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden')?.focus()
+  else if (navigationTrigger?.isConnected) navigationTrigger.focus()
+})
+function onNavigationKeydown(event: KeyboardEvent) {
+  if (!mobileOpen.value) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    mobileOpen.value = false
+  } else if (event.key === 'Tab') {
+    const items = Array.from(navigationPanel.value?.querySelectorAll<HTMLElement>('a, button:not([disabled])') ?? []).filter(element => element.getClientRects().length && getComputedStyle(element).visibility !== 'hidden')
+    const first = items[0]
+    const last = items.at(-1)
+    if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus() }
+    else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
+  }
+}
+useBodyScrollLock(() => mobileOpen.value)
+onMounted(() => {
+  const desktop = window.matchMedia('(min-width: 1024px)')
+  const closeOnDesktop = () => { if (desktop.matches) mobileOpen.value = false }
+  desktop.addEventListener('change', closeOnDesktop)
+  onBeforeUnmount(() => desktop.removeEventListener('change', closeOnDesktop))
+})
 
 watch(() => route.fullPath, () => {
   mobileOpen.value = false

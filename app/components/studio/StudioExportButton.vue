@@ -9,7 +9,7 @@
       </button>
     </div>
     <p v-if="noGoodImages" id="export-no-good-images" role="status" class="mt-2 max-w-72 text-xs leading-5 text-text-muted">No hay imágenes buenas para exportar. Usa el desplegable para elegir otras versiones activas.</p>
-    <div v-if="open" id="export-options" class="absolute right-0 top-full z-20 mt-2 w-72 max-w-[85vw] rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
+    <div v-if="open" id="export-options" class="fixed inset-x-4 bottom-[calc(92px+env(safe-area-inset-bottom))] z-40 max-h-[70dvh] overflow-y-auto lg:absolute lg:inset-x-auto lg:bottom-auto lg:right-0 lg:top-full lg:mt-2 lg:w-72 lg:max-w-[85vw] rounded-lg border border-border bg-surface-2 p-1.5 shadow-lg">
       <p class="mx-2 mb-1 border-b border-border pb-2 pt-1 text-[11px] leading-4 text-text-muted">Sólo versiones activas de artes finales. {{ hasReviews ? '' : 'Sin evaluaciones: se exportan todas.' }}</p>
       <button v-for="option in options" :key="option.scope" type="button" :disabled="!counts[option.scope]" class="flex w-full items-center justify-between gap-3 rounded px-3 py-2.5 text-left text-sm text-text transition hover:bg-surface focus-visible:bg-surface disabled:cursor-not-allowed disabled:opacity-40" @click="exportScope(option.scope)">
         <span>{{ option.label }}<span v-if="option.scope === 'mixed'" class="mt-1 block text-[11px] leading-4 text-text-muted">Incluye malas y sin evaluar de los mixtos</span></span>

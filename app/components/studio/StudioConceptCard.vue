@@ -4,8 +4,8 @@
     class="overflow-hidden rounded-xl border border-border bg-surface"
     :class="[focused ? 'ring-1 ring-accent/50' : '', reviewStatus === 'good' ? 'border-l-[3px] border-l-accent' : reviewStatus === 'bad' ? 'border-l-[3px] border-l-danger' : 'border-l-[3px] border-l-text-muted']"
   >
-    <div class="flex items-center justify-between border-b border-border bg-surface-2/50 px-5 py-3">
-      <div class="flex items-center gap-3">
+    <div class="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-surface-2/50 px-5 py-3">
+      <div class="flex min-w-0 flex-1 items-center gap-3">
         <span class="flex h-6 w-6 items-center justify-center rounded-full bg-accent/15 font-mono text-xs font-medium text-accent">
           {{ index + 1 }}
         </span>
@@ -21,7 +21,7 @@
 
       <button
         type="button"
-        class="rounded border border-danger/40 bg-danger/10 px-3 py-1.5 text-xs font-medium text-danger transition hover:border-danger hover:bg-danger/20"
+        class="hidden rounded border border-danger/40 bg-danger/10 px-3 py-1.5 lg:block text-xs font-medium text-danger transition hover:border-danger hover:bg-danger/20"
         :disabled="generationBusy"
         @click="$emit('discard', concept.id)"
       >
@@ -44,14 +44,14 @@
 
           <button
             type="button"
-            class="font-mono text-xs text-text-muted transition hover:text-accent"
+            class="hidden font-mono text-xs text-text-muted transition hover:text-accent lg:block"
             @click="$emit('cycle-ratio', concept.id)"
           >
             Siguiente &rarr;
           </button>
         </div>
 
-        <div class="bg-[#0a0a0a] px-5 py-6">
+        <div class="bg-[#0a0a0a] px-3 py-3 lg:px-5 lg:py-6">
           <div class="relative mx-auto flex max-h-[520px] items-center justify-center overflow-hidden rounded-lg border border-white/[0.06]">
             <img
               v-if="activeVariant?.imageUrl"
@@ -59,7 +59,7 @@
               loading="lazy"
               decoding="async"
               :alt="`${concept.title} ${concept.selectedRatio}`"
-              class="max-h-[520px] w-full object-contain"
+              class="max-h-[32dvh] w-full object-contain lg:max-h-[520px]"
             >
             <div
               v-else-if="loadingVariant"
@@ -118,16 +118,16 @@
         </div>
 
         <div class="border-t border-border bg-surface px-5 py-4">
-          <div class="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-3">
+          <div class="flex flex-wrap gap-2.5 lg:grid lg:grid-cols-2 xl:grid-cols-3">
             <button
               v-for="format in concept.formats"
               :key="format.ratio"
               type="button"
-              class="group rounded-lg border p-2 text-left transition"
+              class="group min-w-[80px] flex-1 rounded-lg border p-2 text-left transition"
               :class="format.ratio === concept.selectedRatio ? 'border-accent bg-accent/8' : 'border-border hover:border-accent/30'"
               @click="$emit('ratio-selected', concept.id, format.ratio)"
             >
-              <div class="overflow-hidden rounded border border-white/[0.04] bg-[#0a0a0a]">
+              <div class="hidden overflow-hidden rounded border border-white/[0.04] lg:block bg-[#0a0a0a]">
                 <img
                   v-if="activeVariantByRatio[format.ratio]?.imageUrl"
                   :src="activeVariantByRatio[format.ratio]?.imageUrl"
@@ -142,7 +142,7 @@
                   </span>
                 </div>
               </div>
-              <div class="mt-1.5 flex items-center justify-between px-0.5">
+              <div class="flex flex-col gap-1 px-0.5 lg:mt-1.5 lg:flex-row lg:items-center lg:justify-between">
                 <span class="font-mono text-[11px]" :class="format.ratio === concept.selectedRatio ? 'text-accent' : 'text-text'">{{ format.ratio }}</span>
                 <span
                   class="text-[10px]"
@@ -157,6 +157,9 @@
       </div>
 
       <div class="flex h-full flex-col">
+        <button type="button" class="flex w-full items-center justify-between border-b border-border px-5 py-3 text-sm lg:hidden" :aria-expanded="mobileDetails" :aria-controls="`details-${concept.id}`" @click="mobileDetails = !mobileDetails">Prompt, versiones y detalles <span aria-hidden="true">{{ mobileDetails ? '−' : '+' }}</span></button>
+        <div :id="`details-${concept.id}`" :class="mobileDetails ? '' : 'hidden lg:block'">
+        <button type="button" class="m-4 rounded-lg border border-danger/40 px-3 text-sm text-danger lg:hidden" :disabled="generationBusy" @click="$emit('discard', concept.id)">Descartar concepto</button>
         <div class="border-b border-border px-5 py-5">
           <p class="text-sm leading-6 text-text-muted">{{ concept.subtitle }}</p>
           <p class="mt-2 text-sm leading-6 text-text-muted/70">{{ concept.rationale }}</p>
@@ -348,12 +351,14 @@
             </div>
           </section>
         </div>
+        </div>
       </div>
     </div>
   </article>
 </template>
 
 <script setup lang="ts">
+const mobileDetails = ref(false)
 import type { StudioConcept, StudioConceptFormat, StudioVariant, StudioFinalizationStrategy, StudioReviewRating } from '../../../shared/types/studio'
 
 import AppButton from '~/components/base/AppButton.vue'

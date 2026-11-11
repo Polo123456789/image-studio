@@ -1,6 +1,7 @@
 <template>
-  <AppModal :open="open" size="xl" @close="handleClose">
-    <div class="border-b border-border px-6 py-5">
+  <AppModal :open="open" size="xl" label="Subir imágenes" @close="handleClose">
+    <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
+    <div class="shrink-0 border-b border-border px-4 py-4 sm:px-6 sm:py-5">
       <p class="font-mono text-[10px] uppercase tracking-[0.28em] text-accent">Nuevo asset</p>
       <h2 class="mt-2 font-display text-2xl text-text">Preparar subida</h2>
       <p class="mt-2 text-sm leading-6 text-text-muted">
@@ -8,7 +9,7 @@
       </p>
     </div>
 
-    <div class="space-y-5 overflow-y-auto px-6 py-6">
+    <div class="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-6">
       <div>
         <div
           v-if="selectedUploadFiles.length === 1 && selectedUploadFiles[0] && filePreviewUrl"
@@ -19,14 +20,13 @@
             :alt="selectedUploadFiles[0].name"
             class="h-44 w-full object-cover"
           >
-          <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition group-hover:opacity-100">
-            <label
+          <div class="absolute inset-0 flex items-center justify-center bg-black/40 opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:focus-within:opacity-100">
+            <button type="button" :disabled="uploading" @click="fileInputRef?.click()"
               class="cursor-pointer rounded-lg border border-white/30 bg-black/50 px-4 py-2 text-sm text-white backdrop-blur-sm transition hover:bg-black/70"
               :class="{ 'pointer-events-none opacity-60': uploading }"
             >
-              <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
               Cambiar archivos
-            </label>
+            </button>
           </div>
           <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent px-4 pb-3 pt-6">
             <p class="truncate font-mono text-xs text-white/80">{{ selectedUploadFiles[0].name }}</p>
@@ -43,13 +43,12 @@
               <p class="text-sm text-text">{{ selectedUploadFiles.length }} archivos listos para subir</p>
               <p class="mt-1 font-mono text-[10px] text-text-muted">{{ selectedFilesTotalSize }}</p>
             </div>
-            <label
+            <button type="button" :disabled="uploading" @click="fileInputRef?.click()"
               class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-3 py-2 text-xs text-text-muted transition hover:border-accent/40 hover:text-text"
               :class="{ 'pointer-events-none opacity-60': uploading }"
             >
-              <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
               Cambiar archivos
-            </label>
+            </button>
           </div>
 
           <div class="mt-4 grid gap-2 sm:grid-cols-2">
@@ -81,17 +80,16 @@
             </div>
             <div>
               <p class="text-sm text-text">
-                {{ isDragging ? 'Suelta el archivo aqui' : 'Arrastra una imagen o selecciona un archivo' }}
+                {{ isDragging ? 'Suelta el archivo aqui' : 'Selecciona fotos de tu teléfono o arrastra imágenes' }}
               </p>
               <p class="mt-1 text-xs text-text-muted">JPG, PNG, WebP o GIF</p>
             </div>
-            <label
+            <button type="button" :disabled="uploading" @click="fileInputRef?.click()"
               class="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-surface px-4 py-2.5 text-sm text-text-muted transition hover:border-accent/40 hover:text-text"
               :class="{ 'pointer-events-none opacity-60': uploading }"
             >
-              <input ref="fileInputRef" class="hidden" type="file" accept="image/*" multiple :disabled="uploading" @change="onFileChange">
-              Elegir archivos
-            </label>
+              Elegir fotos
+            </button>
           </div>
         </section>
       </div>
@@ -138,7 +136,7 @@
       </div>
     </div>
 
-    <div class="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
+    <div class="mobile-safe-footer flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-border px-6 py-4">
       <button
         type="button"
         class="rounded-lg border border-border px-4 py-2.5 text-sm text-text-muted transition hover:border-accent/30 hover:text-text disabled:opacity-50"

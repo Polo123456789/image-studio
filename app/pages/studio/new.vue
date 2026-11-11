@@ -30,7 +30,17 @@
         {{ submitError }}
       </p>
 
-      <form v-if="!sourceError" class="space-y-12" @submit.prevent="submitBrief">
+      <div v-if="draftAvailable" role="status" class="mb-6 rounded-xl border border-accent/30 bg-surface p-4">
+        <p class="text-sm text-text-muted">Tienes un brief pendiente en este navegador. Puedes verlo y continuar con él, o borrarlo para crear un nuevo proyecto.</p>
+        <button type="button" class="mt-3 rounded-lg border border-accent/30 px-4 text-sm text-accent" @click="restoreLocalDraft">Ver brief pendiente</button>
+        <button type="button" class="ml-3 mt-3 rounded-lg border border-border px-4 text-sm text-text-muted" @click="discardLocalDraft">Borrar y crear nuevo</button>
+      </div>
+      <p v-if="draftFeedback" role="status" class="mb-4 text-sm text-text-muted">{{ draftFeedback }}</p>
+      <form v-if="!sourceError && !draftAvailable" class="space-y-12" @submit.prevent="handleBriefSubmit">
+        <nav aria-label="Secciones del brief" class="grid grid-cols-3 gap-2 lg:hidden">
+          <button v-for="(label, index) in ['1. Brief', '2. Referencias', '3. Salida']" :key="label" type="button" :disabled="isSubmitting" :aria-current="briefStep === index + 1 ? 'step' : undefined" class="rounded-lg border px-2 text-xs" :class="briefStep === index + 1 ? 'border-accent bg-accent/10 text-accent' : 'border-border text-text-muted'" @click="briefStep = index + 1">{{ label }}</button>
+        </nav>
+        <div class="space-y-8 lg:space-y-12" :class="briefStep === 1 ? '' : 'hidden lg:block'">
         <StudioFieldSection
           title="Tipo de brief"
           description="El modo queda fijo despues de crear el proyecto."
@@ -141,6 +151,8 @@
           />
         </StudioFieldSection>
 
+        </div>
+        <div :class="briefStep === 2 ? '' : 'hidden lg:block'">
         <div class="grid gap-8 sm:grid-cols-2">
           <StudioStyleGuideSection
             v-model:selected-guide-id="selectedStyleGuideId"
@@ -166,6 +178,8 @@
           </div>
         </div>
 
+        </div>
+        <div class="space-y-8" :class="briefStep === 3 ? '' : 'hidden lg:block'">
         <div class="grid gap-8 sm:grid-cols-3">
           <StudioFieldSection title="Formatos">
             <StudioChipMultiSelect v-model="selectedRatios" :options="aspectRatios" />
@@ -216,12 +230,19 @@
             </div>
           </div>
         </div>
+        </div>
+        <button type="button" :disabled="isSubmitting" class="rounded-lg border border-border px-4 py-3 text-sm text-text-muted" @click="saveLocalDraft">Guardar borrador en este navegador</button>
+        <div class="mobile-actions flex flex-wrap items-center justify-between gap-3 lg:hidden">
+          <button type="button" class="rounded-lg border border-border px-3 text-sm disabled:opacity-40" :disabled="briefStep === 1 || isSubmitting" @click="briefStep--">← Anterior</button>
+          <button v-if="briefStep < 3" type="button" class="rounded-lg bg-accent px-4 text-sm text-bg" @click="briefStep++">Continuar →</button>
+        </div>
       </form>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
+import { parseStudioDraft, studioDraftStorageKey } from '~/utils/studio-draft'
 import type { AssetRecord, AssetsResponse } from '../../../shared/types/assets'
 import type { BrandOption } from '../../../shared/types/brands'
 import type { CreativeStylesResponse } from '../../../shared/types/creative-styles'
@@ -270,6 +291,7 @@ const aspectRatios = studioAspectRatios
 const resolutions = studioResolutions
 const conceptCounts = studioConceptCounts
 
+const briefStep = ref(1)
 const form = reactive(createStudioBriefFormState())
 
 const selectedMedia = ref<string[]>([...defaultStudioMediaChannels])
@@ -277,6 +299,44 @@ const selectedRatios = ref<string[]>([...defaultStudioAspectRatios])
 const selectedStyleGuideId = ref<number | null>(null)
 const selectedAssetIds = ref<number[]>([])
 const isSubmitting = ref(false)
+const draftAvailable = ref(false)
+const draftFeedback = ref('')
+const draftStorageKey = studioDraftStorageKey
+const restoringDraft = ref(false)
+onMounted(() => {
+  try { draftAvailable.value = Boolean(localStorage.getItem(draftStorageKey)) } catch { /* Storage can be disabled. */ }
+})
+function saveLocalDraft() {
+  try {
+    localStorage.setItem(draftStorageKey, JSON.stringify(buildBriefPayload()))
+    draftAvailable.value = false
+    draftFeedback.value = 'Borrador guardado en este navegador.'
+  } catch { draftFeedback.value = 'No se pudo guardar el borrador en este navegador.' }
+}
+function discardLocalDraft() {
+  try {
+    localStorage.removeItem(draftStorageKey)
+    draftAvailable.value = false
+    draftFeedback.value = 'Brief pendiente borrado. Puedes crear un nuevo proyecto.'
+  } catch { draftFeedback.value = 'No se pudo borrar el brief pendiente. Inténtalo de nuevo.' }
+}
+async function restoreLocalDraft() {
+  restoringDraft.value = true
+  try {
+    const draft = parseStudioDraft(localStorage.getItem(draftStorageKey))
+    const selection = applyStudioBriefToForm(form, draft)
+    selectedMedia.value = selection.selectedMedia
+    selectedRatios.value = selection.selectedRatios
+    selectedStyleGuideId.value = selection.selectedStyleGuideId
+    selectedAssetIds.value = [...(draft.assetIds ?? [])]
+    draftAvailable.value = false
+    sourceName.value = ''
+    sourceError.value = ''
+    briefStep.value = 1
+    draftFeedback.value = 'Borrador recuperado. Revisa los datos antes de generar.'
+  } catch { draftFeedback.value = 'No se pudo recuperar el borrador guardado.' }
+  finally { await nextTick(); restoringDraft.value = false }
+}
 const sourceName = ref('')
 const sourceError = ref('')
 const submitError = ref('')
@@ -350,6 +410,7 @@ const summaryText = computed(() => {
 })
 
 watch(() => form.brandId, (brandId) => {
+  if (restoringDraft.value) return
   if (brandId === null) {
     if (selectedStyleGuideId.value !== null) {
       const selectedGuide = availableStyleGuides.value.find((guide) => guide.id === selectedStyleGuideId.value)
@@ -389,8 +450,16 @@ function buildBriefPayload(): StudioBriefPayload {
   return buildStudioBriefPayload(form, selectedMedia.value, selectedRatios.value, selectedStyleGuideId.value, selectedAssetIds.value, selectedBrandName.value)
 }
 
+function handleBriefSubmit() {
+  if (window.matchMedia('(max-width: 1023px)').matches && briefStep.value < 3) {
+    briefStep.value++
+    return
+  }
+  void submitBrief()
+}
+
 async function submitBrief() {
-  if (isSubmitting.value || sourceError.value || !canContinue.value) return
+  if (isSubmitting.value || sourceError.value || draftAvailable.value || !canContinue.value) return
 
   void useNotifications().requestPermission()
   isSubmitting.value = true
@@ -405,6 +474,7 @@ async function submitBrief() {
     })
 
     setProject(response.project)
+    try { localStorage.removeItem(draftStorageKey) } catch { /* Project is already saved. */ }
 
     if (!response.project.concepts.length) {
       concepts.value = []

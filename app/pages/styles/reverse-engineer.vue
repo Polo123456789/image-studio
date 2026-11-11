@@ -31,8 +31,17 @@
         </div>
       </header>
 
+      <nav aria-label="Pasos del análisis" class="mb-5 flex gap-2 xl:hidden">
+        <button type="button" class="flex-1 rounded-lg border border-border px-3" :aria-pressed="!showResult" @click="showResult = false">1. Referencias</button>
+        <button type="button" class="flex-1 rounded-lg border border-border px-3 disabled:opacity-40" :disabled="!generatedContent && !isGenerating" :aria-pressed="showResult" @click="showResult = true">2. Resultado</button>
+      </nav>
+      <div v-if="showResult && generationFeedback && generationFeedbackTone === 'error'" role="alert" class="mb-4 break-words rounded-xl border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger xl:hidden">
+        <p>{{ generationFeedback }}</p>
+        <button type="button" class="mt-3 rounded-lg border border-danger/40 px-3" @click="showResult = false">Volver a referencias</button>
+      </div>
       <div class="grid gap-6 xl:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
         <ReverseEngineerInputPanel
+          :class="showResult ? 'hidden xl:block' : ''"
           :max-files="maxFiles"
           :is-dragging="isDragging"
           :selected-files="selectedFiles"
@@ -64,6 +73,7 @@
         />
 
         <ReverseEngineerOutputPanel
+          :class="showResult ? '' : 'hidden xl:block'"
           :generated-content="generatedContent"
           :is-generating="isGenerating"
           :just-copied="justCopied"
@@ -85,6 +95,7 @@
 </template>
 
 <script setup lang="ts">
+const showResult = ref(false)
 import ReverseEngineerInputPanel from '~/components/styles/ReverseEngineerInputPanel.vue'
 import ReverseEngineerOutputPanel from '~/components/styles/ReverseEngineerOutputPanel.vue'
 
@@ -98,6 +109,7 @@ const {
   isGenerating,
   isSavingGuide,
   generationFeedback,
+  generationFeedbackTone,
   saveFeedback,
   isDragging,
   showPrompt,
@@ -119,5 +131,6 @@ const {
   copyContent,
   generateGuide,
   saveGuide
-} = await useReverseEngineerStyleGuide()
+} = useReverseEngineerStyleGuide()
+watch(generatedContent, content => { if (content) showResult.value = true })
 </script>

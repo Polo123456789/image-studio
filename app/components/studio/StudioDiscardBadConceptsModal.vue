@@ -10,7 +10,7 @@
         </li>
       </ul>
       <p v-if="error" role="alert" class="mt-4 text-sm text-danger">{{ error }}</p>
-      <div class="mt-6 flex justify-end gap-3">
+      <div class="sticky bottom-0 mt-6 flex flex-wrap justify-end gap-3 bg-surface py-3">
         <button ref="cancel" type="button" :disabled="saving" class="rounded-lg border border-border px-4 py-2.5 text-sm disabled:opacity-50" @click="emit('close')">Cancelar</button>
         <button type="button" :disabled="saving" class="rounded-lg border border-danger/40 bg-danger/10 px-4 py-2.5 text-sm text-danger disabled:opacity-50" @click="emit('confirm')">{{ saving ? 'Eliminando...' : `Eliminar ${concepts.length} ${concepts.length === 1 ? 'concepto' : 'conceptos'}` }}</button>
       </div>
@@ -25,15 +25,12 @@ const emit = defineEmits<{ close: []; confirm: [] }>()
 const dialog = ref<HTMLDialogElement | null>(null)
 const cancel = ref<HTMLButtonElement | null>(null)
 const imageCount = (concept: StudioConcept) => concept.formats.flatMap(format => format.variants).filter(variant => variant.imageUrl?.trim()).length
-let previousOverflow = ''
+useBodyScrollLock(() => true)
 onMounted(() => {
-  previousOverflow = document.body.style.overflow
-  document.body.style.overflow = 'hidden'
   dialog.value?.showModal()
   cancel.value?.focus()
 })
 onBeforeUnmount(() => {
   dialog.value?.close()
-  document.body.style.overflow = previousOverflow
 })
 </script>
